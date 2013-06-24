@@ -1,0 +1,14 @@
+logging:
+    level: INFO
+http:
+  connectorType: nonblocking+ssl
+  port: 8443
+  ssl:
+      #Example is using a java keystore in the target directory.
+      keyStore: ./target/ssl.pfx
+      keyStorePassword: zapp_pass
+      keyStoreType: pkcs12
+
+metric_service:
+  host: localhost
+  port: 4242
