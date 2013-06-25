@@ -7,11 +7,8 @@
     <artifactId>zenoss.metric.consumer</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <properties>
-        <version.slf4j>1.7.5</version.slf4j>
         <version.zapp>0.0.3-SNAPSHOT</version.zapp>
-        <version.metrics>2.2.0</version.metrics>
         <version.junit>4.11</version.junit>
-        <version.mockito>1.9.5</version.mockito>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
         <version.zenoss.tsdb>0.0.1-SNAPSHOT</version.zenoss.tsdb>
@@ -32,12 +29,6 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${version.junit}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>${version.mockito}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
