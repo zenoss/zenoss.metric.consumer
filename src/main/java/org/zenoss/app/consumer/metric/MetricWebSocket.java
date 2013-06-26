@@ -22,10 +22,10 @@ public class MetricWebSocket {
 
     @OnMessage
     public Control onMessage(Message message, Connection connection) {
-        log.debug( "Message: {}", message);
         Metric[] metrics = message.getMetrics();
-
+        log.debug( "Message: control={}, len(metrics)={}", message.getControl(), (metrics == null) ? -1 : metrics.length);
         for ( Metric metric : metrics) {
+            log.debug( " Metric: {}", metric);
             service.push( metric);
             //TODO handle response
         }

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Managed
@@ -55,16 +56,34 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
      */
     MetricReaderThread reader = new MetricReaderThread();
 
-    AtomicLong totalIncoming  = new AtomicLong(0);
+    /**
+     * counter for total messages pushed
+     */
+    AtomicLong totalIncoming = new AtomicLong(0);
 
+    /**
+     * counter for total messages send to OpenTsdb
+     */
     AtomicLong totalOutgoing = new AtomicLong(0);
+
+    /**
+     * counter for total errors from OpenTsdb
+     */
+    AtomicLong totalErrors = new AtomicLong(0);
+
+    /**
+     * condition variable for client-server liveliness
+     */
+    AtomicBoolean alive = new AtomicBoolean(false);
 
     @Override
     public void start() throws IOException {
         MetricServiceConfiguration metricConfig = config.getMetricServiceConfiguration();
         inputBuffer = new ArrayBlockingQueue<>(metricConfig.getInputBufferSize());
         client = metricConfig.newClient();
+
         client.open();
+
         writer.start();
         reader.start();
     }
@@ -76,20 +95,22 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
 
         try {
             writer.join();
-        } catch ( InterruptedException ex) {
+        } catch (InterruptedException ex) {
         }
 
         //because opentsdb uses a buffered reader, the socket has to close to interrupt
         client.close();
         try {
             reader.join();
-        } catch ( InterruptedException ex) {
+        } catch (InterruptedException ex) {
         }
+        alive.set(false);
     }
 
     @Override
     public Control push(Metric metric) {
-        if ( !isAlive()) {
+        //test for connectivity
+        if (!isAlive()) {
             //connection's down, try another client
             return new Control();
         }
@@ -101,9 +122,10 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         Map<String, String> tags = metric.getTags();
         String message = OpenTsdbSocketClient.toPutMessage(name, timestamp, value, tags);
 
+        //enqueue message
         if (inputBuffer.offer(message)) {
-            totalIncoming.incrementAndGet();
             //success
+            totalIncoming.incrementAndGet();
             return new Control();
         } else {
             //backoff -- buffer's full
@@ -116,10 +138,8 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
      */
     @HealthCheck
     public boolean isAlive() {
-        //TODO understand how to test for "connectivity" which is different than socket.isConnected
-        return true;
+        return alive.get();
     }
-
 
     /**
      * @ return how many messages are were queued
@@ -131,8 +151,15 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
     /**
      * @ return how many messages are were written
      */
-     public long getTotalOutgoing() {
+    public long getTotalOutgoing() {
         return totalOutgoing.get();
+    }
+
+    /**
+     * @ return how many errors OpenTsdb returned
+     */
+    public long getTotalErrors() {
+        return totalErrors.get();
     }
 
     /**
@@ -148,25 +175,32 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
     class MetricWriterThread extends Thread {
         @Override
         public void run() {
-            log.info( "MetricWriter thread started");
+            log.info("MetricWriter thread started");
             try {
                 while (!isInterrupted()) {
                     String message = inputBuffer.take();
-                    try {
-                        client.put(message);
-                        totalOutgoing.incrementAndGet();
-                    } catch (IOException ex) {
-                        log.error( "Exception writing to server", ex);
-                        //TODO connection's probably closed, ergo reconnect
-                    }
+                    write( message);
                 }
             } catch (InterruptedException ex) {
                 //done!
             }
-            log.info( "MetricWriter thread complete");
+            log.info("MetricWriter thread complete");
+        }
+
+        /** continuously push message until success */
+        public void write(String message) throws InterruptedException {
+            while ( !isInterrupted()) {
+                try {
+                    client.put(message);
+                    totalOutgoing.incrementAndGet();
+                    break;
+                } catch (IOException ex) {
+                    log.error("Exception writing to server", ex);
+                    alive.set( false);
+                }
+            }
         }
     }
-
 
     /**
      * A thread to asynchronously read OpenTsdb responses
@@ -174,19 +208,22 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
     class MetricReaderThread extends Thread {
         @Override
         public void run() {
-            log.info( "MetricReader thread started");
+            log.info("MetricReader thread started");
             while (!isInterrupted()) {
                 try {
                     String message = client.read();
-                    if ( message == null) {
-                        //TODO connection's closed, ergo reconnect
+                    if (message == null) {
+                        alive.set( false);
+                    } else {
+                        log.error( "OpenTsdb has error: {}", message);
+                        totalErrors.incrementAndGet();
                     }
-                } catch ( IOException ex) {
-                    log.error( "Exception reading from server", ex);
-                    //TODO connection's probably closed, ergo reconnect
+                } catch (IOException ex) {
+                    log.error("Exception reading from server", ex);
+                    alive.set( false);
                 }
             }
-            log.info( "MetricReader thread complete");
+            log.info("MetricReader thread complete");
         }
     }
 
