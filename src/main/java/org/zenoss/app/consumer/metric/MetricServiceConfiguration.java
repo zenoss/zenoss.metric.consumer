@@ -12,8 +12,8 @@
 package org.zenoss.app.consumer.metric;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.zenoss.lib.tsdb.OpenTsdbSocketClient;
-import org.zenoss.lib.tsdb.OpenTsdbSocketClientConfiguration;
+import org.zenoss.lib.tsdb.OpenTsdbClient;
+import org.zenoss.lib.tsdb.OpenTsdbClientConfiguration;
 
 import javax.validation.Valid;
 
@@ -24,7 +24,7 @@ public class MetricServiceConfiguration {
 
     @Valid
     @JsonProperty("opentsdb_client")
-    private OpenTsdbSocketClientConfiguration openTsdbSocketClientConfiguration = new OpenTsdbSocketClientConfiguration();
+    private OpenTsdbClientConfiguration openTsdbSocketClientConfiguration = new OpenTsdbClientConfiguration();
 
     /** Maximum number of input messages to queue*/
     public Integer getInputBufferSize() {
@@ -32,7 +32,7 @@ public class MetricServiceConfiguration {
     }
 
     /** Open a connection to the socket client */
-    public OpenTsdbSocketClient newClient() {
-        return new OpenTsdbSocketClient( openTsdbSocketClientConfiguration);
+    public OpenTsdbClient newClient() {
+        return new OpenTsdbClient( openTsdbSocketClientConfiguration);
     }
 }

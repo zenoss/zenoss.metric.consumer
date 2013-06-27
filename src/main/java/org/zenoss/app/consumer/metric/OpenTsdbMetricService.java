@@ -19,7 +19,7 @@ import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.annotations.HealthCheck;
 import org.zenoss.dropwizardspring.annotations.Managed;
-import org.zenoss.lib.tsdb.OpenTsdbSocketClient;
+import org.zenoss.lib.tsdb.OpenTsdbClient;
 
 import java.io.IOException;
 import java.util.Map;
@@ -44,7 +44,7 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
     /**
      * OpenTsdb client
      */
-    OpenTsdbSocketClient client;
+    OpenTsdbClient client;
 
     /**
      * consumer thread for output messages
@@ -120,7 +120,7 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         long timestamp = metric.getTimestamp();
         double value = metric.getValue();
         Map<String, String> tags = metric.getTags();
-        String message = OpenTsdbSocketClient.toPutMessage(name, timestamp, value, tags);
+        String message = OpenTsdbClient.toPutMessage(name, timestamp, value, tags);
 
         //enqueue message
         if (inputBuffer.offer(message)) {

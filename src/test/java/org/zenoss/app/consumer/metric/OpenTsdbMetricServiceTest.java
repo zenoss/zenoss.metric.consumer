@@ -1,6 +1,5 @@
 package org.zenoss.app.consumer.metric;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -8,7 +7,7 @@ import org.mockito.MockitoAnnotations;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.lib.tsdb.OpenTsdbSocketClient;
+import org.zenoss.lib.tsdb.OpenTsdbClient;
 
 import java.util.HashMap;
 
@@ -26,7 +25,7 @@ public class OpenTsdbMetricServiceTest {
     MetricServiceConfiguration metricConfig;
 
     @Mock
-    OpenTsdbSocketClient client;
+    OpenTsdbClient client;
 
     OpenTsdbMetricService service;
 
@@ -67,7 +66,7 @@ public class OpenTsdbMetricServiceTest {
 
         //memory barrier ;)
         synchronized ( this) {
-            String message = OpenTsdbSocketClient.toPutMessage("name", 0, 0.0, new HashMap<String,String>());
+            String message = OpenTsdbClient.toPutMessage("name", 0, 0.0, new HashMap<String, String>());
             verify( client).put(message);
             assertEquals(1, service.getTotalIncoming());
             assertEquals(1, service.getTotalOutgoing());
