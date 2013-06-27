@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
     <artifactId>zenoss.metric.consumer</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <properties>
         <version.zapp>0.0.3</version.zapp>
         <version.junit>4.11</version.junit>
