@@ -26,7 +26,7 @@ public class MetricWebSocketTest {
 
     @Test
     public void testOnMessage() throws Exception {
-        Metric metric = new Metric("name",0, 0.0);
+        Metric metric = new Metric("name", 0, 0.0);
         Control control = new Control();
         Message message = new Message(control, new Metric[]{ metric});
         Control response = socket.onMessage( message, connection);

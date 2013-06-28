@@ -2,14 +2,15 @@ logging:
     level: INFO
 http:
   port: 8443
+  adminPort: 58443
   connectorType: nonblocking+ssl
   ssl:
-      keyStore:         ./target/ssl.pfx
+      keyStore:         /home/zendev/src/metric-consumer/target/ssl.pfx
       keyStorePassword: zapp_pass
       keyStoreType:     pkcs12
 
 metric_service:
   inputBufferSize: 1024
   opentsdb_client:
-      hostName: localhost
+      hostName: 192.168.33.11
       port:     4242
