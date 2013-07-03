@@ -29,8 +29,8 @@ import java.util.Map;
 
 @Resource
 @Path("/resource/metric")
-public class MetricResource {
-    static final Logger log = LoggerFactory.getLogger(MetricResource.class);
+public class MetricWebResource {
+    static final Logger log = LoggerFactory.getLogger(MetricWebResource.class);
 
     @Autowired
     MetricService sink;
@@ -40,11 +40,8 @@ public class MetricResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Control post(Message message) {
-        log.debug( "POST: resource/metric/post: {}", message);
-        for (Metric metric : message.getMetrics()) {
-            Control response = sink.push(metric);
-        }
-        return new Control();
+        log.debug( "POST: resource/metric: control={}, len(metrics)={}", message.getControl(), (message.getMetrics() == null) ? -1 : message.getMetrics().length);
+        return sink.push(message.getMetrics());
     }
 
     @POST
@@ -54,7 +51,7 @@ public class MetricResource {
         log.debug( "POST: resource/metric/post( name={}, ts={}, value={}, tagged={})", name, ts, value, tagged);
         Map<String, String> tags = extractTags(tagged);
         Metric metric = new Metric(name, ts, value, tags);
-        Control control = sink.push(metric);
+        Control control = sink.push( new Metric[]{metric});
         return Response.status(Response.Status.ACCEPTED).build();
     }
 
@@ -71,10 +68,10 @@ public class MetricResource {
 
 
     @SuppressWarnings({"unused"})
-    public MetricResource () {
+    public MetricWebResource() {
     }
 
-    public MetricResource( MetricService sink) {
+    public MetricWebResource(MetricService sink) {
         this.sink = sink;
     }
 }

@@ -12,27 +12,57 @@
 package org.zenoss.app.consumer.metric;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.zenoss.lib.tsdb.OpenTsdbClient;
-import org.zenoss.lib.tsdb.OpenTsdbClientConfiguration;
+import org.zenoss.lib.tsdb.OpenTsdbClientPoolConfiguration;
 
 import javax.validation.Valid;
 
 public class MetricServiceConfiguration {
 
-    @JsonProperty
-    private Integer inputBufferSize = 1024;
-
     @Valid
-    @JsonProperty("opentsdb_client")
-    private OpenTsdbClientConfiguration openTsdbSocketClientConfiguration = new OpenTsdbClientConfiguration();
+    @JsonProperty("openTsdbClientPool")
+    private OpenTsdbClientPoolConfiguration openTsdbClientPoolConfiguration = new OpenTsdbClientPoolConfiguration();
 
-    /** Maximum number of input messages to queue*/
-    public Integer getInputBufferSize() {
-        return inputBufferSize;
+    /** how many concurrent threads for publishing to opentsdb  */
+    @JsonProperty
+    private int maxThreads = 1;
+
+    /** how many metrics per thread */
+    @JsonProperty
+    private int jobSize = 5;
+
+    /** how many seconds to wait for thread termination on shutdown */
+    @JsonProperty
+    private int terminationTimeout = 60;
+
+    public OpenTsdbClientPoolConfiguration getOpenTsdbClientPoolConfiguration() {
+        return openTsdbClientPoolConfiguration;
     }
 
-    /** Open a connection to the socket client */
-    public OpenTsdbClient newClient() {
-        return new OpenTsdbClient( openTsdbSocketClientConfiguration);
+    public int getMaxThreads() {
+        return maxThreads;
+    }
+
+    public int getJobSize() {
+        return jobSize;
+    }
+
+    public int getTerminationTimeout() {
+        return terminationTimeout;
+    }
+
+    public void setOpenTsdbClientPoolConfiguration(OpenTsdbClientPoolConfiguration openTsdbClientPoolConfiguration) {
+        this.openTsdbClientPoolConfiguration = openTsdbClientPoolConfiguration;
+    }
+
+    public void setMaxThreads(int maxThreads) {
+        this.maxThreads = maxThreads;
+    }
+
+    public void setJobSize(int jobSize) {
+        this.jobSize = jobSize;
+    }
+
+    public void setTerminationTimeout(int terminationTimeout) {
+        this.terminationTimeout = terminationTimeout;
     }
 }

@@ -10,67 +10,62 @@ import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.lib.tsdb.OpenTsdbClient;
 
 import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class OpenTsdbMetricServiceTest {
 
-    @Mock
     ConsumerAppConfiguration config;
 
-    @Mock
-    MetricServiceConfiguration metricConfig;
-
-    @Mock
-    OpenTsdbClient client;
+    OpenTsdbExecutorService executorService;
 
     OpenTsdbMetricService service;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        when(config.getMetricServiceConfiguration()).thenReturn(metricConfig);
-        when(metricConfig.newClient()).thenReturn(client);
-        service = new OpenTsdbMetricService(config);
+        executorService = mock(OpenTsdbExecutorService.class);
+        config = new ConsumerAppConfiguration();
+        service = new OpenTsdbMetricService(config, executorService);
     }
 
     @Test
     public void testStartStop() throws Exception {
-        try {
-            when(metricConfig.getInputBufferSize()).thenReturn( 1);
-            service.start();
-            verify(client, times(1)).open();
-        } finally {
-            service.stop();
-            verify(client, times(1)).open();
-            verify(client, times(1)).close();
-        }
+        service.start();
+        service.stop();
+        verify(executorService, times(1)).stop();
+    }
+
+    @Test
+    public void testPushHandlesNull() throws Exception {
+        assertEquals( new Control(), service.push( null));
     }
 
     @Test
     public void testPush() throws Exception {
-        Metric metric = new Metric("name", 0, 0.0, new HashMap<String, String>());
-        when(metricConfig.getInputBufferSize()).thenReturn( 1);
-        service.start();
-        assertEquals( new Control(), service.push( metric));
+        Metric metric = new Metric("name", 0, 0.0);
+        Metric[] metrics = { metric};
+        assertEquals( new Control(), service.push( metrics));
+        verify( executorService, times(1)).submit(service, metrics, 0, 1);
+    }
 
-        //should finish before 5 seconds....
-        int i = 0 ;
-        while ( service.getTotalPending() > 0 && service.getTotalOutgoing() <= 0 && i <= 50) {
-            Thread.sleep(100);
-            ++i;
-        }
+    @Test
+    public void testPushTwice() throws Exception {
+        Metric metric = new Metric("name", 0, 0.0);
+        Metric[] metrics = { metric, metric, metric, metric, metric, metric};
+        config.getMetricServiceConfiguration().setJobSize( 5);
+        assertEquals( new Control(), service.push( metrics));
+        verify( executorService, times(1)).submit(service, metrics, 0, 5);
+        verify( executorService, times(1)).submit(service, metrics, 5, 6);
+    }
 
-        //memory barrier ;)
-        synchronized ( this) {
-            String message = OpenTsdbClient.toPutMessage("name", 0, 0.0, new HashMap<String, String>());
-            verify( client).put(message);
-            assertEquals(1, service.getTotalIncoming());
-            assertEquals(1, service.getTotalOutgoing());
-            assertEquals(0, service.getTotalPending());
-        }
+    @Test
+    public void testPushWithOverflow() throws Exception {
+        Metric metric = new Metric("name", 0, 0.0);
+        Metric[] metrics = { metric};
+        config.getMetricServiceConfiguration().setJobSize( Integer.MAX_VALUE);
+        assertEquals( new Control(), service.push( metrics));
+        verify( executorService, times(1)).submit(service, metrics, 0, 1);
     }
 }

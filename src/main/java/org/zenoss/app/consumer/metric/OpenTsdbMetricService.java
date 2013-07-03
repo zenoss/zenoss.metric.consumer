@@ -17,16 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.dropwizardspring.annotations.HealthCheck;
 import org.zenoss.dropwizardspring.annotations.Managed;
-import org.zenoss.lib.tsdb.OpenTsdbClient;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Managed
 public class OpenTsdbMetricService implements MetricService, com.yammer.dropwizard.lifecycle.Managed {
@@ -34,204 +25,144 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
     static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
 
     @Autowired
-    ConsumerAppConfiguration config;
+    public OpenTsdbMetricService(ConsumerAppConfiguration config) {
+        this( config, new OpenTsdbExecutorService( config.getMetricServiceConfiguration()));
+    }
+
+    public OpenTsdbMetricService(ConsumerAppConfiguration config, OpenTsdbExecutorService executorService) {
+        this.config = config;
+        this.executorService = executorService;
+    }
+
+    @Override
+    public void start() {
+    }
+
+    @Override
+    public void stop() throws InterruptedException {
+        executorService.stop();
+    }
+
+    @Override
+    public Control push(Metric[] metrics) {
+        if ( metrics == null) {
+            //yuck
+            return new Control( );
+        }
+
+        if ( backoff( metrics.length)) {
+            //hold your horses bud!
+            return new Control();
+        }
+
+        //yee haw - all your metrics are belong to us
+        int i = 0;
+        int jobSize = config.getMetricServiceConfiguration().getJobSize();
+        while ( i < metrics.length && i + jobSize > 0) {
+            int end = i + jobSize;
+            if ( end > metrics.length) {
+                end = metrics.length;
+            }
+            executorService.submit( this, metrics, i, end);
+            i += jobSize;
+        }
+
+        if ( i < metrics.length) {
+            //this may happen on overflow
+            executorService.submit( this, metrics, i, metrics.length);
+        }
+
+        return new Control();
+    }
 
     /**
-     * incoming message buffer
+     * @ return how many messages were queued
      */
-    BlockingQueue<String> inputBuffer;
+    public synchronized long getTotalIncoming() {
+        return totalIncoming;
+    }
 
     /**
-     * OpenTsdb client
+     * @ return how many messages were written
      */
-    OpenTsdbClient client;
+    public synchronized long getTotalOutgoing() {
+        return totalOutgoing;
+    }
 
     /**
-     * consumer thread for output messages
+     * @ return how many errors did OpenTsdb return
      */
-    MetricWriterThread writer = new MetricWriterThread();
+    public synchronized long getTotalErrors() {
+        return totalErrors;
+    }
+
+    /** backoff test and increment */
+    synchronized boolean backoff( int v) {
+        if ( v >= 0) {
+            if ( totalIncoming + v < 0) {
+                //reset the counter
+                totalIncoming = totalIncoming - totalOutgoing;
+                totalOutgoing = 0;
+            }
+
+            //edge case
+            if ( totalIncoming + v < 0) {
+                return true;
+            }
+
+            totalIncoming += v;
+
+            return false;
+        }
+        return true;
+    }
+
+    //exposed for testing
+    synchronized void incrementTotalIncoming(int v) {
+        if ( v >= 0) {
+            totalIncoming += v;
+        }
+    }
+
+    synchronized void incrementTotalOutgoing(int v) {
+        if ( v >= 0) {
+            totalOutgoing += v;
+            //backoff handles overflow...
+        }
+    }
+
+    synchronized void incrementTotalError(int v) {
+        if ( v >= 0) {
+            totalErrors += v;
+            //wrap around back to zero, because, opentsdb may not like our metrics :-(
+            if (totalErrors < 0) {
+                totalErrors = v;
+            }
+        }
+    }
 
     /**
-     * consumer for opentsdb server responses
+     * application configuration
      */
-    MetricReaderThread reader = new MetricReaderThread();
+    private ConsumerAppConfiguration config;
+
+    /**
+     * manage opentsd read/write jobs
+     */
+    private OpenTsdbExecutorService executorService;
 
     /**
      * counter for total messages pushed
      */
-    AtomicLong totalIncoming = new AtomicLong(0);
+    private long totalIncoming = 0;
 
     /**
      * counter for total messages send to OpenTsdb
      */
-    AtomicLong totalOutgoing = new AtomicLong(0);
+    private long totalOutgoing = 0;
 
     /**
      * counter for total errors from OpenTsdb
      */
-    AtomicLong totalErrors = new AtomicLong(0);
-
-    /**
-     * condition variable for client-server liveliness
-     */
-    AtomicBoolean alive = new AtomicBoolean(false);
-
-    @Override
-    public void start() throws IOException {
-        MetricServiceConfiguration metricConfig = config.getMetricServiceConfiguration();
-        inputBuffer = new ArrayBlockingQueue<>(metricConfig.getInputBufferSize());
-        client = metricConfig.newClient();
-
-        client.open();
-
-        writer.start();
-        reader.start();
-    }
-
-    @Override
-    public void stop() {
-        reader.interrupt();
-        writer.interrupt();
-
-        try {
-            writer.join();
-        } catch (InterruptedException ex) {
-        }
-
-        //because opentsdb uses a buffered reader, the socket has to close to interrupt
-        client.close();
-        try {
-            reader.join();
-        } catch (InterruptedException ex) {
-        }
-        alive.set(false);
-    }
-
-    @Override
-    public Control push(Metric metric) {
-        //test for connectivity
-        if (!isAlive()) {
-            //connection's down, try another client
-            return new Control();
-        }
-
-        //create put message
-        String name = metric.getName();
-        long timestamp = metric.getTimestamp();
-        double value = metric.getValue();
-        Map<String, String> tags = metric.getTags();
-        String message = OpenTsdbClient.toPutMessage(name, timestamp, value, tags);
-
-        //enqueue message
-        if (inputBuffer.offer(message)) {
-            //success
-            totalIncoming.incrementAndGet();
-            return new Control();
-        } else {
-            //backoff -- buffer's full
-            return new Control();
-        }
-    }
-
-    /**
-     * @return true/false depending on the connection state of tsdb client
-     */
-    @HealthCheck
-    public boolean isAlive() {
-        return alive.get();
-    }
-
-    /**
-     * @ return how many messages are were queued
-     */
-    public long getTotalIncoming() {
-        return totalIncoming.get();
-    }
-
-    /**
-     * @ return how many messages are were written
-     */
-    public long getTotalOutgoing() {
-        return totalOutgoing.get();
-    }
-
-    /**
-     * @ return how many errors OpenTsdb returned
-     */
-    public long getTotalErrors() {
-        return totalErrors.get();
-    }
-
-    /**
-     * @ return how many messages are waiting to be written
-     */
-    public long getTotalPending() {
-        return inputBuffer.size();
-    }
-
-    /**
-     * A thread to asynchronously write OpenTsdb metrics
-     */
-    class MetricWriterThread extends Thread {
-        @Override
-        public void run() {
-            log.info("MetricWriter thread started");
-            try {
-                while (!isInterrupted()) {
-                    String message = inputBuffer.take();
-                    write( message);
-                }
-            } catch (InterruptedException ex) {
-                //done!
-            }
-            log.info("MetricWriter thread complete");
-        }
-
-        /** continuously push message until success */
-        public void write(String message) throws InterruptedException {
-            while ( !isInterrupted()) {
-                try {
-                    client.put(message);
-                    totalOutgoing.incrementAndGet();
-                    break;
-                } catch (IOException ex) {
-                    log.error("Exception writing to server", ex);
-                    alive.set( false);
-                }
-            }
-        }
-    }
-
-    /**
-     * A thread to asynchronously read OpenTsdb responses
-     */
-    class MetricReaderThread extends Thread {
-        @Override
-        public void run() {
-            log.info("MetricReader thread started");
-            while (!isInterrupted()) {
-                try {
-                    String message = client.read();
-                    if (message == null) {
-                        alive.set( false);
-                    } else {
-                        log.error( "OpenTsdb has error: {}", message);
-                        totalErrors.incrementAndGet();
-                    }
-                } catch (IOException ex) {
-                    log.error("Exception reading from server", ex);
-                    alive.set( false);
-                }
-            }
-            log.info("MetricReader thread complete");
-        }
-    }
-
-    @SuppressWarnings({"unused"})
-    public OpenTsdbMetricService() {
-    }
-
-    public OpenTsdbMetricService(ConsumerAppConfiguration config) {
-        this.config = config;
-    }
+    private long totalErrors = 0;
 }
