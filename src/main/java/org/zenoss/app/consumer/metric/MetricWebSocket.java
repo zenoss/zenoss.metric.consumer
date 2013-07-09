@@ -27,6 +27,7 @@ public class MetricWebSocket {
         for ( Metric metric : metrics) {
             log.debug( " Metric: {}", metric);
             service.push( metric);
+            log.debug("Pushed metric!");
             //TODO handle response
         }
 
