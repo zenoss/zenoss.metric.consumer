@@ -24,7 +24,9 @@ public class MetricWebSocket {
     public Control onMessage(Message message, Connection connection) {
         Metric[] metrics = message.getMetrics();
         log.debug( "Message: control={}, len(metrics)={}", message.getControl(), (metrics == null) ? -1 : metrics.length);
-        return service.push( message.getMetrics());
+        Control control = service.push( message.getMetrics());
+        log.debug( "push( len(metrics)={}) = {}", (metrics == null) ? -1 : metrics.length, control);
+        return control;
     }
 
     @SuppressWarnings({"unused"})
