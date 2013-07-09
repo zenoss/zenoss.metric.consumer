@@ -83,10 +83,10 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         client = metricConfig.newClient();
 
         client.open();
-        alive.set(true);
 
         writer.start();
         reader.start();
+        alive.set(true);
     }
 
     @Override
