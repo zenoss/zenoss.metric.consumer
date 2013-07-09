@@ -5,13 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
     <artifactId>zenoss.metric.consumer</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
     <properties>
-        <version.zapp>0.0.3-SNAPSHOT</version.zapp>
+        <version.zapp>0.0.3</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
-        <version.zenoss.tsdb>0.0.1-SNAPSHOT</version.zenoss.tsdb>
+        <version.zenoss.tsdb>0.0.3-SNAPSHOT</version.zenoss.tsdb>
     </properties>
     <dependencies>
         <dependency>
