@@ -35,7 +35,7 @@ public class MetricWebResourceTest extends ResourceTest {
     @Test
     public void testPostMessage() throws Exception {
         Metric metric = new Metric("name", 0, 1.0);
-        Message message = new Message(new Control("", ""), new Metric[] {metric});
+        Message message = new Message(new Control(), new Metric[] {metric});
         WebResource resource = client().resource("/resource/metric");
         WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
         assertThat(builder.post(Control.class, message)).isEqualTo(control);

@@ -90,7 +90,7 @@ public class OpenTsdbExecutorService {
                         client = null;
                     }
                 }
-                service.incrementTotalOutgoing(end - start);
+                service.incrementTotalProcessed(end - start);
                 if (client != null) {
                     try {
                         client.flush();
@@ -116,7 +116,7 @@ public class OpenTsdbExecutorService {
         }
 
         private String convert(Metric metric) {
-            String name = metric.getName();
+            String name = metric.getMetric();
             long timestamp = metric.getTimestamp();
             double value = metric.getValue();
             Map<String, String> tags = metric.getTags();

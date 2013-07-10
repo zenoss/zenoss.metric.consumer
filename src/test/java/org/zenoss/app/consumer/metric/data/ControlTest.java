@@ -12,14 +12,14 @@ public class ControlTest {
 
     @Test
     public void serializesToJSON() throws Exception {
-        final Control message = new Control("control-type", "control-value");
+        final Control message = new Control(Control.Type.OK, "control-value");
         assertThat(asJson(message), is(jsonFixture("fixtures/control.json")));
     }
 
 
     @Test
     public void deserializesFromJSON() throws Exception {
-        final Control message = new Control("control-type", "control-value");
+        final Control message = new Control(Control.Type.OK, "control-value");
         assertThat(fromJson(jsonFixture("fixtures/control.json"), Control.class), is(message));
     }
 }

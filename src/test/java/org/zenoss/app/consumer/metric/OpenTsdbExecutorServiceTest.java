@@ -73,7 +73,7 @@ public class OpenTsdbExecutorServiceTest {
         String message = OpenTsdbClient.toPutMessage(metric.getName(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(metricService, times(0)).incrementTotalError(anyInt());
-        verify(metricService, times(1)).incrementTotalOutgoing(1);
+        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(1)).put(client);
     }
 
@@ -98,7 +98,7 @@ public class OpenTsdbExecutorServiceTest {
         verify(goodClient, times(1)).put(message);
         verify(goodClient, times(1)).flush();
         verify(metricService, times(0)).incrementTotalError(anyInt());
-        verify(metricService, times(1)).incrementTotalOutgoing(1);
+        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(1)).put(goodClient);
         verify(clientPool, times(1)).kill(badClient);
     }
@@ -124,7 +124,7 @@ public class OpenTsdbExecutorServiceTest {
         verify(client, times(1)).read();
         verify(client, times(1)).flush();
         verify(metricService, times(0)).incrementTotalError(anyInt());
-        verify(metricService, times(1)).incrementTotalOutgoing(1);
+        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(1)).kill(client);
         verify(clientPool, times(0)).put(client);
     }
@@ -150,7 +150,7 @@ public class OpenTsdbExecutorServiceTest {
         verify(client, times(1)).read();
         verify(client, times(1)).flush();
         verify(metricService, times(1)).incrementTotalError(1);
-        verify(metricService, times(1)).incrementTotalOutgoing(1);
+        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(0)).kill(client);
         verify(clientPool, times(1)).put(client);
     }

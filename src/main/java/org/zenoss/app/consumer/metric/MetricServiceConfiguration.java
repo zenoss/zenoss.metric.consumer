@@ -34,6 +34,14 @@ public class MetricServiceConfiguration {
     @JsonProperty
     private int terminationTimeout = 60;
 
+    /** how many queued messages before dropping metrics and sending high collisions */
+    @JsonProperty
+    private int highCollisionMark = 1024;
+
+    /** how many queued messages before sending low collisions */
+    @JsonProperty
+    private int lowCollisionMark = 512;
+
     public OpenTsdbClientPoolConfiguration getOpenTsdbClientPoolConfiguration() {
         return openTsdbClientPoolConfiguration;
     }
@@ -50,6 +58,14 @@ public class MetricServiceConfiguration {
         return terminationTimeout;
     }
 
+    public int getHighCollisionMark() {
+        return highCollisionMark;
+    }
+
+    public int getLowCollisionMark() {
+        return lowCollisionMark;
+    }
+
     public void setOpenTsdbClientPoolConfiguration(OpenTsdbClientPoolConfiguration openTsdbClientPoolConfiguration) {
         this.openTsdbClientPoolConfiguration = openTsdbClientPoolConfiguration;
     }
@@ -64,5 +80,13 @@ public class MetricServiceConfiguration {
 
     public void setTerminationTimeout(int terminationTimeout) {
         this.terminationTimeout = terminationTimeout;
+    }
+
+    public void setHighCollisionMark(int highCollisionMark) {
+        this.highCollisionMark= highCollisionMark;
+    }
+
+    public void setLowCollisionMark(int lowCollisionMark) {
+        this.lowCollisionMark= lowCollisionMark;
     }
 }

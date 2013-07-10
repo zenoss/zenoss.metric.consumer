@@ -12,18 +12,65 @@
 package org.zenoss.app.consumer.metric.data;
 
 public final class Control {
-    private String type;
-    private String value;
+
+    public static Control ok() {
+        return new Control(Type.OK);
+    }
+
+    public static Control error(String reason) {
+        return new Control(Type.ERROR, reason);
+    }
+
+    public static Control dropped(String reason) {
+        return new Control(Type.DROPPED, reason);
+    }
+
+    public static Control malformedRequest(String reason) {
+        return new Control(Type.MALFORMED_REQUEST, reason);
+    }
+
+    public static Control lowCollision() {
+        return new Control(Type.LOW_COLLISION);
+    }
+
+    public static Control highCollision() {
+        return new Control(Type.HIGH_COLLISION);
+    }
+
+
+    public enum Type {
+        /** Successful processing */
+        OK,
+
+        /** Internal service error, try another consumer */
+        ERROR,
+
+        /** Metrics were dropped, most likely because of high collision */
+        DROPPED,
+
+        /** Request-body is malformed */
+        MALFORMED_REQUEST,
+
+        /** Metric processing breached the low water mark, however, all metrics were processed */
+        LOW_COLLISION,
+
+        /** Metric processing breached the high water mark, and, no metrics were processed */
+        HIGH_COLLISION
+    }
 
     public Control() {
     }
 
-    public Control(String type, String value) {
+    public Control(Type type) {
+        this(type, "");
+    }
+
+    public Control(Type type, String value) {
         this.type = type;
         this.value = value;
     }
 
-    public String getType() {
+    public Type getType() {
         return type;
     }
 
@@ -31,7 +78,7 @@ public final class Control {
         return value;
     }
 
-    public void setType(String type) {
+    public void setType(Type type) {
         this.type = type;
     }
 
@@ -66,4 +113,7 @@ public final class Control {
                 ", value='" + value + '\'' +
                 '}';
     }
+
+    private Type type;
+    private String value;
 }
