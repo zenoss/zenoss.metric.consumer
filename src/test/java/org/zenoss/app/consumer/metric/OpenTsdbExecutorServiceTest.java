@@ -70,7 +70,7 @@ public class OpenTsdbExecutorServiceTest {
         }).when(executorService).execute(any(Runnable.class));
         service.submit(metricService, metrics, 0, 1);
 
-        String message = OpenTsdbClient.toPutMessage(metric.getName(), metric.getTimestamp(), metric.getValue(), metric.getTags());
+        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(metricService, times(0)).incrementTotalError(anyInt());
         verify(metricService, times(1)).incrementTotalProcessed(1);
@@ -93,7 +93,7 @@ public class OpenTsdbExecutorServiceTest {
         }).when(executorService).execute(any(Runnable.class));
         service.submit(metricService, metrics, 0, 1);
 
-        String message = OpenTsdbClient.toPutMessage(metric.getName(), metric.getTimestamp(), metric.getValue(), metric.getTags());
+        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(badClient, times(1)).put(message);
         verify(goodClient, times(1)).put(message);
         verify(goodClient, times(1)).flush();
@@ -119,7 +119,7 @@ public class OpenTsdbExecutorServiceTest {
         }).when(executorService).execute(any(Runnable.class));
         service.submit(metricService, metrics, 0, 1);
 
-        String message = OpenTsdbClient.toPutMessage(metric.getName(), metric.getTimestamp(), metric.getValue(), metric.getTags());
+        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, times(1)).read();
         verify(client, times(1)).flush();
@@ -145,7 +145,7 @@ public class OpenTsdbExecutorServiceTest {
         }).when(executorService).execute(any(Runnable.class));
         service.submit(metricService, metrics, 0, 1);
 
-        String message = OpenTsdbClient.toPutMessage(metric.getName(), metric.getTimestamp(), metric.getValue(), metric.getTags());
+        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, times(1)).read();
         verify(client, times(1)).flush();

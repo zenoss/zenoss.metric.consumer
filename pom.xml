@@ -7,7 +7,7 @@
     <artifactId>zenoss.metric.consumer</artifactId>
     <version>0.0.2-SNAPSHOT</version>
     <properties>
-        <version.zapp>0.0.4</version.zapp>
+        <version.zapp>0.0.4-SNAPSHOT</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
