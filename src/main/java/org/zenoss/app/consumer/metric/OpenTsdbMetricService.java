@@ -86,6 +86,7 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
 
         writer.start();
         reader.start();
+        alive.set(true);
     }
 
     @Override
@@ -109,6 +110,7 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
 
     @Override
     public Control push(Metric metric) {
+        log.debug("About to push a metric");
         //test for connectivity
         if (!isAlive()) {
             //connection's down, try another client
@@ -116,7 +118,7 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         }
 
         //create put message
-        String name = metric.getName();
+        String name = metric.getMetric();
         long timestamp = metric.getTimestamp();
         double value = metric.getValue();
         Map<String, String> tags = metric.getTags();
@@ -126,6 +128,7 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         if (inputBuffer.offer(message)) {
             //success
             totalIncoming.incrementAndGet();
+            log.debug("Successfully published");
             return new Control();
         } else {
             //backoff -- buffer's full
