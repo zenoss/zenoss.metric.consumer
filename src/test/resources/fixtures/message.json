@@ -1,1 +1,1 @@
-{"control":{"type":"","value":""},"metrics":[{"name":"metric","timestamp":0,"value":0.0,"tags":{"tagName":"tagValue"}}]}
+{"control":{"type":"","value":""},"metrics":[{"metric":"metric","timestamp":0,"value":0.0,"tags":{"tagName":"tagValue"}}]}

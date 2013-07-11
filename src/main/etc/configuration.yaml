@@ -2,6 +2,7 @@ logging:
     level: INFO
 http:
   port: 8443
+  adminPort: 58443
   connectorType: nonblocking+ssl
   ssl:
       keyStore: ${ssl.cert.dir}/ssl.pfx
