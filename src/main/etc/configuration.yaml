@@ -5,7 +5,7 @@ http:
   adminPort: 58443
   connectorType: nonblocking+ssl
   ssl:
-      keyStore:         ./target/ssl.pfx
+      keyStore: ${ssl.cert.dir}/ssl.pfx
       keyStorePassword: zapp_pass
       keyStoreType:     pkcs12
 

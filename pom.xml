@@ -4,14 +4,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
-    <artifactId>zenoss.metric.consumer</artifactId>
+    <artifactId>metric-consumer</artifactId>
     <version>0.0.2-SNAPSHOT</version>
     <properties>
         <version.zapp>0.0.4-SNAPSHOT</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
-        <version.zenoss.tsdb>0.0.3-SNAPSHOT</version.zenoss.tsdb>
+        <version.metric.tsdb>0.0.3-SNAPSHOT</version.zenoss.tsdb>
+        <ssl.cert.dir>target/cert</ssl.cert.dir>
+        <assembly.skipAssembly>true</assembly.skipAssembly>
     </properties>
     <dependencies>
         <dependency>
@@ -21,8 +23,8 @@
         </dependency>
         <dependency>
             <groupId>org.zenoss</groupId>
-            <artifactId>zenoss.metric.tsdb</artifactId>
-            <version>${version.zenoss.tsdb}</version>
+            <artifactId>metric-tsdb</artifactId>
+            <version>${version.metric.tsdb}</version>
         </dependency>
         <!--test scope-->
         <dependency>
@@ -46,6 +48,17 @@
         </dependency>
     </dependencies>
     <build>
+        <resources>
+            <resource>
+                <targetPath>${project.build.directory}/etc</targetPath>
+                <filtering>true</filtering>
+                <directory>${basedir}/src/main/etc</directory>
+            </resource>
+            <resource>
+                <filtering>true</filtering>
+                <directory>${basedir}/src/main/resources</directory>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -64,7 +77,7 @@
                     <mainClass>org.zenoss.app.consumer.ConsumerApp</mainClass>
                     <arguments>
                         <argument>server</argument>
-                        <argument>configuration.yaml</argument>
+                        <argument>${project.build.directory}/etc/configuration.yaml</argument>
                     </arguments>
                 </configuration>
             </plugin>
@@ -129,7 +142,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <keystore>${project.build.directory}/ssl.pfx</keystore>
+                    <keystore>${project.build.directory}/cert/ssl.pfx</keystore>
                     <dname>cn=localhost</dname>
                     <keypass>zapp_pass</keypass>
                     <storepass>zapp_pass</storepass>
@@ -138,6 +151,35 @@
                     <storetype>pkcs12</storetype>
                 </configuration>
             </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.4</version>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/zapp.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <!-- this is used for inheritance merges -->
+                        <phase>package</phase>
+                        <!-- bind to the packaging phase -->
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>assemble</id>
+            <properties>
+                <ssl.cert.dir>etc/${project.artifactId}/cert</ssl.cert.dir>
+                <assembly.skipAssembly>false</assembly.skipAssembly>
+            </properties>
+        </profile>
+    </profiles>
 </project>
