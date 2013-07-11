@@ -11,7 +11,7 @@
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
-        <version.metric.tsdb>0.0.3-SNAPSHOT</version.zenoss.tsdb>
+        <version.metric.tsdb>0.0.3-SNAPSHOT</version.metric.tsdb>
         <ssl.cert.dir>target/cert</ssl.cert.dir>
         <assembly.skipAssembly>true</assembly.skipAssembly>
     </properties>
