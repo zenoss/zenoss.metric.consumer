@@ -1,5 +1,6 @@
 package org.zenoss.app.consumer.metric;
 
+import com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 public class OpenTsdbExecutorServiceTest {
@@ -28,8 +30,6 @@ public class OpenTsdbExecutorServiceTest {
 
     OpenTsdbClientPool clientPool;
 
-    OpenTsdbMetricService metricService;
-
     @Before
     public void setUp() {
         configuration = new MetricServiceConfiguration();
@@ -38,7 +38,6 @@ public class OpenTsdbExecutorServiceTest {
         goodClient = mock(OpenTsdbClient.class);
         clientPool = mock(OpenTsdbClientPool.class);
         executorService = mock(ExecutorService.class);
-        metricService = mock(OpenTsdbMetricService.class);
     }
 
     @Test
@@ -49,17 +48,16 @@ public class OpenTsdbExecutorServiceTest {
         verify(executorService, times(1)).awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = NullPointerException.class)
     public void testSubmitThrowsIllegalArgumentException() throws Exception {
         OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
-        service.submit(null, null, -1, -1);
+        service.submit(null);
     }
 
     @Test
     public void testSubmitSuccess() throws Exception {
         final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
-        final Metric[] metrics = new Metric[]{metric};
 
         when(clientPool.get()).thenReturn(client);
         doAnswer(new Answer() {
@@ -68,20 +66,21 @@ public class OpenTsdbExecutorServiceTest {
                 return null;
             }
         }).when(executorService).execute(any(Runnable.class));
-        service.submit(metricService, metrics, 0, 1);
-
+        service.submit(Lists.newArrayList(metric));
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
-        verify(metricService, times(0)).incrementTotalError(anyInt());
-        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(1)).put(client);
+
+        assertEquals( 0, service.getTotalErrors());
+        assertEquals( 1, service.getTotalIncoming());
+        assertEquals( 1, service.getTotalOutGoing());
+        assertEquals( 0, service.getTotalInFlight());
     }
 
     @Test
     public void testSubmitSuccessAfterWriteException() throws Exception {
         final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
-        final Metric[] metrics = new Metric[]{metric};
 
         when(clientPool.get()).thenReturn(badClient, goodClient);
         doThrow(new IOException()).when(badClient).put(anyString());
@@ -91,23 +90,25 @@ public class OpenTsdbExecutorServiceTest {
                 return null;
             }
         }).when(executorService).execute(any(Runnable.class));
-        service.submit(metricService, metrics, 0, 1);
+        service.submit(Lists.newArrayList(metric));
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(badClient, times(1)).put(message);
         verify(goodClient, times(1)).put(message);
         verify(goodClient, times(1)).flush();
-        verify(metricService, times(0)).incrementTotalError(anyInt());
-        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(1)).put(goodClient);
         verify(clientPool, times(1)).kill(badClient);
+
+        assertEquals( 0, service.getTotalErrors());
+        assertEquals( 1, service.getTotalIncoming());
+        assertEquals( 1, service.getTotalOutGoing());
+        assertEquals( 0, service.getTotalInFlight());
     }
 
     @Test
     public void testSubmitKillsClientAfterReadException() throws Exception {
         final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
-        final Metric[] metrics = new Metric[]{metric};
 
         when(client.read()).thenThrow(new IOException());
         when(clientPool.get()).thenReturn(client);
@@ -117,25 +118,27 @@ public class OpenTsdbExecutorServiceTest {
                 return null;
             }
         }).when(executorService).execute(any(Runnable.class));
-        service.submit(metricService, metrics, 0, 1);
+        service.submit(Lists.newArrayList(metric));
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, times(1)).read();
         verify(client, times(1)).flush();
-        verify(metricService, times(0)).incrementTotalError(anyInt());
-        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(1)).kill(client);
         verify(clientPool, times(0)).put(client);
+
+        assertEquals( 0, service.getTotalErrors());
+        assertEquals( 1, service.getTotalIncoming());
+        assertEquals( 1, service.getTotalOutGoing());
+        assertEquals( 0, service.getTotalInFlight());
     }
 
     @Test
     public void testSubmitSuccessWithErrorResponse() throws Exception {
         final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
-        final Metric[] metrics = new Metric[]{metric};
 
-        when(client.read()).thenReturn ("an opentsdb error message\n");
+        when(client.read()).thenReturn("an opentsdb error message\n");
         when(clientPool.get()).thenReturn(client);
         doAnswer(new Answer() {
             public Object answer(InvocationOnMock invocation) throws Throwable {
@@ -143,15 +146,18 @@ public class OpenTsdbExecutorServiceTest {
                 return null;
             }
         }).when(executorService).execute(any(Runnable.class));
-        service.submit(metricService, metrics, 0, 1);
+        service.submit(Lists.newArrayList(metric));
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, times(1)).read();
         verify(client, times(1)).flush();
-        verify(metricService, times(1)).incrementTotalError(1);
-        verify(metricService, times(1)).incrementTotalProcessed(1);
         verify(clientPool, times(0)).kill(client);
         verify(clientPool, times(1)).put(client);
+
+        assertEquals( 1, service.getTotalErrors());
+        assertEquals( 1, service.getTotalIncoming());
+        assertEquals( 1, service.getTotalOutGoing());
+        assertEquals( 0, service.getTotalInFlight());
     }
 }

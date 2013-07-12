@@ -11,6 +11,7 @@
 
 package org.zenoss.app.consumer.metric;
 
+import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,9 @@ import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.annotations.Managed;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Managed
 public class OpenTsdbMetricService implements MetricService, com.yammer.dropwizard.lifecycle.Managed {
@@ -35,6 +39,9 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         this.config = config;
         this.executorService = executorService;
         this.eventBus = eventBus;
+        highCollisionMark = config.getMetricServiceConfiguration().getHighCollisionMark();
+        lowCollisionMark = config.getMetricServiceConfiguration().getLowCollisionMark();
+        jobSize = config.getMetricServiceConfiguration().getJobSize();
     }
 
     @Override
@@ -48,119 +55,65 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         executorService.stop();
     }
 
+    /**
+     * Partition metrics based on configured job size. Eagerly submit jobs to executor service
+     * until a high collision is detected or all partitions are submitted.
+     */
     @Override
     public Control push(Metric[] metrics) {
         if (metrics == null) {
             return Control.malformedRequest("metrics not nullable");
         }
 
-        if (collides(metrics.length)) {
-            return Control.dropped("collision detected");
-        }
-
-        //yee haw - all your metrics are belong to us
-        int i = 0;
-        int jobSize = config.getMetricServiceConfiguration().getJobSize();
-        while (i < metrics.length && i + jobSize > 0) {
-            int end = i + jobSize;
-            if (end > metrics.length) {
-                end = metrics.length;
+        List<Metric> metricList = Arrays.asList(metrics);
+        List< List<Metric>> metricPartitions = Lists.partition( metricList, jobSize);
+        for ( List<Metric> partition : metricPartitions) {
+            long totalInFlight = executorService.getTotalInFlight();
+            if ( collides( totalInFlight, partition.size())) {
+                return Control.dropped( "collision detected");
             }
-            executorService.submit(this, metrics, i, end);
-            i += jobSize;
-        }
-
-        if (i < metrics.length) {
-            //this may happen on overflow
-            executorService.submit(this, metrics, i, metrics.length);
+            executorService.submit(partition);
         }
 
         return Control.ok();
     }
 
-    /**
-     * @ return how many messages are in flight
-     */
-    public synchronized int getTotalInFlight() {
-        return totalInFlight;
+    public long getTotalInFlight() {
+        return executorService.getTotalInFlight();
     }
 
-    /**
-     * @ return how many messages were queued
-     */
-    public synchronized long getTotalIncoming() {
-        return totalIncoming;
+    public long getTotalIncoming() {
+        return executorService.getTotalIncoming();
     }
 
-    /**
-     * @ return how many messages were written
-     */
-    public synchronized long getTotalOutgoing() {
-        return totalOutgoing;
+    public long getTotalOutGoing() {
+        return executorService.getTotalOutGoing();
     }
 
-    /**
-     * @ return how many errors did OpenTsdb return
-     */
-    public synchronized long getTotalErrors() {
-        return totalErrors;
+    public long getTotalErrors() {
+        return executorService.getTotalErrors();
     }
 
     /**
      * high/low collision test and increment, broad cast control messages
      */
-    synchronized boolean collides(int v) {
-        if (v >= 0) {
-            //overflow...
-            if (totalInFlight + v < 0) {
-                eventBus.post(Control.highCollision());
-                return true;
-            }
-
-            int highCollision = config.getMetricServiceConfiguration().getHighCollisionMark();
-            if (totalInFlight + v >= highCollision) {
-                eventBus.post(Control.highCollision());
-                return true;
-            }
-
-            int lowCollision = config.getMetricServiceConfiguration().getLowCollisionMark();
-            if (totalInFlight + v >= lowCollision) {
-                eventBus.post(Control.lowCollision());
-            }
-            totalInFlight += v;
-            totalIncoming += v;
-
-            //alive for awhile...
-            if (totalIncoming < 0) {
-                totalIncoming = 0;
-            }
-
-            return false;
+    private boolean collides(long totalInFlight, int v) {
+        //overflow...
+        if (totalInFlight + v < 0) {
+            eventBus.post(Control.highCollision());
+            return true;
         }
 
-        return true;
-    }
-
-    synchronized void incrementTotalProcessed(int v) {
-        if (v >= 0) {
-            totalInFlight -= v;
-            totalOutgoing += v;
-
-            //alive for some time...
-            if (totalOutgoing < 0) {
-                totalOutgoing = 0;
-            }
+        if (totalInFlight + v >= highCollisionMark) {
+            eventBus.post(Control.highCollision());
+            return true;
         }
-    }
 
-    synchronized void incrementTotalError(int v) {
-        if (v >= 0) {
-            totalErrors += v;
-            //wrap around back to zero, because, opentsdb may not like our metrics :-(
-            if (totalErrors < 0) {
-                totalErrors = v;
-            }
+        if (totalInFlight + v >= lowCollisionMark) {
+            eventBus.post(Control.lowCollision());
         }
+
+        return false;
     }
 
     /**
@@ -178,23 +131,12 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
      */
     private EventBus eventBus;
 
-    /**
-     * counter for total messages pushed
-     */
-    private long totalIncoming = 0;
+    /** high collision detection mark */
+    private int highCollisionMark;
 
-    /**
-     * counter for total messages send to OpenTsdb
-     */
-    private long totalOutgoing = 0;
+    /** low collision detection mark*/
+    private int lowCollisionMark;
 
-    /**
-     * counter for total messages inflight
-     */
-    private int totalInFlight = 0;
-
-    /**
-     * counter for total errors from OpenTsdb
-     */
-    private long totalErrors = 0;
+    /** partion size of each job */
+    private int jobSize;
 }
