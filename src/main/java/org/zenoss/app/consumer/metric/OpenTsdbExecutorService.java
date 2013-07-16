@@ -82,10 +82,10 @@ public class OpenTsdbExecutorService {
         }
     }
 
-    private void incrementProcessed(long size) {
-        totalInFlight.getAndAdd(-size);
+    private void incrementProcessed(long total, long processed) {
+        totalInFlight.getAndAdd(-total);
 
-        long value = totalOutGoing.getAndAdd( size);
+        long value = totalOutGoing.getAndAdd( processed );
         if ( value < 0) {
             totalOutGoing.set( 0);
         }
@@ -150,7 +150,7 @@ public class OpenTsdbExecutorService {
                         }
                     }
 
-                    incrementProcessed(size);
+                    incrementProcessed(size, i);
                     if (client != null) {
                         try {
                             client.flush();
