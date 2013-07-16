@@ -9,8 +9,17 @@ http:
       keyStorePassword: zapp_pass
       keyStoreType:     pkcs12
 
-metric_service:
-  inputBufferSize: 1024
-  opentsdb_client:
-      hostName: localhost
-      port:     4242
+metricService:
+    openTsdbClientPool:
+      maxKeepAliveTime: 300000
+      minTestTime:       60000
+
+      clients:
+        - {host: localhost, port: 4242}
+
+      clientFactory:
+        keepAlive:          true
+        sendBufferSize:     1024
+        receiveBufferSize:  1024
+        connectTimeout:     500
+        soTimeout:          250

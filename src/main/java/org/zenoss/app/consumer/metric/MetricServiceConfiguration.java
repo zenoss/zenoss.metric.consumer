@@ -12,27 +12,81 @@
 package org.zenoss.app.consumer.metric;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.zenoss.lib.tsdb.OpenTsdbSocketClient;
-import org.zenoss.lib.tsdb.OpenTsdbSocketClientConfiguration;
+import org.zenoss.lib.tsdb.OpenTsdbClientPoolConfiguration;
 
 import javax.validation.Valid;
 
 public class MetricServiceConfiguration {
 
-    @JsonProperty
-    private Integer inputBufferSize = 1024;
-
     @Valid
-    @JsonProperty("opentsdb_client")
-    private OpenTsdbSocketClientConfiguration openTsdbSocketClientConfiguration = new OpenTsdbSocketClientConfiguration();
+    @JsonProperty("openTsdbClientPool")
+    private OpenTsdbClientPoolConfiguration openTsdbClientPoolConfiguration = new OpenTsdbClientPoolConfiguration();
 
-    /** Maximum number of input messages to queue*/
-    public Integer getInputBufferSize() {
-        return inputBufferSize;
+    /** how many concurrent threads for publishing to opentsdb  */
+    @JsonProperty
+    private int maxThreads = 1;
+
+    /** how many metrics per thread */
+    @JsonProperty
+    private int jobSize = 5;
+
+    /** how many seconds to wait for thread termination on shutdown */
+    @JsonProperty
+    private int terminationTimeout = 60;
+
+    /** how many queued messages before dropping metrics and sending high collisions */
+    @JsonProperty
+    private int highCollisionMark = 1024;
+
+    /** how many queued messages before sending low collisions */
+    @JsonProperty
+    private int lowCollisionMark = 512;
+
+    public OpenTsdbClientPoolConfiguration getOpenTsdbClientPoolConfiguration() {
+        return openTsdbClientPoolConfiguration;
     }
 
-    /** Open a connection to the socket client */
-    public OpenTsdbSocketClient newClient() {
-        return new OpenTsdbSocketClient( openTsdbSocketClientConfiguration);
+    public int getMaxThreads() {
+        return maxThreads;
+    }
+
+    public int getJobSize() {
+        return jobSize;
+    }
+
+    public int getTerminationTimeout() {
+        return terminationTimeout;
+    }
+
+    public int getHighCollisionMark() {
+        return highCollisionMark;
+    }
+
+    public int getLowCollisionMark() {
+        return lowCollisionMark;
+    }
+
+    public void setOpenTsdbClientPoolConfiguration(OpenTsdbClientPoolConfiguration openTsdbClientPoolConfiguration) {
+        this.openTsdbClientPoolConfiguration = openTsdbClientPoolConfiguration;
+    }
+
+    public void setMaxThreads(int maxThreads) {
+        this.maxThreads = maxThreads;
+    }
+
+    public void setJobSize(int jobSize) {
+        this.jobSize = jobSize;
+    }
+
+    public void setTerminationTimeout(int terminationTimeout) {
+        this.terminationTimeout = terminationTimeout;
+    }
+
+    public void setHighCollisionMark(int highCollisionMark) {
+        this.highCollisionMark= highCollisionMark;
+    }
+
+    public void setLowCollisionMark(int lowCollisionMark) {
+        this.lowCollisionMark= lowCollisionMark;
     }
 }

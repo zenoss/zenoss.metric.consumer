@@ -21,26 +21,26 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MetricResourceTest extends ResourceTest {
+public class MetricWebResourceTest extends ResourceTest {
 
     final Control control = new Control();
     final MetricService service = mock(MetricService.class);
 
     @Override
     protected void setUpResources() throws Exception {
-        when(service.push(any(Metric.class))).thenReturn(control);
-        addResource(new MetricResource(service));
+        when(service.push(any(Metric[].class))).thenReturn(control);
+        addResource(new MetricWebResource(service));
     }
 
     @Test
     public void testPostMessage() throws Exception {
         Metric metric = new Metric("name", 0, 1.0);
-        Message message = new Message(new Control("", ""), new Metric[] {metric});
+        Message message = new Message(new Control(), new Metric[] {metric});
         WebResource resource = client().resource("/resource/metric");
         WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
         assertThat(builder.post(Control.class, message)).isEqualTo(control);
         metric = new Metric("name", 0, 1.0);
-        verify(service).push( metric);
+        verify(service).push( new Metric[] {metric});
     }
 
     @Test
@@ -60,6 +60,6 @@ public class MetricResourceTest extends ResourceTest {
         tags.put( "t1", "t1v");
         tags.put( "t2", "t2v");
         Metric metric = new Metric("metric", 0, 0.0, tags);
-        verify(service).push( metric);
+        verify(service).push( new Metric[] {metric});
     }
 }

@@ -7,11 +7,11 @@
     <artifactId>metric-consumer</artifactId>
     <version>0.0.2-SNAPSHOT</version>
     <properties>
-        <version.zapp>0.0.4</version.zapp>
+        <version.zapp>0.0.5</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
-        <version.zenoss.tsdb>0.0.1</version.zenoss.tsdb>
+        <version.metric.tsdb>0.0.2</version.metric.tsdb>
         <ssl.cert.dir>target/cert</ssl.cert.dir>
         <assembly.skipAssembly>true</assembly.skipAssembly>
     </properties>
@@ -23,8 +23,8 @@
         </dependency>
         <dependency>
             <groupId>org.zenoss</groupId>
-            <artifactId>zenoss.metric.tsdb</artifactId>
-            <version>${version.zenoss.tsdb}</version>
+            <artifactId>metric-tsdb</artifactId>
+            <version>${version.metric.tsdb}</version>
         </dependency>
         <!--test scope-->
         <dependency>
