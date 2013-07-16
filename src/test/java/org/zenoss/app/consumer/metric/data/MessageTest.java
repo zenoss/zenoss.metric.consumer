@@ -15,7 +15,7 @@ public class MessageTest {
 
     @Test
     public void serializesToJSON() throws Exception {
-        Control control = new Control( "", "");
+        Control control = new Control( );
         Map<String, String> tags = new HashMap<>();
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
@@ -26,7 +26,7 @@ public class MessageTest {
 
     @Test
     public void deserializesFromJSON() throws Exception {
-        Control control = new Control( "", "");
+        Control control = new Control( );
         Map<String, String> tags = new HashMap<>();
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);

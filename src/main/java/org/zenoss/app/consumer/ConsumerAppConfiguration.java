@@ -20,7 +20,7 @@ import javax.validation.Valid;
 public class ConsumerAppConfiguration extends AppConfiguration {
 
     @Valid
-    @JsonProperty("metric_service")
+    @JsonProperty("metricService")
     private MetricServiceConfiguration metricServiceConfiguration = new MetricServiceConfiguration();
 
     public MetricServiceConfiguration getMetricServiceConfiguration() {

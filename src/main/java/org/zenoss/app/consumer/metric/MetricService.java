@@ -15,5 +15,5 @@ import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 public interface MetricService {
-    Control push(Metric metric);
+    Control push(Metric[] metric);
 }

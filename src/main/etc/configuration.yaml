@@ -1,0 +1,25 @@
+logging:
+    level: INFO
+http:
+  port: 8443
+  adminPort: 58443
+  connectorType: nonblocking+ssl
+  ssl:
+      keyStore: ${ssl.cert.dir}/ssl.pfx
+      keyStorePassword: zapp_pass
+      keyStoreType:     pkcs12
+
+metricService:
+    openTsdbClientPool:
+      maxKeepAliveTime: 300000
+      minTestTime:       60000
+
+      clients:
+        - {host: localhost, port: 4242}
+
+      clientFactory:
+        keepAlive:          true
+        sendBufferSize:     1024
+        receiveBufferSize:  1024
+        connectTimeout:     500
+        soTimeout:          250
