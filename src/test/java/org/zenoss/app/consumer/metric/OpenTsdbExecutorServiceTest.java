@@ -1,6 +1,7 @@
 package org.zenoss.app.consumer.metric;
 
 import com.google.common.collect.Lists;
+import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
