@@ -8,9 +8,6 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.lib.tsdb.OpenTsdbClient;
-import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -19,7 +16,10 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+
+import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.lib.tsdb.OpenTsdbClient;
+import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 public class OpenTsdbExecutorService {
     static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
@@ -31,12 +31,7 @@ public class OpenTsdbExecutorService {
     public OpenTsdbExecutorService(MetricServiceConfiguration configuration, ExecutorService executorService, OpenTsdbClientPool clientPool) {
         this.configuration = configuration;
         this.executorService = executorService;
-        this.clientPool = clientPool; // TODO: Use interface
-
-        totalErrors = new AtomicLong(0);
-        totalInFlight = new AtomicLong(0);
-        totalIncoming = new AtomicLong(0);
-        totalOutGoing = new AtomicLong(0);
+        this.clientPool = clientPool;
         
         totalErrorsMetric = Metrics.newCounter(new MetricName(OpenTsdbExecutorService.class, "totalErrors"));
         totalInFlightMetric = Metrics.newCounter(new MetricName(OpenTsdbExecutorService.class, "totalInFlight"));
@@ -62,65 +57,57 @@ public class OpenTsdbExecutorService {
     }
 
     public long getTotalErrors() {
-        return totalErrors.get();
+        return totalErrorsMetric.count();
     }
 
     public long getTotalInFlight() {
-        return totalInFlight.get();
+        return totalInFlightMetric.count();
     }
 
     public long getTotalIncoming() {
-        return totalIncoming.get();
+        return totalIncomingMetric.count();
     }
 
     public long getTotalOutGoing() {
-        return totalOutGoing.get();
+        return totalOutGoingMetric.count();
     }
 
     private void incrementError() {
-        long value = totalErrors.incrementAndGet();
         totalErrorsMetric.inc();
-        if( value < 0) {
-            totalErrors.set(0);
+        long value = totalErrorsMetric.count();
+        if (value < 0) {
             totalErrorsMetric.clear();
         }
     }
+    
+    public void resetMetrics() {
+        totalErrorsMetric.clear();
+        totalInFlightMetric.clear();
+        totalIncomingMetric.clear();
+        totalOutGoingMetric.clear();
+        timePerBatch.clear();
+        timePerMetric.clear();
+    }
 
     private void incrementIncoming(long size) {
-        totalInFlight.addAndGet(size);
         totalInFlightMetric.inc(size);
 
-        long value = totalIncoming.addAndGet(size);
         totalIncomingMetric.inc(size);
+        long value = totalIncomingMetric.count();
         if (value < 0) {
-            totalIncoming.set(0);
             totalIncomingMetric.clear();
         }
     }
 
     private void incrementProcessed(long total, long processed) {
-        totalInFlight.getAndAdd(-total);
         totalInFlightMetric.dec(total);
 
-        long value = totalOutGoing.getAndAdd( processed );
         totalOutGoingMetric.inc(processed);
+        long value = totalOutGoingMetric.count();
         if (value < 0) {
-            totalOutGoing.set(0);
             totalOutGoingMetric.clear();
         }
     }
-
-    /** How many errors occured writing to OpenTsdb*/
-    private final AtomicLong totalErrors;
-
-    /** How many metrics are queued for processing */
-    private final AtomicLong totalInFlight;
-
-    /** How many metrics were queued (this # may reset) */
-    private final AtomicLong totalIncoming;
-
-    /** How many metrics were written (this # may reset) */
-    private final AtomicLong totalOutGoing;
 
     /**
      * configuration objects
@@ -137,11 +124,22 @@ public class OpenTsdbExecutorService {
      */
     private final OpenTsdbClientPool clientPool;
     
+    /** How many errors occured writing to OpenTsdb*/
     private final Counter totalErrorsMetric;
+    
+    /** How many metrics are queued for processing */
     private final Counter totalInFlightMetric;
+    
+    /** How many metrics were queued (this # may reset) */
     private final Counter totalIncomingMetric;
+    
+    /** How many metrics were written (this # may reset) */
     private final Counter totalOutGoingMetric;
+    
+    /** The time it takes to process a batch from the publisher */
     private final Timer timePerBatch;
+    
+    /** The time it takes to process an individual metric from the publisher */
     private final Timer timePerMetric;
 
     /**
