@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.parsing.QualifierEntry;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
@@ -20,7 +19,7 @@ import javax.ws.rs.Path;
 
 import static org.zenoss.app.consumer.metric.data.Control.Type.LOW_COLLISION;
 
-@WebSocketListener
+@WebSocketListener(name = "metrics")
 @Path("/socket/metric")
 public class MetricWebSocket {
     static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);

@@ -27,7 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Resource
+
+@Resource(name = "metrics")
 @Path("/resource/metric")
 public class MetricWebResource {
     static final Logger log = LoggerFactory.getLogger(MetricWebResource.class);

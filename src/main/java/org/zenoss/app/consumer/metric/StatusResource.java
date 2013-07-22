@@ -6,7 +6,7 @@ import org.zenoss.dropwizardspring.annotations.Resource;
 import javax.ws.rs.HEAD;
 import javax.ws.rs.Path;
 
-@Resource
+@Resource(name = "metrics")
 @Path("/status")
 public class StatusResource {
 

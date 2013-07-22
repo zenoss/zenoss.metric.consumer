@@ -1,12 +1,10 @@
 package org.zenoss.app.consumer.metric;
 
 import com.google.common.base.Preconditions;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.lib.tsdb.OpenTsdbClient;
-import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -15,10 +13,13 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+
+import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.lib.tsdb.OpenTsdbClient;
+import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 public class OpenTsdbExecutorService {
-    static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
+    static final Logger log = LoggerFactory.getLogger(OpenTsdbExecutorService.class);
 
     public OpenTsdbExecutorService(MetricServiceConfiguration configuration) {
         this(configuration, Executors.newFixedThreadPool(configuration.getMaxThreads()), new OpenTsdbClientPool(configuration.getOpenTsdbClientPoolConfiguration()));
@@ -29,10 +30,12 @@ public class OpenTsdbExecutorService {
         this.executorService = executorService;
         this.clientPool = clientPool;
 
-        totalErrors = new AtomicLong(0);
-        totalInFlight = new AtomicLong(0);
-        totalIncoming = new AtomicLong(0);
-        totalOutGoing = new AtomicLong(0);
+        timePerBatch = Metrics.newTimer(new MetricName(OpenTsdbExecutorService.class, "timePerBatch"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+        timePerMetric = Metrics.newTimer(new MetricName(OpenTsdbExecutorService.class, "timePerMetric"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+        totalErrorsMetric = Metrics.newCounter(new MetricName(OpenTsdbExecutorService.class, "totalErrors"));
+        totalInFlightMetric = Metrics.newCounter(new MetricName(OpenTsdbExecutorService.class, "totalInFlight"));
+        totalIncomingMetric = registerIncoming();
+        totalOutGoingMetric = registerOutgoing();
     }
 
     /**
@@ -51,57 +54,63 @@ public class OpenTsdbExecutorService {
     }
 
     public long getTotalErrors() {
-        return totalErrors.get();
+        return totalErrorsMetric.count();
     }
 
     public long getTotalInFlight() {
-        return totalInFlight.get();
+        return totalInFlightMetric.count();
     }
 
     public long getTotalIncoming() {
-        return totalIncoming.get();
+        return totalIncomingMetric.count();
     }
 
     public long getTotalOutGoing() {
-        return totalOutGoing.get();
+        return totalOutGoingMetric.count();
     }
-
+    
     private void incrementError() {
-        long value = totalErrors.incrementAndGet();
-        if( value < 0) {
-            totalErrors.set(0);
-        }
+        totalErrorsMetric.inc();
     }
 
     private void incrementIncoming(long size) {
-        totalInFlight.addAndGet( size);
-
-        long value = totalIncoming.addAndGet( size);
-        if ( value < 0) {
-            totalIncoming.set(0);
-        }
+        totalInFlightMetric.inc(size);
+        totalIncomingMetric.mark(size);
     }
 
     private void incrementProcessed(long total, long processed) {
-        totalInFlight.getAndAdd(-total);
-
-        long value = totalOutGoing.getAndAdd( processed );
-        if ( value < 0) {
-            totalOutGoing.set( 0);
-        }
+        totalInFlightMetric.dec(total);
+        totalOutGoingMetric.mark(processed);
+    }
+    
+    private Meter registerIncoming() {
+        return Metrics.newMeter(incomingMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+    
+    private Meter registerOutgoing() {
+        return Metrics.newMeter(outgoingMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+    
+    private MetricName incomingMetricName() {
+        return new MetricName(OpenTsdbExecutorService.class, "totalIncoming");
     }
 
-    /** How many errors occured writing to OpenTsdb*/
-    private final AtomicLong totalErrors;
-
-    /** How many metrics are queued for processing */
-    private final AtomicLong totalInFlight;
-
-    /** How many metrics were queued (this # may reset) */
-    private final AtomicLong totalIncoming;
-
-    /** How many metrics were written (this # may reset) */
-    private final AtomicLong totalOutGoing;
+    private MetricName outgoingMetricName() {
+        return new MetricName(OpenTsdbExecutorService.class, "totalOutgoing");
+    }
+    
+    // Used for testing
+    void resetMetrics() {
+        totalErrorsMetric.clear();
+        totalInFlightMetric.clear();
+        MetricsRegistry registry = Metrics.defaultRegistry();
+        registry.removeMetric(incomingMetricName());
+        registry.removeMetric(outgoingMetricName());
+        totalIncomingMetric = registerIncoming();
+        totalOutGoingMetric = registerOutgoing();
+        timePerBatch.clear();
+        timePerMetric.clear();
+    }
 
     /**
      * configuration objects
@@ -117,6 +126,24 @@ public class OpenTsdbExecutorService {
      * where the clients come from
      */
     private final OpenTsdbClientPool clientPool;
+    
+    /** How many errors occured writing to OpenTsdb*/
+    private final Counter totalErrorsMetric;
+    
+    /** How many metrics are queued for processing */
+    private final Counter totalInFlightMetric;
+    
+    /** How many metrics were queued (this # may reset) */
+    private Meter totalIncomingMetric;
+    
+    /** How many metrics were written (this # may reset) */
+    private Meter totalOutGoingMetric;
+    
+    /** The time it takes to process a batch from the publisher */
+    private final Timer timePerBatch;
+    
+    /** The time it takes to process an individual metric from the publisher */
+    private final Timer timePerMetric;
 
     /**
      * A thread to asynchronously write OpenTsdb metrics
@@ -130,14 +157,18 @@ public class OpenTsdbExecutorService {
         public void run() {
             try {
                 OpenTsdbClient client = null;
+                TimerContext batchTimeContext = timePerBatch.time();
 
                 int i = 0;
                 long size = metrics.size();
                 try {
                     while (i < size && !Thread.interrupted()) {
+                        TimerContext messageTimeContext = timePerMetric.time();
+                        
                         if (client == null) {
                             client = clientPool.get();
                         }
+                        
                         try {
                             Metric metric = metrics.get(i);
                             String message = convert(metric);
@@ -147,6 +178,8 @@ public class OpenTsdbExecutorService {
                             log.error("Failed to write metric:", ex);
                             clientPool.kill(client);
                             client = null;
+                        } finally {
+                            messageTimeContext.stop();
                         }
                     }
 
@@ -175,6 +208,8 @@ public class OpenTsdbExecutorService {
                         clientPool.put(client);
                         client = null;
                     }
+                    
+                    batchTimeContext.stop();
                 }
             } catch (InterruptedException ignored) {
             }

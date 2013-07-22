@@ -1,6 +1,8 @@
 package org.zenoss.app.consumer.metric;
 
 import com.google.common.collect.Lists;
+import junit.framework.Assert;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -19,16 +21,12 @@ import static org.mockito.Mockito.*;
 public class OpenTsdbExecutorServiceTest {
 
     MetricServiceConfiguration configuration;
-
     ExecutorService executorService;
-
     OpenTsdbClient client;
-
     OpenTsdbClient badClient;
-
     OpenTsdbClient goodClient;
-
     OpenTsdbClientPool clientPool;
+    OpenTsdbExecutorService service;
 
     @Before
     public void setUp() {
@@ -38,25 +36,29 @@ public class OpenTsdbExecutorServiceTest {
         goodClient = mock(OpenTsdbClient.class);
         clientPool = mock(OpenTsdbClientPool.class);
         executorService = mock(ExecutorService.class);
+        service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
+    }
+    
+    @After
+    public void tearDown() {
+        service.resetMetrics();
     }
 
     @Test
     public void testStop() throws Exception {
         configuration.setTerminationTimeout(10);
-        new OpenTsdbExecutorService(configuration, executorService, clientPool).stop();
+        service.stop();
         verify(executorService, times(1)).shutdownNow();
         verify(executorService, times(1)).awaitTermination(10, TimeUnit.SECONDS);
     }
 
     @Test(expected = NullPointerException.class)
     public void testSubmitThrowsIllegalArgumentException() throws Exception {
-        OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         service.submit(null);
     }
 
     @Test
     public void testSubmitSuccess() throws Exception {
-        final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
 
         when(clientPool.get()).thenReturn(client);
@@ -79,7 +81,6 @@ public class OpenTsdbExecutorServiceTest {
 
     @Test
     public void testSubmitSuccessAfterWriteException() throws Exception {
-        final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
 
         when(clientPool.get()).thenReturn(badClient, goodClient);
@@ -107,7 +108,6 @@ public class OpenTsdbExecutorServiceTest {
 
     @Test
     public void testSubmitKillsClientAfterReadException() throws Exception {
-        final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
 
         when(client.read()).thenThrow(new IOException());
@@ -135,7 +135,6 @@ public class OpenTsdbExecutorServiceTest {
 
     @Test
     public void testSubmitSuccessWithErrorResponse() throws Exception {
-        final OpenTsdbExecutorService service = new OpenTsdbExecutorService(configuration, executorService, clientPool);
         final Metric metric = new Metric("metric", 0, 0);
 
         when(client.read()).thenReturn("an opentsdb error message\n");
