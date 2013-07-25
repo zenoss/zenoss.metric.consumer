@@ -41,6 +41,10 @@ public class MetricServiceConfiguration {
     /** how many queued messages before sending low collisions */
     @JsonProperty
     private int lowCollisionMark = 512;
+    
+    /** minimum time in milliseconds between broadcasting backoff messages */
+    @JsonProperty
+    private int minTimeBetweenBroadcast = 500;
 
     public OpenTsdbClientPoolConfiguration getOpenTsdbClientPoolConfiguration() {
         return openTsdbClientPoolConfiguration;
@@ -65,6 +69,10 @@ public class MetricServiceConfiguration {
     public int getLowCollisionMark() {
         return lowCollisionMark;
     }
+    
+    public int getMinTimeBetweenBroadcast() {
+        return minTimeBetweenBroadcast;
+    }
 
     public void setOpenTsdbClientPoolConfiguration(OpenTsdbClientPoolConfiguration openTsdbClientPoolConfiguration) {
         this.openTsdbClientPoolConfiguration = openTsdbClientPoolConfiguration;
@@ -88,5 +96,9 @@ public class MetricServiceConfiguration {
 
     public void setLowCollisionMark(int lowCollisionMark) {
         this.lowCollisionMark= lowCollisionMark;
+    }
+
+    public void setMinTimeBetweenBroadcast(int minTimeBetweenBroadcast) {
+        this.minTimeBetweenBroadcast = minTimeBetweenBroadcast;
     }
 }

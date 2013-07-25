@@ -39,14 +39,16 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         this.config = config;
         this.executorService = executorService;
         this.eventBus = eventBus;
-        highCollisionMark = config.getMetricServiceConfiguration().getHighCollisionMark();
-        lowCollisionMark = config.getMetricServiceConfiguration().getLowCollisionMark();
-        jobSize = config.getMetricServiceConfiguration().getJobSize();
+        this.highCollisionMark = config.getMetricServiceConfiguration().getHighCollisionMark();
+        this.lowCollisionMark = config.getMetricServiceConfiguration().getLowCollisionMark();
+        this.jobSize = config.getMetricServiceConfiguration().getJobSize();
+        this.minTimeBetweenBroadcast = config.getMetricServiceConfiguration().getMinTimeBetweenBroadcast();
     }
 
     @Override
     public void start() {
-        log.info( "OpenTsdbMetricService.start()");
+        log.info( "start() [highCollisionMark: {}, lowCollisionMark: {}, jobSize: {}]", 
+                highCollisionMark, lowCollisionMark, jobSize);
     }
 
     @Override
@@ -98,20 +100,28 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
      * high/low collision test and increment, broad cast control messages
      */
     private boolean collides(long totalInFlight, int v) {
-        //overflow...
-        if (totalInFlight + v < 0) {
-            eventBus.post(Control.highCollision());
+        final long totalPlusV = totalInFlight + v;
+
+        if (totalPlusV >= highCollisionMark) {
+            if (System.currentTimeMillis() > lastHighCollisionEvent + minTimeBetweenBroadcast) {
+                log.warn("High collision threshold exceeded: {}", totalPlusV);
+                lastHighCollisionEvent = System.currentTimeMillis();
+                eventBus.post(Control.highCollision());
+                lastCollisionCount = totalPlusV;
+            }
             return true;
         }
 
-        if (totalInFlight + v >= highCollisionMark) {
-            eventBus.post(Control.highCollision());
-            return true;
-        }
-
-        if (totalInFlight + v >= lowCollisionMark) {
+        if (totalPlusV >= lowCollisionMark && 
+                System.currentTimeMillis() > lastLowCollisionEvent + minTimeBetweenBroadcast &&
+                    totalPlusV > lastCollisionCount) 
+        {
+            log.info("Low collision threshold exceeded: {}", totalPlusV);
+            lastLowCollisionEvent = System.currentTimeMillis();
             eventBus.post(Control.lowCollision());
         }
+        
+        lastCollisionCount = totalPlusV;
 
         return false;
     }
@@ -136,6 +146,11 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
 
     /** low collision detection mark*/
     private int lowCollisionMark;
+    
+    private long lastHighCollisionEvent = 0;
+    private long lastLowCollisionEvent = 0;
+    private long lastCollisionCount = 0;
+    private long minTimeBetweenBroadcast = 500;
 
     /** partion size of each job */
     private int jobSize;

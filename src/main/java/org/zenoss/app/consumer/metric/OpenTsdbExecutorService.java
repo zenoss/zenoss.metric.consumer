@@ -30,8 +30,8 @@ public class OpenTsdbExecutorService {
         this.executorService = executorService;
         this.clientPool = clientPool;
 
-        timePerBatch = Metrics.newTimer(new MetricName(OpenTsdbExecutorService.class, "timePerBatch"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
-        timePerMetric = Metrics.newTimer(new MetricName(OpenTsdbExecutorService.class, "timePerMetric"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+        timePerBatch = Metrics.newTimer(new MetricName(OpenTsdbExecutorService.class, "timePerBatch"), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        timePerMetric = Metrics.newTimer(new MetricName(OpenTsdbExecutorService.class, "timePerMetric"), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         totalErrorsMetric = Metrics.newCounter(new MetricName(OpenTsdbExecutorService.class, "totalErrors"));
         totalInFlightMetric = Metrics.newCounter(new MetricName(OpenTsdbExecutorService.class, "totalInFlight"));
         totalIncomingMetric = registerIncoming();
@@ -161,6 +161,7 @@ public class OpenTsdbExecutorService {
 
                 int i = 0;
                 long size = metrics.size();
+                log.debug("Starting job of size {}", size);
                 try {
                     while (i < size && !Thread.interrupted()) {
                         TimerContext messageTimeContext = timePerMetric.time();
