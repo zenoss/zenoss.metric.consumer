@@ -8,15 +8,15 @@
  *
  * ***************************************************************************
  */
-
 package org.zenoss.app.consumer.metric;
 
-import java.util.concurrent.Future;
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Metric;
+/**
+ *
+ * @author cschellenger
+ */
+public interface TsdbWriter extends Runnable {
 
-public interface MetricService {
-    Control push(Metric[] metric);
-    boolean stopWriter();
-    Future<?> startWriter();
+    void cancel();
+    boolean isRunning();
+    
 }

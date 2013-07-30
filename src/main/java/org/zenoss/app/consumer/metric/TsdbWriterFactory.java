@@ -8,15 +8,17 @@
  *
  * ***************************************************************************
  */
-
 package org.zenoss.app.consumer.metric;
 
-import java.util.concurrent.Future;
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Metric;
+import java.util.Collection;
 
-public interface MetricService {
-    Control push(Metric[] metric);
-    boolean stopWriter();
-    Future<?> startWriter();
+/**
+ *
+ * @author cschellenger
+ */
+public interface TsdbWriterFactory {
+
+    TsdbWriter createWriter();
+    Collection<TsdbWriter> getCreatedWriters();
+    
 }

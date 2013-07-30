@@ -11,10 +11,11 @@ import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
 
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 public class MetricWebSocketTest {
+    
+    private static final int TIME_BETWEEN_BROADCAST = 20;
 
     EventBus eventBus;
     MetricService service;
@@ -28,7 +29,7 @@ public class MetricWebSocketTest {
 
     @Test
     public void testOnMessage() throws Exception {
-        MetricWebSocket socket = new MetricWebSocket(service, eventBus);
+        MetricWebSocket socket = new MetricWebSocket(config(), service, eventBus);
         when( service.push( any( Metric[].class))).thenReturn( new Control());
         Metric metric = new Metric("name",0, 0.0);
         Control control = new Control();
@@ -37,18 +38,50 @@ public class MetricWebSocketTest {
         verify(service).push( new Metric[] {metric});
     }
 
-
     @Test
     public void testHandle() throws Exception {
-        MetricWebSocket socket = new MetricWebSocket(service, eventBus);
+        MetricWebSocket socket = new MetricWebSocket(config(), service, eventBus);
         Control ok = Control.ok();
         Control lowCollision = Control.lowCollision();
         Control highCollision = Control.highCollision();
-        socket.handle( ok);
-        socket.handle( lowCollision);
-        socket.handle( highCollision);
+        socket.handle (ok);
+        socket.handle (lowCollision);
+        socket.handle (highCollision);
         verify(eventBus, times(1)).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, lowCollision));
         verify(eventBus, times(1)).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, highCollision));
         verify(eventBus, never()).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, ok));
+    }
+    
+    @Test
+    public void testDoubleBroadcast() throws Exception {
+        
+        MetricWebSocket socket = new MetricWebSocket(config(), service, eventBus);
+        Control ok = Control.ok();
+        Control lowCollision = Control.lowCollision();
+        Control highCollision = Control.highCollision();
+        
+        socket.handle (ok);
+        socket.handle (lowCollision);
+        socket.handle (lowCollision); // This should be ignored
+        socket.handle (highCollision);
+        socket.handle (highCollision); // This should be ignored
+        
+        Thread.sleep(TIME_BETWEEN_BROADCAST + 1);
+        
+        socket.handle (ok);
+        socket.handle (lowCollision);
+        socket.handle (lowCollision); // This should be ignored
+        socket.handle (highCollision);
+        socket.handle (highCollision); // This should be ignored
+        
+        verify(eventBus, times(2)).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, lowCollision));
+        verify(eventBus, times(2)).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, highCollision));
+        verify(eventBus, never()).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, ok));
+    }
+    
+    MetricServiceConfiguration config() {
+        MetricServiceConfiguration config = new MetricServiceConfiguration();
+        config.setMinTimeBetweenBroadcast(TIME_BETWEEN_BROADCAST);
+        return config;
     }
 }
