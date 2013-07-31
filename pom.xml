@@ -14,6 +14,7 @@
         <version.metric.tsdb>0.0.3-SNAPSHOT</version.metric.tsdb>
         <ssl.cert.dir>target/cert</ssl.cert.dir>
         <assembly.skipAssembly>true</assembly.skipAssembly>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
         <dependency>

@@ -32,7 +32,7 @@ import org.zenoss.app.consumer.metric.TsdbWriter;
 import org.zenoss.app.consumer.metric.TsdbWriterFactory;
 
 @Managed
-public class OpenTsdbMetricService implements MetricService, com.yammer.dropwizard.lifecycle.Managed {
+class OpenTsdbMetricService implements MetricService, com.yammer.dropwizard.lifecycle.Managed {
 
     static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
 
@@ -53,7 +53,6 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         // Configuration
         this.highCollisionMark = config.getHighCollisionMark();
         this.lowCollisionMark = config.getLowCollisionMark();
-        this.terminationTimeout = config.getTerminationTimeout();
         this.tsdbWriters = config.getTsdbWriterThreads();
     }
 
@@ -94,10 +93,6 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
         return true;
     }
 
-    /**
-     * Eagerly submit metrics to the tail of the queue until a high collision 
-     * is detected.
-     */
     @Override
     public Control push(Metric[] metrics) {
         if (metrics == null) {
@@ -151,9 +146,6 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
 
     /** low collision detection mark*/
     private final int lowCollisionMark;
-    
-    /** How long should we wait for the executor service to shutdown? */
-    private final int terminationTimeout;
     
     /** How many TSDB writer threads should we start? */
     private final int tsdbWriters;

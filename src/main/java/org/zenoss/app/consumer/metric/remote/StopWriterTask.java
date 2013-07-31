@@ -27,10 +27,10 @@ import org.zenoss.app.consumer.metric.MetricService;
  * This task asks the metric service to stop one ore more TSDB writer threads.
  */
 @Component
-public class StopWriterTask extends Task {
+class StopWriterTask extends Task {
 
     @Autowired
-    public StopWriterTask(MetricService metricService) {
+    StopWriterTask(MetricService metricService) {
         super("stop-writer");
         this.metricService = metricService;
         this.taskIntParser = new TaskIntParser();

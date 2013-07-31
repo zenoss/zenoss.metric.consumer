@@ -11,14 +11,27 @@
 package org.zenoss.app.consumer.metric;
 
 import java.util.Collection;
+import java.util.concurrent.ExecutorService;
 
 /**
- *
- * @author cschellenger
+ * Factory used to create and manage TSDB writer instances.
  */
 public interface TsdbWriterFactory {
 
+    /**
+     * Create a new instance of a TSDB writer. The writer must be submitted to
+     * an {@link ExecutorService} to operate correctly.
+     * 
+     * @return instance
+     */
     TsdbWriter createWriter();
+    
+    /**
+     * Returns a collection of all TSDB writers created by this factory. This 
+     * collection is mutable and not threadsafe.
+     * 
+     * @return created writer instances
+     */
     Collection<TsdbWriter> getCreatedWriters();
     
 }

@@ -22,12 +22,12 @@ import org.zenoss.app.consumer.metric.TsdbWriterFactory;
  * @author cschellenger
  */
 @Component
-public class TsdbWriterHealthCheck extends HealthCheck {
+class TsdbWriterHealthCheck extends HealthCheck {
     
     private final TsdbWriterFactory factory;
 
     @Autowired
-    public TsdbWriterHealthCheck(TsdbWriterFactory factory) {
+    TsdbWriterHealthCheck(TsdbWriterFactory factory) {
         super("TSDB Writer");
         this.factory = factory;
     }

@@ -28,8 +28,8 @@ import java.util.concurrent.TimeUnit;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 /**
- *
- * @author cschellenger
+ * Threadsafe queue that can be used to distribute TSDB metric data to multiple 
+ * consumer threads.
  */
 @Component
 class MetricsQueue {

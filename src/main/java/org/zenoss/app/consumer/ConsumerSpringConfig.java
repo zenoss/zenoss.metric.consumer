@@ -27,7 +27,7 @@ import org.zenoss.lib.tsdb.OpenTsdbClientPool;
  * @author cschellenger
  */
 @Configuration
-public class ConsumerSpringConfig {
+class ConsumerSpringConfig {
     
     @Autowired
     private ConsumerAppConfiguration consumerAppConfiguration;
@@ -37,22 +37,22 @@ public class ConsumerSpringConfig {
     
     @Bean
     @Qualifier("zapp::executor::metrics")
-    public ExecutorService metricsExecutorService() {
+    ExecutorService metricsExecutorService() {
         return dropwizardEnvironment.managedExecutorService(
                 "Consumer Executor %d", 
-                consumerAppConfiguration.getThreadPoolSize(), 
-                consumerAppConfiguration.getThreadPoolSize(), 
+                metricsServiceConfiguration().getThreadPoolSize(), 
+                metricsServiceConfiguration().getThreadPoolSize(), 
                 5, TimeUnit.SECONDS);
         
     }
     
     @Bean
-    public MetricServiceConfiguration metricsServiceConfiguration() {
+    MetricServiceConfiguration metricsServiceConfiguration() {
         return consumerAppConfiguration.getMetricServiceConfiguration();
     }
     
     @Bean
-    public OpenTsdbClientPool openTsdbClientPool() {
+    OpenTsdbClientPool openTsdbClientPool() {
         return new OpenTsdbClientPool(metricsServiceConfiguration().getOpenTsdbClientPoolConfiguration());
     }
 }

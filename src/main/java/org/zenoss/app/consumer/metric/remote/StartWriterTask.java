@@ -23,10 +23,10 @@ import org.zenoss.app.consumer.metric.MetricService;
  * This task asks the metric service to start one or more TSDB writer threads.
  */
 @Component
-public class StartWriterTask extends Task {
+class StartWriterTask extends Task {
 
     @Autowired
-    public StartWriterTask(MetricService metricService) {
+    StartWriterTask(MetricService metricService) {
         super("start-writer");
         this.metricService = metricService;
         this.taskIntParser = new TaskIntParser();
