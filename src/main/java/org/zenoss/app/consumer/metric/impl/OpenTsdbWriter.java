@@ -30,8 +30,7 @@ import org.zenoss.lib.tsdb.OpenTsdbClient;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 /**
- *
- * @author cschellenger
+ * @see TsdbWriter
  */
 @Component
 @Scope("prototype")
@@ -150,6 +149,7 @@ class OpenTsdbWriter implements TsdbWriter {
     
     @Override
     public synchronized void cancel() {
+        log.info("Writer shutdown requested");
         this.canceled = true;
     }
     

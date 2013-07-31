@@ -10,13 +10,14 @@
  */
 package org.zenoss.app.consumer;
 
+import com.yammer.dropwizard.config.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
@@ -26,15 +27,23 @@ import org.zenoss.lib.tsdb.OpenTsdbClientPool;
  * @author cschellenger
  */
 @Configuration
-public class SpringConfig {
+public class ConsumerSpringConfig {
     
     @Autowired
     private ConsumerAppConfiguration consumerAppConfiguration;
     
+    @Autowired
+    private Environment dropwizardEnvironment;
+    
     @Bean
     @Qualifier("zapp::executor::metrics")
     public ExecutorService metricsExecutorService() {
-        return Executors.newFixedThreadPool(20);
+        return dropwizardEnvironment.managedExecutorService(
+                "Consumer Executor %d", 
+                consumerAppConfiguration.getThreadPoolSize(), 
+                consumerAppConfiguration.getThreadPoolSize(), 
+                5, TimeUnit.SECONDS);
+        
     }
     
     @Bean

@@ -22,8 +22,23 @@ public class ConsumerAppConfiguration extends AppConfiguration {
     @Valid
     @JsonProperty("metricService")
     private MetricServiceConfiguration metricServiceConfiguration = new MetricServiceConfiguration();
+    
+    @JsonProperty
+    private int threadPoolSize = 10;
 
+    /**
+     * Configuration details for the metric service
+     * @return config
+     */
     public MetricServiceConfiguration getMetricServiceConfiguration() {
         return metricServiceConfiguration;
+    }
+    
+    /**
+     * The minimum size of the general purpose thread pool for this application
+     * @return size
+     */
+    public int getThreadPoolSize() {
+        return threadPoolSize;
     }
 }

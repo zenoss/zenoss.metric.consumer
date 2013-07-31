@@ -9,7 +9,7 @@
  * ***************************************************************************
  */
 
-package org.zenoss.app.consumer.metric;
+package org.zenoss.app.consumer.metric.remote;
 
 import com.yammer.metrics.annotation.Timed;
 import org.slf4j.Logger;
@@ -26,6 +26,8 @@ import javax.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.zenoss.app.consumer.metric.MetricService;
 
 
 @Resource(name = "metrics")
@@ -66,22 +68,6 @@ public class MetricWebResource {
         }
         return tags;
     }
-
-    @PUT
-    @Path("/writer")
-    public Response putWriter() {
-        metricService.startWriter();
-        return Response.ok().build();
-    }
-    
-    @DELETE
-    @Path("/writer")
-    public Response deletWriter() {
-        return metricService.stopWriter()? Response.ok().build() : 
-                Response.status(Response.Status.NOT_FOUND).build();
-        
-    }
-    
 
     @SuppressWarnings({"unused"})
     public MetricWebResource() {

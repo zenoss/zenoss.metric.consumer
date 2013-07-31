@@ -1,5 +1,6 @@
 package org.zenoss.app.consumer.metric;
 
+import org.zenoss.app.consumer.metric.remote.MetricWebSocket;
 import com.google.common.eventbus.EventBus;
 import org.eclipse.jetty.websocket.WebSocket;
 import org.junit.Before;

@@ -10,6 +10,9 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
+import com.yammer.dropwizard.lifecycle.Managed;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zenoss.app.consumer.metric.TsdbWriterFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -24,7 +27,9 @@ import org.zenoss.app.consumer.metric.TsdbWriter;
  * @author cschellenger
  */
 @Component
-class OpenTsdbWriterFactory implements TsdbWriterFactory {
+class OpenTsdbWriterFactory implements TsdbWriterFactory, Managed {
+    
+    static final Logger log = LoggerFactory.getLogger(OpenTsdbWriterFactory.class);
     
     @Autowired
     OpenTsdbWriterFactory(ApplicationContext appContext)
@@ -47,4 +52,19 @@ class OpenTsdbWriterFactory implements TsdbWriterFactory {
     
     private final ApplicationContext appContext;
     private final Collection<TsdbWriter> createdWriters;
+
+    @Override
+    public void start() throws Exception {
+        log.debug("Starting");
+    }
+
+    @Override
+    public void stop() throws Exception {
+        int count=0;
+        for (TsdbWriter writer : getCreatedWriters()) {
+            writer.cancel();
+            count++;
+        }
+        log.info("Shutdown {} writer(s)", count);
+    }
 }

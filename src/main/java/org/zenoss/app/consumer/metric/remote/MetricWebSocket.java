@@ -1,4 +1,4 @@
-package org.zenoss.app.consumer.metric;
+package org.zenoss.app.consumer.metric.remote;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.eventbus.EventBus;
@@ -19,12 +19,15 @@ import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 
 import javax.ws.rs.Path;
 
+import org.zenoss.app.consumer.metric.MetricService;
+import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import static org.zenoss.app.consumer.metric.data.Control.Type.LOW_COLLISION;
 
 @WebSocketListener(name = "metrics")
 @Path("/socket/metric")
 public class MetricWebSocket {
-    static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);
+    
+    private static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);
 
     @Autowired
     public MetricWebSocket(

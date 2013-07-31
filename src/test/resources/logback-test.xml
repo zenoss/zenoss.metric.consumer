@@ -7,7 +7,7 @@
   </appender>
 
   <logger name="org.zenoss.app.consumer.metric.impl.OpenTsdbWriter" level="off" />
-  <logger name="org.zenoss.app.consumer.metric.MetricWebSocket" level="ERROR" />
+  <logger name="org.zenoss.app.consumer.metric.remote.MetricWebSocket" level="ERROR" />
 
   <root level="warn">
     <appender-ref ref="STDOUT" />

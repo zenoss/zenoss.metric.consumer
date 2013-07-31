@@ -8,11 +8,14 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric;
+package org.zenoss.app.consumer.metric.remote;
 
 import com.yammer.metrics.core.HealthCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import org.zenoss.app.consumer.metric.TsdbWriter;
+import org.zenoss.app.consumer.metric.TsdbWriterFactory;
 
 /**
  *
@@ -30,7 +33,7 @@ public class TsdbWriterHealthCheck extends HealthCheck {
     }
 
     @Override
-    protected Result check() throws Exception {
+    protected Result check() {
         int running = 0;
         int stopped = 0;
         for (TsdbWriter writer : factory.getCreatedWriters()) {

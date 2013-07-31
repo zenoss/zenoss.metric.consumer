@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
@@ -73,11 +72,8 @@ public class OpenTsdbMetricService implements MetricService, com.yammer.dropwiza
 
     @Override
     public void stop() throws InterruptedException {
-        log.info("OpenTsdbMetricService.stop()");
-        executorService.shutdownNow(); // Interrupt active threads
-        executorService.awaitTermination(terminationTimeout, TimeUnit.SECONDS);
+        log.debug("OpenTsdbMetricService.stop()");
     }
-    
     
     @Override
     public Future<?> startWriter() {

@@ -1,4 +1,4 @@
-package org.zenoss.app.consumer.metric;
+package org.zenoss.app.consumer.metric.remote;
 
 
 import org.zenoss.dropwizardspring.annotations.Resource;

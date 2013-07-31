@@ -1,5 +1,6 @@
 package org.zenoss.app.consumer.metric;
 
+import org.zenoss.app.consumer.metric.remote.MetricWebResource;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
 import com.sun.jersey.core.util.MultivaluedMapImpl;

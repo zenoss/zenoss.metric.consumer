@@ -48,7 +48,11 @@ public class OpenTsdbMetricServiceTest {
         service.stop();
         
         verify(executorService, times(1)).submit(writer);
-        verify(executorService, times(1)).shutdownNow();
+        // Executor is managed by dropwizard
+        verify(executorService, never()).shutdownNow();
+        verify(executorService, never()).shutdown();
+        // The writers will be canceled by the writer factory
+        verify(writer, never()).cancel();
     }
     
     @Test (expected = IllegalStateException.class)
