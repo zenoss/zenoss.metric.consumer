@@ -54,7 +54,7 @@ public class MetricWebResource {
         log.debug( "POST: resource/metric/post( name={}, ts={}, value={}, tagged={})", name, ts, value, tagged);
         Map<String, String> tags = extractTags(tagged);
         Metric metric = new Metric(name, ts, value, tags);
-        Control control = metricService.push( new Metric[]{metric});
+        metricService.push( new Metric[]{metric});
         return Response.status(Response.Status.ACCEPTED).build();
     }
 
