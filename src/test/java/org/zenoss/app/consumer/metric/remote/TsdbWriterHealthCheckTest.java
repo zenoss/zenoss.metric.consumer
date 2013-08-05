@@ -14,8 +14,9 @@ import org.junit.Test;
 
 import java.util.Collections;
 
+import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.TsdbWriter;
-import org.zenoss.app.consumer.metric.TsdbWriterFactory;
+import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 /**
@@ -27,32 +28,34 @@ public class TsdbWriterHealthCheckTest {
     
     @Test
     public void testCheckHealthy() {
-        TsdbWriterFactory factory = mock(TsdbWriterFactory.class);
-        TsdbWriter writer = mock(TsdbWriter.class);
-        when(factory.getCreatedWriters()).thenReturn(Collections.singleton(writer));
-        when(writer.isRunning()).thenReturn(Boolean.TRUE);
-        
-        TsdbWriterHealthCheck healthCheck = new TsdbWriterHealthCheck(factory);
+        TsdbWriterRegistry registry = mock(TsdbWriterRegistry.class);
+        TsdbMetricsQueue queue = mock(TsdbMetricsQueue.class);
+        when (registry.size()).thenReturn (1);
+        when (queue.getTotalInFlight()).thenReturn (1L);
+
+        TsdbWriterHealthCheck healthCheck = new TsdbWriterHealthCheck(registry, queue);
         assertTrue(healthCheck.check().isHealthy());
     }
     
     @Test
-    public void testCheckUnhealthyStopped() {
-        TsdbWriterFactory factory = mock(TsdbWriterFactory.class);
-        TsdbWriter writer = mock(TsdbWriter.class);
-        when(factory.getCreatedWriters()).thenReturn(Collections.singleton(writer));
-        when(writer.isRunning()).thenReturn(Boolean.FALSE);
-        
-        TsdbWriterHealthCheck healthCheck = new TsdbWriterHealthCheck(factory);
+    public void testCheckUnhealthyNoWriters() {
+        TsdbWriterRegistry registry = mock(TsdbWriterRegistry.class);
+        TsdbMetricsQueue queue = mock(TsdbMetricsQueue.class);
+        when (registry.size()).thenReturn (0);
+        when (queue.getTotalInFlight()).thenReturn (1L);
+
+        TsdbWriterHealthCheck healthCheck = new TsdbWriterHealthCheck(registry, queue);
         assertFalse(healthCheck.check().isHealthy());
     }
     
     @Test
-    public void testCheckUnhealthyEmpty() {
-        TsdbWriterFactory factory = mock(TsdbWriterFactory.class);
-        when(factory.getCreatedWriters()).thenReturn(Collections.<TsdbWriter>emptyList());
-        
-        TsdbWriterHealthCheck healthCheck = new TsdbWriterHealthCheck(factory);
+    public void testCheckUnhealthyNoMetrics() {
+        TsdbWriterRegistry registry = mock(TsdbWriterRegistry.class);
+        TsdbMetricsQueue queue = mock(TsdbMetricsQueue.class);
+        when (registry.size()).thenReturn (1);
+        when (queue.getTotalInFlight()).thenReturn (0L);
+
+        TsdbWriterHealthCheck healthCheck = new TsdbWriterHealthCheck(registry, queue);
         assertFalse(healthCheck.check().isHealthy());
     }
 }

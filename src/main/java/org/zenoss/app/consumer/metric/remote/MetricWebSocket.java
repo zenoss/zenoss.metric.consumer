@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.PostConstruct;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
@@ -38,6 +39,8 @@ public class MetricWebSocket {
         this.service = service;
         this.eventBus = eventBus;
         this.minTimeBetweenBroadcast = config.getMinTimeBetweenBroadcast();
+        this.lastHighCollisionBroadcast = new AtomicLong();
+        this.lastLowCollisionBroadcast = new AtomicLong();
     }
     
     @PostConstruct
@@ -75,11 +78,13 @@ public class MetricWebSocket {
     
     void lowCollisionBroadcast(Control event) {
         // We broadcast at most every X milliseconds. Check the LOW time.
-        if (System.currentTimeMillis() > lastLowCollisionBroadcast + minTimeBetweenBroadcast) {
+        long now = System.currentTimeMillis();
+        long lastCheckTimeExpected = lastLowCollisionBroadcast.get();
+        if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
+                        lastLowCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
             try {
                 WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
                 eventBus.post(message);
-                lastLowCollisionBroadcast = System.currentTimeMillis();
                 log.info("Sent low collision broadcast");
             } 
             catch (JsonProcessingException ex) {
@@ -90,11 +95,13 @@ public class MetricWebSocket {
     
     void highCollisionBroadcast(Control event) {
         // We broadcast at most every X milliseconds. Check the HIGH time.
-        if (System.currentTimeMillis() > lastHighCollisionBroadcast + minTimeBetweenBroadcast) {
+        long now = System.currentTimeMillis();
+        long lastCheckTimeExpected = lastHighCollisionBroadcast.get();
+        if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
+                        lastHighCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
             try {
                 WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
                 eventBus.post(message);
-                lastHighCollisionBroadcast = System.currentTimeMillis();
                 log.warn("Sent high collision broadcast");
             } 
             catch (JsonProcessingException ex) {
@@ -110,9 +117,9 @@ public class MetricWebSocket {
     private final int minTimeBetweenBroadcast;
     
     /** Last timestamp when we broadcast a low collision message */
-    private long lastLowCollisionBroadcast = 0;
+    private final AtomicLong lastLowCollisionBroadcast;
     
     /** Last timestamp when we broadcast a high collision message */
-    private long lastHighCollisionBroadcast = 0;
+    private final AtomicLong lastHighCollisionBroadcast;
     
 }

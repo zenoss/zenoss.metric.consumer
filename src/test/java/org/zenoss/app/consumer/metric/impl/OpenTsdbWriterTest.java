@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.concurrent.*;
 
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.consumer.metric.TsdbWriter;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -26,18 +27,21 @@ public class OpenTsdbWriterTest {
     OpenTsdbClient badClient;
     OpenTsdbClient goodClient;
     OpenTsdbClientPool clientPool;
-    OpenTsdbWriter writer;
+    OpenTsdbWriterRegistry registry;
 
     @Before
     public void setUp() {
         configuration = new MetricServiceConfiguration();
+        configuration.setMaxIdleTime(0);
+        configuration.setSleepWhenEmpty(1);
         metricsQueue = new MetricsQueue();
         client = mock(OpenTsdbClient.class);
         badClient = mock(OpenTsdbClient.class);
         goodClient = mock(OpenTsdbClient.class);
         clientPool = mock(OpenTsdbClientPool.class);
+        registry = mock(OpenTsdbWriterRegistry.class);
         executor = Executors.newSingleThreadExecutor();
-        writer = new OpenTsdbWriter(configuration, clientPool, metricsQueue);
+        
     }
     
     @After
@@ -48,6 +52,14 @@ public class OpenTsdbWriterTest {
 
     @Test
     public void testCancel() throws Exception {
+        final Metric metric = new Metric("metric", 0, 0);
+        MetricsQueue mq = mock(MetricsQueue.class);
+        
+        when (mq.poll(anyInt())).thenReturn(Collections.singleton(metric));
+        when (clientPool.borrowObject()).thenReturn(client);
+        
+        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq);
+        
         Future<?> future = executor.submit(writer);
         while (!writer.isRunning()) {
             Thread.sleep(10); // Wait until the thread has started
@@ -55,10 +67,20 @@ public class OpenTsdbWriterTest {
         writer.cancel();
         future.get();
         assertFalse (writer.isRunning());
+        
+        verify(client, never()).close();
     }
     
     @Test
     public void testInterrupt() throws Exception {
+        final Metric metric = new Metric("metric", 0, 0);
+        MetricsQueue mq = mock(MetricsQueue.class);
+        
+        when (mq.poll(anyInt())).thenReturn(Collections.singleton(metric));
+        when (clientPool.borrowObject()).thenReturn(client);
+        
+        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq);
+        
         executor.submit(writer);
         while (!writer.isRunning()) {
             Thread.sleep(10); // Wait until the thread has started
@@ -66,6 +88,8 @@ public class OpenTsdbWriterTest {
         executor.shutdownNow();
         executor.awaitTermination(1, TimeUnit.SECONDS);
         assertFalse (writer.isRunning());
+        
+        verify(client, never()).close();
     }
 
     @Test
@@ -75,11 +99,12 @@ public class OpenTsdbWriterTest {
         when(clientPool.borrowObject()).thenReturn(client);
         
         metricsQueue.addAll(Collections.singleton(metric));
-        executeWriterOnce(client);
+        executeWriter();
         
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(clientPool, times(1)).returnObject(client);
+        verify(client, never()).close();
 
         assertEquals (0, metricsQueue.getTotalErrors());
         assertEquals (1, metricsQueue.getTotalIncoming());
@@ -95,12 +120,13 @@ public class OpenTsdbWriterTest {
         doThrow(new IOException()).when(badClient).put(anyString());
         
         metricsQueue.addAll(Collections.singleton(metric));
-        executeWriterOnce(goodClient);
+        executeWriter();
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(badClient, times(1)).put(message);
         verify(goodClient, times(1)).put(message);
         verify(goodClient, times(1)).flush();
+        verify(goodClient, never()).close();
         verify(clientPool, times(1)).returnObject(goodClient);
         verify(badClient, times(1)).close();
 
@@ -113,18 +139,17 @@ public class OpenTsdbWriterTest {
     @Test
     public void testSubmitKillsClientAfterReadException() throws Exception {
         final Metric metric = new Metric("metric", 0, 0);
+        metricsQueue.addAll(Collections.singleton(metric));
 
+        when(clientPool.borrowObject()).thenReturn(client);
         when(client.read()).thenAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
-                writer.cancel(); // Stop thread after throwing this exception
                 throw new IOException();
             }
         });
-        when(clientPool.borrowObject()).thenReturn(client);
-        metricsQueue.addAll(Collections.singleton(metric));
-        Future<?> future = executor.submit(writer);
-        future.get();
+        executeWriter();
+        
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, times(1)).read();
@@ -146,13 +171,13 @@ public class OpenTsdbWriterTest {
         when(clientPool.borrowObject()).thenReturn(client);
         
         metricsQueue.addAll(Collections.singleton(metric));
-        executeWriterOnce(client);
+        executeWriter();
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, times(1)).read();
         verify(client, times(1)).flush();
-        verify(client, times(0)).close();
+        verify(client, never()).close();
         verify(clientPool, times(1)).returnObject(client);
 
         assertEquals (1, metricsQueue.getTotalErrors());
@@ -161,20 +186,8 @@ public class OpenTsdbWriterTest {
         assertEquals (0, metricsQueue.getTotalInFlight());
     }
 
-    /*
-     * Executes the writer under test and marks the thread as canceled after 
-     * the specified client is returned to the poool. Note that the write will
-     * only be returned to the pool if it is borrowed in the first place; this
-     * only happens when there is data to be written.
-     */
-    private void executeWriterOnce(OpenTsdbClient someClient) throws Exception {
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                writer.cancel();
-                return null;
-            }
-        }).when(clientPool).returnObject(someClient);
+    private void executeWriter() throws Exception {
+        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, metricsQueue);
         Future<?> future = executor.submit(writer);
         future.get();
     }

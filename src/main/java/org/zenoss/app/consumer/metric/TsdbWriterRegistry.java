@@ -8,21 +8,15 @@
  *
  * ***************************************************************************
  */
-
 package org.zenoss.app.consumer.metric;
 
-import java.util.concurrent.Future;
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Metric;
-
-public interface MetricService {
+/**
+ * Shared data structure containing references to all currently running TSDB 
+ * writer threads.
+ */
+public interface TsdbWriterRegistry {
     
-    /**
-     * Eagerly submit metrics to the tail of the queue until a high collision 
-     * is detected.
-     * 
-     * @param metric metrics to be written to TSDB
-     * @return control message with result
-     */
-    Control push(Metric[] metric);
+    void register(TsdbWriter writer);
+    void unregister(TsdbWriter writer);
+    int size();
 }

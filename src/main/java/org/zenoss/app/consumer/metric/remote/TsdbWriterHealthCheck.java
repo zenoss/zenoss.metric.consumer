@@ -12,41 +12,35 @@ package org.zenoss.app.consumer.metric.remote;
 
 import com.yammer.metrics.core.HealthCheck;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
-import org.zenoss.app.consumer.metric.TsdbWriter;
-import org.zenoss.app.consumer.metric.TsdbWriterFactory;
+import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
+import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 
 /**
  *
  * @author cschellenger
  */
-@Component
+@org.zenoss.dropwizardspring.annotations.HealthCheck
 class TsdbWriterHealthCheck extends HealthCheck {
     
-    private final TsdbWriterFactory factory;
+    private final TsdbWriterRegistry registry;
+    private final TsdbMetricsQueue queue;
 
     @Autowired
-    TsdbWriterHealthCheck(TsdbWriterFactory factory) {
+    TsdbWriterHealthCheck(TsdbWriterRegistry factory, TsdbMetricsQueue metricsQueue) {
         super("TSDB Writer");
-        this.factory = factory;
+        this.registry = factory;
+        this.queue = metricsQueue;
     }
 
     @Override
     protected Result check() {
-        int running = 0;
-        int stopped = 0;
-        for (TsdbWriter writer : factory.getCreatedWriters()) {
-            if (writer.isRunning()) {
-                running++;
-            }
-            else {
-                stopped++;
-            }
+        if (queue.getTotalInFlight() > 0) {
+            return registry.size() > 0? Result.healthy() : Result.unhealthy("Messages queued, but no writers are running.");
         }
-        
-        final String status = String.format("Running: %d, Stopped: %d", running, stopped);
-        return running > 0? Result.healthy(status) : Result.unhealthy(status);
+        else {
+            return registry.size() == 0? Result.healthy() : Result.unhealthy("No messages queued, but writers are running.");
+        }
     }
 
     

@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
 
 import java.net.SocketTimeoutException;
 import java.util.Collection;
@@ -25,25 +24,34 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.dropwizardspring.annotations.Managed;
 import org.zenoss.lib.tsdb.OpenTsdbClient;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 /**
  * @see TsdbWriter
  */
-@Component
+@Managed
 @Scope("prototype")
 class OpenTsdbWriter implements TsdbWriter {
 
     @Autowired
-    OpenTsdbWriter(MetricServiceConfiguration config, OpenTsdbClientPool clientPool, MetricsQueue metricsQueue)
+    OpenTsdbWriter(
+            MetricServiceConfiguration config, 
+            TsdbWriterRegistry registry,
+            OpenTsdbClientPool clientPool, 
+            MetricsQueue metricsQueue)
     {
         this.clientPool = clientPool;
         this.metricsQueue = metricsQueue;
+        this.writerRegistry = registry;
+
         this.batchSize = config.getJobSize();
         this.sleepWhenEmpty = config.getSleepWhenEmpty();
-        
+        this.maxIdleTime = config.getMaxIdleTime();
+
         this.timePerBatch = Metrics.newTimer(new MetricName(OpenTsdbWriter.class, "timePerBatch"), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         this.running = false;
         this.canceled = false;
@@ -53,6 +61,7 @@ class OpenTsdbWriter implements TsdbWriter {
     public void run() {
         log.info("Starting writer");
         try {
+            writerRegistry.register(this);
             running = true;
             while (!isCanceled()) {
                 if (Thread.interrupted()) {
@@ -63,11 +72,15 @@ class OpenTsdbWriter implements TsdbWriter {
                 Collection<Metric> metrics = metricsQueue.poll(batchSize);
 
                 if (metrics.isEmpty()) {
-                    if (sleepWhenEmpty > 0) {
-                        log.debug("No metrics to send; sleeping a bit.");
-                        Thread.sleep(sleepWhenEmpty);
+                    if (System.currentTimeMillis() > lastWorkTime + maxIdleTime) {
+                        log.info("Stopping execution due to dearth of work");
+                        break;
                     }
-                    continue;
+                    else {
+                        log.debug("No work; sleeping for {} milliseconds", sleepWhenEmpty);
+                        Thread.sleep(sleepWhenEmpty);
+                        continue;
+                    }
                 }
                 
                 OpenTsdbClient client = null;
@@ -118,14 +131,17 @@ class OpenTsdbWriter implements TsdbWriter {
                     }
                     client = null;
                     batchTimeContext.stop();
+                    lastWorkTime = System.currentTimeMillis();
                 }
             }
         }
         catch(InterruptedException ie) {
             log.info("Exiting due to thread interrupt");
+            Thread.currentThread().interrupt();
         }
         finally {
             running = false;
+            writerRegistry.unregister(this);
         }
     }
     
@@ -154,6 +170,9 @@ class OpenTsdbWriter implements TsdbWriter {
     }
     
     private static final Logger log = LoggerFactory.getLogger(OpenTsdbWriter.class);
+
+    /** where to report in when running */
+    private final TsdbWriterRegistry writerRegistry;
     
     /** where the clients come from */
     private final OpenTsdbClientPool clientPool;
@@ -163,10 +182,13 @@ class OpenTsdbWriter implements TsdbWriter {
     
     /** Size of batches to send to TSDB socket */
     private final int batchSize;
+
+    /** Max idle time before suicide */
+    private final int maxIdleTime;
     
-    /** How long should we sleep when there is nothing to do? */
+    /** Time to rest when there is no work */
     private final int sleepWhenEmpty;
-    
+
     /** The time it takes to process a batch from the publisher */
     private final Timer timePerBatch;
     
@@ -175,4 +197,7 @@ class OpenTsdbWriter implements TsdbWriter {
     
     /** Has this instance been canceled? */
     private transient boolean canceled;
+    
+    /** Last time this instance did work */
+    private transient long lastWorkTime;
 }

@@ -42,7 +42,11 @@ public class MetricServiceConfiguration {
     
     /** How long in milliseconds the TSDB writer should sleep when there is no work */
     @JsonProperty
-    private int sleepWhenEmpty = 1000;
+    private int sleepWhenEmpty = 250;
+    
+    /** Max time in milliseconds with no work before TSDB writer threads will commit seppuku */
+    @JsonProperty
+    private int maxIdleTime = 1000;
     
     /** Ideal number of TSDB writer threads */
     @JsonProperty
@@ -93,6 +97,15 @@ public class MetricServiceConfiguration {
      */
     public int getLowCollisionMark() {
         return lowCollisionMark;
+    }
+    
+    /**
+     * The maximum time TSDB writer threads should wait while there is no work
+     * to do.
+     * @return milliseconds
+     */
+    public int getMaxIdleTime() {
+        return maxIdleTime;
     }
     
     /**
@@ -159,6 +172,15 @@ public class MetricServiceConfiguration {
      */
     public void setLowCollisionMark(int lowCollisionMark) {
         this.lowCollisionMark= lowCollisionMark;
+    }
+    
+    /**
+     * The maximum time TSDB writer threads should wait while there is no work
+     * to do.
+     * @param maxIdleTime milliseconds
+     */
+    public void setMaxIdleTime(int maxIdleTime) {
+        this.maxIdleTime = maxIdleTime;
     }
 
     /**

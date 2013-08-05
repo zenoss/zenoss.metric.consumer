@@ -3,13 +3,9 @@ package org.zenoss.app.consumer.metric.impl;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
-import java.util.concurrent.ExecutorService;
 
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
-import org.zenoss.app.consumer.metric.TsdbWriter;
-import org.zenoss.app.consumer.metric.TsdbWriterFactory;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 
@@ -19,50 +15,19 @@ import static org.junit.Assert.*;
 public class OpenTsdbMetricServiceTest {
 
     MetricServiceConfiguration config;
-    ExecutorService executorService;
     EventBus eventBus;
     MetricsQueue metricsQueue;
-    TsdbWriterFactory writerFactory;
 
     @Before
     public void setUp() {
-        executorService = mock(ExecutorService.class);
-        writerFactory = mock(TsdbWriterFactory.class);
         eventBus = mock(EventBus.class);
         config = new MetricServiceConfiguration();
         metricsQueue = mock(MetricsQueue.class);
     }
     
     OpenTsdbMetricService newService() {
-        return new OpenTsdbMetricService(config, eventBus, executorService, metricsQueue, writerFactory);
+        return new OpenTsdbMetricService(config, eventBus, metricsQueue);
     }
-
-    @Test
-    public void testStartStop() throws Exception {
-        OpenTsdbMetricService service = newService();
-        
-        TsdbWriter writer = mock(TsdbWriter.class);
-        when(writerFactory.createWriter()).thenReturn(writer);
-        
-        service.start();
-        service.stop();
-        
-        verify(executorService, times(1)).submit(writer);
-        // Executor is managed by dropwizard
-        verify(executorService, never()).shutdownNow();
-        verify(executorService, never()).shutdown();
-        // The writers will be canceled by the writer factory
-        verify(writer, never()).cancel();
-    }
-    
-    @Test (expected = IllegalStateException.class)
-    public void testStartWithNoWriters() throws Exception {
-        config.setTsdbWriterThreads(0);
-        OpenTsdbMetricService service = newService();
-        
-        service.start();
-    }
-
 
     @Test
     public void testPushHandlesNull() throws Exception {
