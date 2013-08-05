@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
@@ -54,6 +55,9 @@ class OpenTsdbMetricService implements MetricService, com.yammer.dropwizard.life
         this.highCollisionMark = config.getHighCollisionMark();
         this.lowCollisionMark = config.getLowCollisionMark();
         this.tsdbWriters = config.getTsdbWriterThreads();
+        
+        // State
+        this.lastCollisionCount = new AtomicLong();
     }
 
     @Override
@@ -112,20 +116,19 @@ class OpenTsdbMetricService implements MetricService, com.yammer.dropwizard.life
      * high/low collision test and increment, broad cast control messages
      */
     private boolean collides(long totalInFlight) {
+        final long collisionCount = lastCollisionCount.getAndSet(totalInFlight);
+
         if (totalInFlight >= highCollisionMark) {
             eventBus.post(Control.highCollision());
-            lastCollisionCount = totalInFlight;
             log.info("High collision: {}", totalInFlight);
             return true;
         }
-
-        if (totalInFlight >= lowCollisionMark && totalInFlight > lastCollisionCount) {
+        
+        if (totalInFlight >= lowCollisionMark && totalInFlight > collisionCount) {
             eventBus.post(Control.lowCollision());
             log.debug("Low collision: {}", totalInFlight);
         }
         
-        lastCollisionCount = totalInFlight;
-
         return false;
     }
 
@@ -154,6 +157,6 @@ class OpenTsdbMetricService implements MetricService, com.yammer.dropwizard.life
      * Variable for tracking whether or not the number of collisions is
      * still going up or if it is going down
      */
-    private long lastCollisionCount = 0;
+    private final AtomicLong lastCollisionCount;
 
 }
