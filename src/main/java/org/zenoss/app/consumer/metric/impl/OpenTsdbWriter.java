@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.net.SocketTimeoutException;
 import java.util.Collection;
@@ -26,14 +27,13 @@ import java.util.concurrent.TimeUnit;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.dropwizardspring.annotations.Managed;
 import org.zenoss.lib.tsdb.OpenTsdbClient;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 /**
  * @see TsdbWriter
  */
-@Managed
+@Component
 @Scope("prototype")
 class OpenTsdbWriter implements TsdbWriter {
 
@@ -55,6 +55,7 @@ class OpenTsdbWriter implements TsdbWriter {
         this.timePerBatch = Metrics.newTimer(new MetricName(OpenTsdbWriter.class, "timePerBatch"), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         this.running = false;
         this.canceled = false;
+        this.lastWorkTime = System.currentTimeMillis();
     }
     
     @Override

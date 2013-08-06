@@ -11,7 +11,7 @@
 package org.zenoss.app.consumer.metric;
 
 /**
- * Responsible for writing data to TSDB in the background
+ * Responsible for writing data to TSDB in the background.
  */
 public interface TsdbWriter extends Runnable {
 

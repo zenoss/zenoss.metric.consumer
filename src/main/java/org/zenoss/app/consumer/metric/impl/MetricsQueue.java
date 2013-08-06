@@ -17,6 +17,7 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,13 +27,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.dropwizardspring.annotations.Managed;
 
 /**
  * Threadsafe queue that can be used to distribute TSDB metric data to multiple 
  * consumer threads.
  */
-@Managed
+@Component
 class MetricsQueue implements TsdbMetricsQueue {
         
     MetricsQueue() {

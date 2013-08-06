@@ -52,10 +52,7 @@ public class MetricServiceConfiguration {
     @JsonProperty
     private int tsdbWriterThreads = 1;
     
-    /** Minimum time in milliseconds between TSDB thread doctor checkups */
-    @JsonProperty
-    private int minTimeBetweenDoctorChecks = 5000;
-    
+    /** Size of tsdb writer thread pool */
     @JsonProperty
     private int threadPoolSize = 10;
 
@@ -133,14 +130,6 @@ public class MetricServiceConfiguration {
     public int getTsdbWriterThreads() {
         return tsdbWriterThreads;
     }
-    
-    /**
-     * Time between checking the liveliness of TSDB writer threads.
-     * @return milliseconds
-     */
-    public int getMinTimeBetweenDoctorChecks() {
-        return minTimeBetweenDoctorChecks;
-    }
 
     /**
      * The maximum acceptable backlog of metrics. Once this threshold has been
@@ -191,14 +180,6 @@ public class MetricServiceConfiguration {
      */
     public void setMinTimeBetweenBroadcast(int minTimeBetweenBroadcast) {
         this.minTimeBetweenBroadcast = minTimeBetweenBroadcast;
-    }
-    
-    /**
-     * Time between checking the liveliness of TSDB writer threads.
-     * @param milliseconds 
-     */
-    public void setMinTimeBetweenDoctorChecks(int milliseconds) {
-        this.minTimeBetweenDoctorChecks = milliseconds;
     }
     
     /**

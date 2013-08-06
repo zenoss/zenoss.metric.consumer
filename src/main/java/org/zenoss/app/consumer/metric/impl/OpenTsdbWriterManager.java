@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,18 +27,18 @@ import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import org.zenoss.app.consumer.metric.TsdbWriter;
 import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.dropwizardspring.annotations.Managed;
 
 /**
- *
+ * Subscribes to EventBus messages to ensure an appropriate number of TSDB 
+ * writer threads are running.
  */
-@Managed
-class OpenTsdbExecutorService {
+@Component
+class OpenTsdbWriterManager {
     
-    private static final Logger log = LoggerFactory.getLogger(OpenTsdbExecutorService.class);
+    private static final Logger log = LoggerFactory.getLogger(OpenTsdbWriterManager.class);
     
     @Autowired
-    OpenTsdbExecutorService(
+    OpenTsdbWriterManager(
             ApplicationContext appContext, 
             MetricServiceConfiguration config, 
             @Qualifier("zapp::event-bus::async") EventBus eventBus, 
@@ -49,7 +50,7 @@ class OpenTsdbExecutorService {
         this.eventBus = eventBus;
         this.writerRegistry = writerRegistry;
         
-        this.minTimeBetweenChecks = config.getMinTimeBetweenDoctorChecks();
+        this.minTimeBetweenChecks = config.getMaxIdleTime();
         this.tsdbWriterThreads = config.getTsdbWriterThreads();
         
         this.lastCheckTime = new AtomicLong();
@@ -65,6 +66,7 @@ class OpenTsdbExecutorService {
         switch (event.getType()) {
             case LOW_COLLISION:
             case HIGH_COLLISION:
+            case DATA_RECEIVED:
                 long now = System.currentTimeMillis();
                 long lastCheckTimeExpected = lastCheckTime.get();
                 

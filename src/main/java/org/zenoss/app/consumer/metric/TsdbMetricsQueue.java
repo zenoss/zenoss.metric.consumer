@@ -11,8 +11,13 @@
 package org.zenoss.app.consumer.metric;
 
 /**
- *
+ * Provides information on TSDB metrics that are currently being processed.
  */
 public interface TsdbMetricsQueue {
+    
+    /**
+     * How many metrics are currently queued for delivery?
+     * @return total
+     */
     long getTotalInFlight();
 }

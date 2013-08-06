@@ -14,7 +14,8 @@ metricService:
     highCollisionMark: 200000
     lowCollisionMark: 100000
     minTimeBetweenBroadcast: 500
-    tsdbWriterThreads: 2
+    tsdbWriterThreads: 1
+    maxIdleTime: 1000
     openTsdbClientPool:
       maxKeepAliveTime: 300000
       minTestTime:       60000

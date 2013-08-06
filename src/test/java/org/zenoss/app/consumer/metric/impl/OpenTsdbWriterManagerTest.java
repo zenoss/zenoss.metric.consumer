@@ -25,7 +25,7 @@ import static org.mockito.Mockito.*;
  *
  * @author cschellenger
  */
-public class OpenTsdbExecutorServiceTest {
+public class OpenTsdbWriterManagerTest {
  
     ApplicationContext context;
     MetricServiceConfiguration config;
@@ -42,8 +42,8 @@ public class OpenTsdbExecutorServiceTest {
         registry = mock(TsdbWriterRegistry.class);
     }
     
-    OpenTsdbExecutorService createService() {
-        return new OpenTsdbExecutorService(context, config, eventBus, executorService, registry);
+    OpenTsdbWriterManager createService() {
+        return new OpenTsdbWriterManager(context, config, eventBus, executorService, registry);
     }
     
     void nothingHappens() {
@@ -58,7 +58,7 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (0);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.lowCollision());
         
         verify (executorService, times(3)).submit(writer);
@@ -71,7 +71,7 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (0);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.highCollision());
         
         verify (executorService, times(3)).submit(writer);
@@ -84,8 +84,21 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (1);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.lowCollision());
+        
+        verify (executorService, times(2)).submit(writer);
+    }
+    
+    @Test
+    public void testStartSomeWritersData() {
+        config.setTsdbWriterThreads(3);
+        TsdbWriter writer = mock(TsdbWriter.class);
+        when (registry.size()).thenReturn (1);
+        when (context.getBean(TsdbWriter.class)).thenReturn (writer);
+        
+        OpenTsdbWriterManager service = createService();
+        service.processControl(Control.dataReceived());
         
         verify (executorService, times(2)).submit(writer);
     }
@@ -97,7 +110,7 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (1);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.highCollision());
         
         verify (executorService, times(2)).submit(writer);
@@ -110,7 +123,7 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (1);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.lowCollision());
         service.processControl(Control.lowCollision());
         
@@ -124,7 +137,7 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (1);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.lowCollision());
         service.processControl(Control.highCollision());
         
@@ -138,10 +151,10 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (3);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.lowCollision());
         
-        verify (executorService, times(0)).submit(writer);
+        verify (executorService, never()).submit(writer);
     }
     
     @Test
@@ -151,36 +164,36 @@ public class OpenTsdbExecutorServiceTest {
         when (registry.size()).thenReturn (3);
         when (context.getBean(TsdbWriter.class)).thenReturn (writer);
         
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.highCollision());
         
-        verify (executorService, times(0)).submit(writer);
+        verify (executorService, never()).submit(writer);
     }
     
     @Test
     public void testHandleDropped() {
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.dropped(null));
         nothingHappens();
     }
     
     @Test
     public void testHandleError() {
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.error(null));
         nothingHappens();
     }
     
     @Test
     public void testHandleMalformed() {
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.malformedRequest(null));
         nothingHappens();
     }
     
     @Test
     public void testHandleOK() {
-        OpenTsdbExecutorService service = createService();
+        OpenTsdbWriterManager service = createService();
         service.processControl(Control.ok());
         nothingHappens();
     }

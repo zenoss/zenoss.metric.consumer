@@ -16,17 +16,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.dropwizardspring.annotations.Managed;
+import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.consumer.metric.data.Control;
+import org.zenoss.app.consumer.metric.data.Metric;
 
-@Managed
+@Component
 class OpenTsdbMetricService implements MetricService {
 
     static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
@@ -61,6 +61,13 @@ class OpenTsdbMetricService implements MetricService {
         }
         
         metricsQueue.addAll(Arrays.asList(metrics));
+        
+        // Notify the bus that we are going from no data to some data.
+        if (totalInFlight == 0) {
+            eventBus.post(Control.dataReceived());
+            log.debug("Data received with zero metrics in flight");
+        }
+        
         return Control.ok();
     }
 

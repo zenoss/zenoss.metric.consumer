@@ -21,8 +21,8 @@ import org.zenoss.dropwizardspring.annotations.Managed;
 
 
 /**
- *
- * @author cschellenger
+ * This class tracks currently running TSDB writer threads and informs them 
+ * when the dropwizard container is shutting down.
  */
 @Managed
 class OpenTsdbWriterRegistry implements TsdbWriterRegistry, com.yammer.dropwizard.lifecycle.Managed {

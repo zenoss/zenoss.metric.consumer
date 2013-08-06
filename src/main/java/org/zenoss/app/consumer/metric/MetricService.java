@@ -11,7 +11,6 @@
 
 package org.zenoss.app.consumer.metric;
 
-import java.util.concurrent.Future;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 
