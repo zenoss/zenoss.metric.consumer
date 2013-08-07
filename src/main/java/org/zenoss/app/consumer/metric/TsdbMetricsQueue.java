@@ -8,20 +8,16 @@
  *
  * ***************************************************************************
  */
-
 package org.zenoss.app.consumer.metric;
 
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Metric;
-
-public interface MetricService {
+/**
+ * Provides information on TSDB metrics that are currently being processed.
+ */
+public interface TsdbMetricsQueue {
     
     /**
-     * Eagerly submit metrics to the tail of the queue until a high collision 
-     * is detected.
-     * 
-     * @param metric metrics to be written to TSDB
-     * @return control message with result
+     * How many metrics are currently queued for delivery?
+     * @return total
      */
-    Control push(Metric[] metric);
+    long getTotalInFlight();
 }

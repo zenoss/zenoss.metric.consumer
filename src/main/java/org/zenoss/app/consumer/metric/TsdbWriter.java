@@ -8,20 +8,22 @@
  *
  * ***************************************************************************
  */
-
 package org.zenoss.app.consumer.metric;
 
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Metric;
+/**
+ * Responsible for writing data to TSDB in the background.
+ */
+public interface TsdbWriter extends Runnable {
 
-public interface MetricService {
+    /**
+     * Inform the writer that it should immediately stop work and shut down.
+     */
+    void cancel();
     
     /**
-     * Eagerly submit metrics to the tail of the queue until a high collision 
-     * is detected.
-     * 
-     * @param metric metrics to be written to TSDB
-     * @return control message with result
+     * Check whether the writer is currently running
+     * @return true if the writer is running, false otherwise
      */
-    Control push(Metric[] metric);
+    boolean isRunning();
+    
 }

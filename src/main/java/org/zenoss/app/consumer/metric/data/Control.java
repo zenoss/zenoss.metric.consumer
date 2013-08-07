@@ -36,6 +36,10 @@ public final class Control {
     public static Control highCollision() {
         return new Control(Type.HIGH_COLLISION);
     }
+    
+    public static Control dataReceived() {
+        return new Control(Type.DATA_RECEIVED);
+    }
 
 
     public enum Type {
@@ -55,7 +59,10 @@ public final class Control {
         LOW_COLLISION,
 
         /** Metric processing breached the high water mark, and, no metrics were processed */
-        HIGH_COLLISION
+        HIGH_COLLISION,
+        
+        /** Some data has been received and processing should start */
+        DATA_RECEIVED
     }
 
     public Control() {

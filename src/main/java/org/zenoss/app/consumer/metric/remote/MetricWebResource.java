@@ -9,7 +9,7 @@
  * ***************************************************************************
  */
 
-package org.zenoss.app.consumer.metric;
+package org.zenoss.app.consumer.metric.remote;
 
 import com.yammer.metrics.annotation.Timed;
 import org.slf4j.Logger;
@@ -27,6 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.zenoss.app.consumer.metric.MetricService;
+
 
 @Resource(name = "metrics")
 @Path("/resource/metric")
@@ -34,7 +36,7 @@ public class MetricWebResource {
     static final Logger log = LoggerFactory.getLogger(MetricWebResource.class);
 
     @Autowired
-    MetricService sink;
+    private MetricService metricService;
 
     @POST
     @Timed
@@ -42,7 +44,7 @@ public class MetricWebResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Control post(Message message) {
         log.debug( "POST: resource/metric: control={}, len(metrics)={}", message.getControl(), (message.getMetrics() == null) ? -1 : message.getMetrics().length);
-        return sink.push(message.getMetrics());
+        return metricService.push(message.getMetrics());
     }
 
     @POST
@@ -52,7 +54,7 @@ public class MetricWebResource {
         log.debug( "POST: resource/metric/post( name={}, ts={}, value={}, tagged={})", name, ts, value, tagged);
         Map<String, String> tags = extractTags(tagged);
         Metric metric = new Metric(name, ts, value, tags);
-        Control control = sink.push( new Metric[]{metric});
+        metricService.push( new Metric[]{metric});
         return Response.status(Response.Status.ACCEPTED).build();
     }
 
@@ -67,12 +69,11 @@ public class MetricWebResource {
         return tags;
     }
 
-
     @SuppressWarnings({"unused"})
     public MetricWebResource() {
     }
 
-    public MetricWebResource(MetricService sink) {
-        this.sink = sink;
+    public MetricWebResource(MetricService metricService) {
+        this.metricService = metricService;
     }
 }

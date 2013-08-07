@@ -23,6 +23,11 @@ public class ConsumerAppConfiguration extends AppConfiguration {
     @JsonProperty("metricService")
     private MetricServiceConfiguration metricServiceConfiguration = new MetricServiceConfiguration();
 
+
+    /**
+     * Configuration details for the metric service
+     * @return config
+     */
     public MetricServiceConfiguration getMetricServiceConfiguration() {
         return metricServiceConfiguration;
     }
