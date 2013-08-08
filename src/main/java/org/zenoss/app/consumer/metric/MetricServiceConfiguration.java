@@ -55,6 +55,9 @@ public class MetricServiceConfiguration {
     /** Size of tsdb writer thread pool */
     @JsonProperty
     private int threadPoolSize = 10;
+    
+    @JsonProperty
+    private String consumerName = "Consumer";
 
     /**
      * TSDB client pool configuration.
@@ -62,6 +65,14 @@ public class MetricServiceConfiguration {
      */
     public OpenTsdbClientPoolConfiguration getOpenTsdbClientPoolConfiguration() {
         return openTsdbClientPoolConfiguration;
+    }
+    
+    /**
+     * The name of this consumer. This should be unique per JVM.
+     * @return consumerName
+     */
+    public String getConsumerName() {
+        return consumerName;
     }
 
     /**
@@ -124,11 +135,27 @@ public class MetricServiceConfiguration {
     }
     
     /**
+     * The minimum size of the general purpose thread pool for this application
+     * @return size
+     */
+    public int getThreadPoolSize() {
+        return threadPoolSize;
+    }
+    
+    /**
      * Number of background threads that will simultaneously write to TSDB.
      * @return threads
      */
     public int getTsdbWriterThreads() {
         return tsdbWriterThreads;
+    }
+    
+    /**
+     * The name of this consumer. This should be unique per JVM.
+     * @param consumerName unique name
+     */
+    public void setConsumerName(String consumerName) {
+        this.consumerName = consumerName;
     }
 
     /**
@@ -206,11 +233,5 @@ public class MetricServiceConfiguration {
         this.tsdbWriterThreads = numberOfThreads;
     }
     
-    /**
-     * The minimum size of the general purpose thread pool for this application
-     * @return size
-     */
-    public int getThreadPoolSize() {
-        return threadPoolSize;
-    }
+
 }

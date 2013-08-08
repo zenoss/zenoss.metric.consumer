@@ -37,12 +37,13 @@ class MetricsQueue implements TsdbMetricsQueue {
         
     MetricsQueue() {
         this.queue = new ConcurrentLinkedQueue<>();
-        this.totalErrorsMetric = Metrics.newCounter(new MetricName(MetricsQueue.class, "totalErrors"));
-        this.totalInFlightMetric = Metrics.newCounter(new MetricName(MetricsQueue.class, "totalInFlight"));
+        this.totalErrorsMetric = Metrics.newCounter(errorsMetricName());
+        this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
     }
     
+    @Override
     public Collection<Metric> poll(int size) {
         final Collection<Metric> metrics = new ArrayList<>(size);
         while(metrics.size() < size) {
@@ -56,11 +57,12 @@ class MetricsQueue implements TsdbMetricsQueue {
         return metrics;
     }
     
+    @Override
     public void addAll(Collection<Metric> metrics) {
         addAll(metrics, false);
     }
     
-    public void addAll(Collection<Metric> metrics, boolean alreadyCounted) {
+    void addAll(Collection<Metric> metrics, boolean alreadyCounted) {
         queue.addAll(metrics);
         if (!alreadyCounted) {
             incrementIncoming(metrics.size(), metrics.size());
@@ -76,7 +78,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalIncomingMetric.mark(incomingSize);
     }
 
-    public void incrementProcessed(long processed) {
+    void incrementProcessed(long processed) {
         totalInFlightMetric.dec(processed);
         totalOutGoingMetric.mark(processed);
     }
@@ -89,16 +91,8 @@ class MetricsQueue implements TsdbMetricsQueue {
         return Metrics.newMeter(outgoingMetricName(), "metrics", TimeUnit.SECONDS);
     }
     
-    private MetricName incomingMetricName() {
-        return new MetricName(MetricsQueue.class, "totalIncoming");
-    }
-
-    private MetricName outgoingMetricName() {
-        return new MetricName(MetricsQueue.class, "totalOutgoing");
-    }
-    
     // Used for testing
-    public void resetMetrics() {
+    void resetMetrics() {
         totalErrorsMetric.clear();
         totalInFlightMetric.clear();
         MetricsRegistry registry = Metrics.defaultRegistry();
@@ -113,16 +107,40 @@ class MetricsQueue implements TsdbMetricsQueue {
         return totalInFlightMetric.count();
     }
     
-    public long getTotalErrors() {
+    long getTotalErrors() {
         return totalErrorsMetric.count();
     }
     
-    public long getTotalIncoming() {
+    long getTotalIncoming() {
         return totalIncomingMetric.count();
     }
     
-    public long getTotalOutgoing() {
+    long getTotalOutgoing() {
         return totalOutGoingMetric.count();
+    }
+    
+    double getOneMinuteIncoming() {
+        return totalIncomingMetric.oneMinuteRate();
+    }
+    
+    double getOneMinuteOutgoing() {
+        return totalOutGoingMetric.oneMinuteRate();
+    }
+    
+    private MetricName incomingMetricName() {
+        return new MetricName(MetricsQueue.class, "totalIncoming");
+    }
+
+    private MetricName outgoingMetricName() {
+        return new MetricName(MetricsQueue.class, "totalOutgoing");
+    }
+    
+    private MetricName inFlightMetricName() {
+        return new MetricName(MetricsQueue.class, "totalInFlight");
+    }
+
+    private MetricName errorsMetricName() {
+        return new MetricName(MetricsQueue.class, "totalErrors");
     }
     
     private static final Logger log = LoggerFactory.getLogger(MetricsQueue.class);
