@@ -2,6 +2,7 @@ package org.zenoss.app.consumer.metric.impl;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -136,6 +137,7 @@ public class OpenTsdbWriterTest {
         assertEquals (0, metricsQueue.getTotalInFlight());
     }
 
+    @Ignore // No longer reading with every write
     @Test
     public void testSubmitKillsClientAfterReadException() throws Exception {
         final Metric metric = new Metric("metric", 0, 0);
@@ -167,7 +169,7 @@ public class OpenTsdbWriterTest {
     public void testSubmitSuccessWithErrorResponse() throws Exception {
         final Metric metric = new Metric("metric", 0, 0);
 
-        when(client.read()).thenReturn("an opentsdb error message\n");
+        when(clientPool.clearErrorCount()).thenReturn(3, 0);
         when(clientPool.borrowObject()).thenReturn(client);
         
         metricsQueue.addAll(Collections.singleton(metric));
@@ -175,12 +177,12 @@ public class OpenTsdbWriterTest {
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
-        verify(client, times(1)).read();
+        verify(client, never()).read();
         verify(client, times(1)).flush();
         verify(client, never()).close();
         verify(clientPool, times(1)).returnObject(client);
 
-        assertEquals (1, metricsQueue.getTotalErrors());
+        assertEquals (3, metricsQueue.getTotalErrors());
         assertEquals (1, metricsQueue.getTotalIncoming());
         assertEquals (1, metricsQueue.getTotalOutgoing());
         assertEquals (0, metricsQueue.getTotalInFlight());

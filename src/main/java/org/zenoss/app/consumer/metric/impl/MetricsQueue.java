@@ -67,8 +67,8 @@ class MetricsQueue implements TsdbMetricsQueue {
         }
     }
     
-    public void incrementError() {
-        totalErrorsMetric.inc();
+    public void incrementError(int size) {
+        totalErrorsMetric.inc(size);
     }
 
     private void incrementIncoming(long incomingSize, long addedSize) {

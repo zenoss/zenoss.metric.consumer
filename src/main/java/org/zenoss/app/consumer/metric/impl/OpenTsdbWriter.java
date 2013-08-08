@@ -69,54 +69,30 @@ class OpenTsdbWriter implements TsdbWriter {
                     throw new InterruptedException();
                 }
                 
-                TimerContext batchTimeContext = timePerBatch.time();
-                Collection<Metric> metrics = metricsQueue.poll(batchSize);
-
-                if (metrics.isEmpty()) {
-                    if (System.currentTimeMillis() > lastWorkTime + maxIdleTime) {
-                        log.info("Stopping execution due to dearth of work");
-                        break;
-                    }
-                    else {
-                        log.debug("No work; sleeping for {} milliseconds", sleepWhenEmpty);
-                        Thread.sleep(sleepWhenEmpty);
-                        continue;
-                    }
-                }
-                
                 OpenTsdbClient client = null;
                 try {
-                    client = clientPool.borrowObject();
                     long processed = 0;
-                    for (Metric m : metrics) {
-                        String message = convert(m);
-                        client.put(message);
-                        processed++;
+                    client = clientPool.borrowObject();
+                    
+                    int errs = clientPool.clearErrorCount();
+                    if (errs > 0) {
+                        metricsQueue.incrementError(errs);
                     }
-
-                    if (processed > 0) {
-                        metricsQueue.incrementProcessed(processed);
+                    
+                    while (processed < 1_000_000) {
+                        Collection<Metric> metrics = metricsQueue.poll(batchSize);
+                        for (Metric m : metrics) {
+                            String message = convert(m);
+                            client.put(message);
+                            processed++;
+                            metricsQueue.incrementProcessed(1);
+                        }
                     }
                     client.flush();
-                    
-                    try {
-                        String response = client.read();
-                        if (response != null) {
-                            log.warn("Error detected writing metrics: {}", response);
-                            metricsQueue.incrementError();
-                        }
-                    } catch (SocketTimeoutException ste) {
-                        //because TSDB doesn't ack, assume no data on line means success...
-                        //the read timeout's configurable in the socket factory yaml
-                        //log.debug("Socket timed out checking for errors");
-                    } catch (Exception e) {
-                        log.warn("Caught exception checking for errors", e);
-                        client.close();
-                    }
                 } 
                 catch (Exception e) {
                     log.warn("Caught unexpected exception processing messages", e);
-                    metricsQueue.addAll(metrics, true);
+                    //metricsQueue.addAll(metrics, true);
                     if (client != null) {
                         client.close();
                     }
@@ -131,7 +107,7 @@ class OpenTsdbWriter implements TsdbWriter {
                         }
                     }
                     client = null;
-                    batchTimeContext.stop();
+//                    batchTimeContext.stop();
                     lastWorkTime = System.currentTimeMillis();
                 }
             }
