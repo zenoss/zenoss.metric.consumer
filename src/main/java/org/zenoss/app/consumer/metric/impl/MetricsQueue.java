@@ -17,6 +17,7 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Metric;
 
@@ -34,17 +36,36 @@ import org.zenoss.app.consumer.metric.data.Metric;
  */
 @Component
 class MetricsQueue implements TsdbMetricsQueue {
-        
-    MetricsQueue() {
+    
+    @Autowired
+    MetricsQueue(MetricServiceConfiguration config) {
+        this(config.getMaxIdleTime());
+    }
+    
+    MetricsQueue(long maxWait) {
         this.queue = new ConcurrentLinkedQueue<>();
         this.totalErrorsMetric = Metrics.newCounter(errorsMetricName());
         this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
+        this.maxWait = maxWait;
     }
     
     @Override
-    public Collection<Metric> poll(int size) {
+    public Collection<Metric> poll(int size) throws InterruptedException {
+        
+        /*
+         * If the queue is empty, we should wait until it is no longer empty,
+         * up to some max wait time.
+         */
+        if (queue.isEmpty()) {
+            synchronized (this) {
+                if (queue.isEmpty()) {
+                    wait(maxWait);
+                }
+            }
+        }
+        
         final Collection<Metric> metrics = new ArrayList<>(size);
         while(metrics.size() < size) {
             final Metric m = queue.poll();
@@ -54,6 +75,7 @@ class MetricsQueue implements TsdbMetricsQueue {
             }
             metrics.add(m);
         }
+        
         return metrics;
     }
     
@@ -63,7 +85,21 @@ class MetricsQueue implements TsdbMetricsQueue {
     }
     
     void addAll(Collection<Metric> metrics, boolean alreadyCounted) {
-        queue.addAll(metrics);
+        
+        boolean addedAndNotified = false;
+        if (queue.isEmpty()) {
+            synchronized(this) {
+                if (queue.isEmpty()) {
+                    queue.addAll(metrics);
+                    addedAndNotified = true;
+                    this.notifyAll();
+                }
+            }
+        }
+        if (!addedAndNotified) {
+            queue.addAll(metrics);
+        }
+        
         if (!alreadyCounted) {
             incrementIncoming(metrics.size(), metrics.size());
         }
@@ -127,19 +163,19 @@ class MetricsQueue implements TsdbMetricsQueue {
         return totalOutGoingMetric.oneMinuteRate();
     }
     
-    private MetricName incomingMetricName() {
+    MetricName incomingMetricName() {
         return new MetricName(MetricsQueue.class, "totalIncoming");
     }
 
-    private MetricName outgoingMetricName() {
+    MetricName outgoingMetricName() {
         return new MetricName(MetricsQueue.class, "totalOutgoing");
     }
     
-    private MetricName inFlightMetricName() {
+    MetricName inFlightMetricName() {
         return new MetricName(MetricsQueue.class, "totalInFlight");
     }
 
-    private MetricName errorsMetricName() {
+    MetricName errorsMetricName() {
         return new MetricName(MetricsQueue.class, "totalErrors");
     }
     
@@ -147,7 +183,9 @@ class MetricsQueue implements TsdbMetricsQueue {
     
     /** Data to be written to TSDB */
     private final Queue<Metric> queue;
-        
+    
+    private final long maxWait;
+
     /* ---------------------------------------------------------------------- *
      *  Yammer Metrics (internal to this process)                             *
      * ---------------------------------------------------------------------- */

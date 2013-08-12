@@ -11,18 +11,14 @@
 package org.zenoss.app.consumer.metric.impl;
 
 import org.zenoss.app.consumer.metric.TsdbWriter;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.net.SocketTimeoutException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
@@ -49,13 +45,11 @@ class OpenTsdbWriter implements TsdbWriter {
         this.writerRegistry = registry;
 
         this.batchSize = config.getJobSize();
-        this.sleepWhenEmpty = config.getSleepWhenEmpty();
         this.maxIdleTime = config.getMaxIdleTime();
-
-        this.timePerBatch = Metrics.newTimer(new MetricName(OpenTsdbWriter.class, "timePerBatch"), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        
         this.running = false;
         this.canceled = false;
-        this.lastWorkTime = System.currentTimeMillis();
+        this.lastWorkTime = 0;
     }
     
     @Override
@@ -69,7 +63,29 @@ class OpenTsdbWriter implements TsdbWriter {
                     throw new InterruptedException();
                 }
                 
+                Collection<Metric> metrics = metricsQueue.poll(batchSize);
+                
+                if (metrics.isEmpty() &&    // No records could be read from the metrics queue
+                        lastWorkTime > 0 && // This thread has done work at least once
+                        maxIdleTime > 0 &&  // The max idle time is set to something meaningful
+                        System.currentTimeMillis() > lastWorkTime + maxIdleTime) // The max idle time has expired
+                {
+                    log.info("Shutting down writer due to dearth of work");
+                    break;
+                }
+                
+                /* 
+                 * If all the conditions were not met for shutting this thread down,
+                 * we still might want to just abort this run if we didn't get any
+                 * data from the metrics queue
+                 */
+                if (metrics.isEmpty()) {
+                    log.debug("No work to do, so checking again.");
+                    continue;
+                }
+                
                 OpenTsdbClient client = null;
+                
                 try {
                     long processed = 0;
                     client = clientPool.borrowObject();
@@ -79,20 +95,19 @@ class OpenTsdbWriter implements TsdbWriter {
                         metricsQueue.incrementError(errs);
                     }
                     
-                    while (processed < 1_000_000) {
-                        Collection<Metric> metrics = metricsQueue.poll(batchSize);
-                        for (Metric m : metrics) {
-                            String message = convert(m);
-                            client.put(message);
-                            processed++;
-                            metricsQueue.incrementProcessed(1);
-                        }
+                    for (Metric m : metrics) {
+                        String message = convert(m);
+                        client.put(message);
+                        processed++;
                     }
+                    
+                    metricsQueue.incrementProcessed(processed);
                     client.flush();
                 } 
                 catch (Exception e) {
                     log.warn("Caught unexpected exception processing messages", e);
-                    //metricsQueue.addAll(metrics, true);
+                    metricsQueue.addAll(metrics, true);
+                    
                     if (client != null) {
                         client.close();
                     }
@@ -107,7 +122,6 @@ class OpenTsdbWriter implements TsdbWriter {
                         }
                     }
                     client = null;
-//                    batchTimeContext.stop();
                     lastWorkTime = System.currentTimeMillis();
                 }
             }
@@ -162,12 +176,6 @@ class OpenTsdbWriter implements TsdbWriter {
 
     /** Max idle time before suicide */
     private final int maxIdleTime;
-    
-    /** Time to rest when there is no work */
-    private final int sleepWhenEmpty;
-
-    /** The time it takes to process a batch from the publisher */
-    private final Timer timePerBatch;
     
     /** Is this instance currently running? */
     private transient boolean running;

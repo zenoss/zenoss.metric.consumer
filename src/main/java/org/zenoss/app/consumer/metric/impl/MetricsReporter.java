@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.annotations.Managed;
@@ -36,7 +37,8 @@ class MetricsReporter extends AbstractPollingReporter implements com.yammer.drop
         super(Metrics.defaultRegistry(), "ConsumerTsdbReporter");
         this.metricsQueue = metricsQueue;
         this.consumerName = config.getConsumerName();
-    }    
+        this.frequency = config.getSelfReportFrequency();
+    }
     
     @Override
     public void run() {
@@ -52,7 +54,7 @@ class MetricsReporter extends AbstractPollingReporter implements com.yammer.drop
         metric.setMetric(name);
         metric.setTimestamp(timestamp);
         metric.setValue(val);
-        
+         
         Map<String, String> tags = new HashMap<>();
         tags.put("name", consumerName);
         
@@ -62,9 +64,13 @@ class MetricsReporter extends AbstractPollingReporter implements com.yammer.drop
 
     @Override
     public void start() throws Exception {
-        // TODO: Make configurable
-        log.info("Starting internal metrics reporter");
-        start(1, TimeUnit.SECONDS);
+        if (frequency > 0) {
+            log.info("Starting internal metrics reporter");
+            start(frequency, TimeUnit.MILLISECONDS);
+        }
+        else {
+            log.info("Internal metrics reporter disabled");
+        }
     }
 
     @Override
@@ -76,4 +82,5 @@ class MetricsReporter extends AbstractPollingReporter implements com.yammer.drop
     
     private final MetricsQueue metricsQueue;
     private final String consumerName;
+    private final int frequency;
 }

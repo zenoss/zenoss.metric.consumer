@@ -1,11 +1,9 @@
 package org.zenoss.app.consumer.metric.impl;
 
+import com.yammer.metrics.core.MetricName;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.lib.tsdb.OpenTsdbClient;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
@@ -33,9 +31,8 @@ public class OpenTsdbWriterTest {
     @Before
     public void setUp() {
         configuration = new MetricServiceConfiguration();
-        configuration.setMaxIdleTime(0);
-        configuration.setSleepWhenEmpty(1);
-        metricsQueue = new MetricsQueue();
+        configuration.setMaxIdleTime(1);
+        metricsQueue = new WriterTestQueue();
         client = mock(OpenTsdbClient.class);
         badClient = mock(OpenTsdbClient.class);
         goodClient = mock(OpenTsdbClient.class);
@@ -59,14 +56,21 @@ public class OpenTsdbWriterTest {
         when (mq.poll(anyInt())).thenReturn(Collections.singleton(metric));
         when (clientPool.borrowObject()).thenReturn(client);
         
+        configuration.setMaxIdleTime(0); // Never quit due to lack of work
         TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq);
         
         Future<?> future = executor.submit(writer);
-        while (!writer.isRunning()) {
-            Thread.sleep(10); // Wait until the thread has started
+        boolean writerStarted = false;        
+        for (int tries=0; tries < 50; tries++) {
+            writerStarted = writer.isRunning();
+            Thread.sleep(10);
         }
+        if (!writerStarted) {
+            fail("Writer could not be started");
+        }
+        
         writer.cancel();
-        future.get();
+        future.get(1, TimeUnit.SECONDS);
         assertFalse (writer.isRunning());
         
         verify(client, never()).close();
@@ -80,12 +84,20 @@ public class OpenTsdbWriterTest {
         when (mq.poll(anyInt())).thenReturn(Collections.singleton(metric));
         when (clientPool.borrowObject()).thenReturn(client);
         
+        configuration.setMaxIdleTime(0); // Never quit due to lack of work
         TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq);
         
         executor.submit(writer);
-        while (!writer.isRunning()) {
-            Thread.sleep(10); // Wait until the thread has started
+        
+        boolean writerStarted = false;
+        for (int tries=0; tries < 50; tries++) {
+            writerStarted = writer.isRunning();
+            Thread.sleep(10);
         }
+        if (!writerStarted) {
+            fail("Writer could not be started");
+        }
+        
         executor.shutdownNow();
         executor.awaitTermination(1, TimeUnit.SECONDS);
         assertFalse (writer.isRunning());
@@ -121,6 +133,7 @@ public class OpenTsdbWriterTest {
         doThrow(new IOException()).when(badClient).put(anyString());
         
         metricsQueue.addAll(Collections.singleton(metric));
+        configuration.setMaxIdleTime(100);
         executeWriter();
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
@@ -130,34 +143,6 @@ public class OpenTsdbWriterTest {
         verify(goodClient, never()).close();
         verify(clientPool, times(1)).returnObject(goodClient);
         verify(badClient, times(1)).close();
-
-        assertEquals (0, metricsQueue.getTotalErrors());
-        assertEquals (1, metricsQueue.getTotalIncoming());
-        assertEquals (1, metricsQueue.getTotalOutgoing());
-        assertEquals (0, metricsQueue.getTotalInFlight());
-    }
-
-    @Ignore // No longer reading with every write
-    @Test
-    public void testSubmitKillsClientAfterReadException() throws Exception {
-        final Metric metric = new Metric("metric", 0, 0);
-        metricsQueue.addAll(Collections.singleton(metric));
-
-        when(clientPool.borrowObject()).thenReturn(client);
-        when(client.read()).thenAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                throw new IOException();
-            }
-        });
-        executeWriter();
-        
-        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
-        verify(client, times(1)).put(message);
-        verify(client, times(1)).read();
-        verify(client, times(1)).flush();
-        verify(client, times(1)).close();
-        verify(clientPool, times(1)).returnObject(client);
 
         assertEquals (0, metricsQueue.getTotalErrors());
         assertEquals (1, metricsQueue.getTotalIncoming());
@@ -192,5 +177,38 @@ public class OpenTsdbWriterTest {
         TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, metricsQueue);
         Future<?> future = executor.submit(writer);
         future.get();
+    }
+    
+    /*
+     * This inner class is necessary because the yammer metrics used internally
+     * by MetricsQueue use global metrics that would otherwise conflict with
+     * other test threads.
+     */
+    private static class WriterTestQueue extends MetricsQueue {
+
+        public WriterTestQueue() {
+            super(5);
+        }
+    
+        @Override
+        MetricName incomingMetricName() {
+            return new MetricName(MetricsQueue.class, "totalIncomingTsdbWriter");
+        }
+
+        @Override
+        MetricName outgoingMetricName() {
+            return new MetricName(MetricsQueue.class, "totalOutgoingTsdbWriter");
+        }
+
+        @Override
+        MetricName inFlightMetricName() {
+            return new MetricName(MetricsQueue.class, "totalInFlightTsdbWriter");
+        }
+
+        @Override
+        MetricName errorsMetricName() {
+            return new MetricName(MetricsQueue.class, "totalErrorsTsdbWriter");
+        }
+        
     }
 }

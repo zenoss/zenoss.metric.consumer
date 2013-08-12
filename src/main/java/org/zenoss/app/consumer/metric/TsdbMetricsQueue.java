@@ -32,7 +32,7 @@ public interface TsdbMetricsQueue {
      * @param size
      * @return removed elements
      */
-    Collection<Metric> poll(int size);
+    Collection<Metric> poll(int size) throws InterruptedException;
     
     /**
      * Add elements to the queue.
