@@ -33,7 +33,7 @@ import org.zenoss.app.consumer.metric.MetricService;
 @Resource(name = "metrics")
 @Path("/resource/metric")
 public class MetricWebResource {
-    static final Logger log = LoggerFactory.getLogger(MetricWebResource.class);
+    private static final Logger log = LoggerFactory.getLogger(MetricWebResource.class);
 
     @Autowired
     private MetricService metricService;

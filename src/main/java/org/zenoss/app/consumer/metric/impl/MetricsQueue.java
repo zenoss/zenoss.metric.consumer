@@ -10,6 +10,14 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.base.Preconditions;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Meter;
@@ -18,12 +26,6 @@ import com.yammer.metrics.core.MetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 
 import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Metric;
@@ -34,17 +36,28 @@ import org.zenoss.app.consumer.metric.data.Metric;
  */
 @Component
 class MetricsQueue implements TsdbMetricsQueue {
-        
+
     MetricsQueue() {
-        this.queue = new ConcurrentLinkedQueue<>();
-        this.totalErrorsMetric = Metrics.newCounter(new MetricName(MetricsQueue.class, "totalErrors"));
-        this.totalInFlightMetric = Metrics.newCounter(new MetricName(MetricsQueue.class, "totalInFlight"));
+        this.queue = new LinkedBlockingQueue<>();
+        this.totalErrorsMetric = Metrics.newCounter(errorsMetricName());
+        this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
     }
     
-    public Collection<Metric> poll(int size) {
+    @Override
+    public Collection<Metric> poll(int size, long maxWaitMillis) throws InterruptedException {
+        Preconditions.checkArgument(size > 0);
+
+        Metric first = queue.poll(maxWaitMillis, TimeUnit.MILLISECONDS);
+        if (first == null) {
+            log.debug("Unable to retrieve a single element after max wait");
+            return Collections.emptyList();
+        }
+
         final Collection<Metric> metrics = new ArrayList<>(size);
+        metrics.add(first);
+
         while(metrics.size() < size) {
             final Metric m = queue.poll();
             if (m == null) {
@@ -53,22 +66,27 @@ class MetricsQueue implements TsdbMetricsQueue {
             }
             metrics.add(m);
         }
+        
         return metrics;
     }
     
+    @Override
     public void addAll(Collection<Metric> metrics) {
         addAll(metrics, false);
     }
-    
+
+    @Override
     public void addAll(Collection<Metric> metrics, boolean alreadyCounted) {
         queue.addAll(metrics);
+
         if (!alreadyCounted) {
             incrementIncoming(metrics.size(), metrics.size());
         }
     }
     
-    public void incrementError() {
-        totalErrorsMetric.inc();
+    @Override
+    public void incrementError(int size) {
+        totalErrorsMetric.inc(size);
     }
 
     private void incrementIncoming(long incomingSize, long addedSize) {
@@ -76,6 +94,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalIncomingMetric.mark(incomingSize);
     }
 
+    @Override
     public void incrementProcessed(long processed) {
         totalInFlightMetric.dec(processed);
         totalOutGoingMetric.mark(processed);
@@ -89,16 +108,8 @@ class MetricsQueue implements TsdbMetricsQueue {
         return Metrics.newMeter(outgoingMetricName(), "metrics", TimeUnit.SECONDS);
     }
     
-    private MetricName incomingMetricName() {
-        return new MetricName(MetricsQueue.class, "totalIncoming");
-    }
-
-    private MetricName outgoingMetricName() {
-        return new MetricName(MetricsQueue.class, "totalOutgoing");
-    }
-    
     // Used for testing
-    public void resetMetrics() {
+    void resetMetrics() {
         totalErrorsMetric.clear();
         totalInFlightMetric.clear();
         MetricsRegistry registry = Metrics.defaultRegistry();
@@ -113,23 +124,47 @@ class MetricsQueue implements TsdbMetricsQueue {
         return totalInFlightMetric.count();
     }
     
-    public long getTotalErrors() {
+    long getTotalErrors() {
         return totalErrorsMetric.count();
     }
     
-    public long getTotalIncoming() {
+    long getTotalIncoming() {
         return totalIncomingMetric.count();
     }
     
-    public long getTotalOutgoing() {
+    long getTotalOutgoing() {
         return totalOutGoingMetric.count();
+    }
+    
+    double getOneMinuteIncoming() {
+        return totalIncomingMetric.oneMinuteRate();
+    }
+    
+    double getOneMinuteOutgoing() {
+        return totalOutGoingMetric.oneMinuteRate();
+    }
+    
+    MetricName incomingMetricName() {
+        return new MetricName(MetricsQueue.class, "totalIncoming");
+    }
+
+    MetricName outgoingMetricName() {
+        return new MetricName(MetricsQueue.class, "totalOutgoing");
+    }
+    
+    MetricName inFlightMetricName() {
+        return new MetricName(MetricsQueue.class, "totalInFlight");
+    }
+
+    MetricName errorsMetricName() {
+        return new MetricName(MetricsQueue.class, "totalErrors");
     }
     
     private static final Logger log = LoggerFactory.getLogger(MetricsQueue.class);
     
     /** Data to be written to TSDB */
-    private final Queue<Metric> queue;
-        
+    private final BlockingQueue<Metric> queue;
+
     /* ---------------------------------------------------------------------- *
      *  Yammer Metrics (internal to this process)                             *
      * ---------------------------------------------------------------------- */

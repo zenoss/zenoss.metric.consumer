@@ -10,6 +10,10 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
+import javax.annotation.PostConstruct;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.slf4j.Logger;
@@ -19,13 +23,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
-
-import javax.annotation.PostConstruct;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
-import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import org.zenoss.app.consumer.metric.TsdbWriter;
+import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import org.zenoss.app.consumer.metric.data.Control;
 
 /**

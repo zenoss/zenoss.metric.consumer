@@ -10,7 +10,7 @@ http:
       keyStoreType:     pkcs12
 
 metricService:
-    jobSize: 1024
+    jobSize: 1000
     highCollisionMark: 200000
     lowCollisionMark: 100000
     minTimeBetweenBroadcast: 500
@@ -19,13 +19,11 @@ metricService:
     openTsdbClientPool:
       maxKeepAliveTime: 300000
       minTestTime:       60000
-
+      clientBufferSize:  65536
       clients:
         - {host: localhost, port: 4242}
 
       clientFactory:
         keepAlive:          true
-        sendBufferSize:     16384
-        receiveBufferSize:  16384
-        connectTimeout:     500
-        soTimeout:          10
+        connectTimeout:     1000
+        soTimeout:          50

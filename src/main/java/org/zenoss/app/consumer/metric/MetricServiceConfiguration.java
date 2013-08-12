@@ -40,10 +40,6 @@ public class MetricServiceConfiguration {
     @JsonProperty
     private int minTimeBetweenBroadcast = 500;
     
-    /** How long in milliseconds the TSDB writer should sleep when there is no work */
-    @JsonProperty
-    private int sleepWhenEmpty = 250;
-    
     /** Max time in milliseconds with no work before TSDB writer threads will commit seppuku */
     @JsonProperty
     private int maxIdleTime = 1000;
@@ -55,6 +51,12 @@ public class MetricServiceConfiguration {
     /** Size of tsdb writer thread pool */
     @JsonProperty
     private int threadPoolSize = 10;
+    
+    @JsonProperty
+    private String consumerName = "Consumer";
+    
+    @JsonProperty
+    private int selfReportFrequency = 0; // Zero means no reporting
 
     /**
      * TSDB client pool configuration.
@@ -62,6 +64,14 @@ public class MetricServiceConfiguration {
      */
     public OpenTsdbClientPoolConfiguration getOpenTsdbClientPoolConfiguration() {
         return openTsdbClientPoolConfiguration;
+    }
+    
+    /**
+     * The name of this consumer. This should be unique per JVM.
+     * @return consumerName
+     */
+    public String getConsumerName() {
+        return consumerName;
     }
 
     /**
@@ -116,11 +126,21 @@ public class MetricServiceConfiguration {
     }
     
     /**
-     * Time to sleep between checking for work when the metric backlog is empty.
-     * @return milliseconds
+     * The frequency with which this application will report internal metrics
+     * on throughput to TSDB. If this is less than or equal zero the reporter
+     * will be disabled.
+     * @return time in milliseconds
      */
-    public int getSleepWhenEmpty() {
-        return sleepWhenEmpty;
+    public int getSelfReportFrequency() {
+        return selfReportFrequency;
+    }
+    
+    /**
+     * The minimum size of the general purpose thread pool for this application
+     * @return size
+     */
+    public int getThreadPoolSize() {
+        return threadPoolSize;
     }
     
     /**
@@ -129,6 +149,14 @@ public class MetricServiceConfiguration {
      */
     public int getTsdbWriterThreads() {
         return tsdbWriterThreads;
+    }
+    
+    /**
+     * The name of this consumer. This should be unique per JVM.
+     * @param consumerName unique name
+     */
+    public void setConsumerName(String consumerName) {
+        this.consumerName = consumerName;
     }
 
     /**
@@ -191,11 +219,13 @@ public class MetricServiceConfiguration {
     }
     
     /**
-     * Time to sleep between checking for work when the metric backlog is empty.
-     * @param milliseconds milliseconds
+     * The frequency with which this application will report internal metrics
+     * on throughput to TSDB. If this is less than or equal zero the reporter
+     * will be disabled.
+     * @param milliseconds time in milliseconds
      */
-    public void setSleepWhenEmpty(int milliseconds) {
-        this.sleepWhenEmpty = milliseconds;
+    public void setSelfReportFrequency(int milliseconds) {
+        this.selfReportFrequency = milliseconds;
     }
     
     /**
@@ -206,11 +236,5 @@ public class MetricServiceConfiguration {
         this.tsdbWriterThreads = numberOfThreads;
     }
     
-    /**
-     * The minimum size of the general purpose thread pool for this application
-     * @return size
-     */
-    public int getThreadPoolSize() {
-        return threadPoolSize;
-    }
+
 }

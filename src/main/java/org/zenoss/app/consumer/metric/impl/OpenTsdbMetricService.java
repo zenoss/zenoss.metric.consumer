@@ -11,15 +11,15 @@
 
 package org.zenoss.app.consumer.metric.impl;
 
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
@@ -29,7 +29,7 @@ import org.zenoss.app.consumer.metric.data.Metric;
 @Component
 class OpenTsdbMetricService implements MetricService {
 
-    static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
+    private static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
 
     @Autowired
     OpenTsdbMetricService(
