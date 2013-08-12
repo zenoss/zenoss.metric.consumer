@@ -29,7 +29,7 @@ public class MetricsQueueTest {
     @Test
     public void testWaitAndNotify() throws InterruptedException, ExecutionException, TimeoutException {
         ExecutorService executorService = Executors.newFixedThreadPool(2);
-        final MetricsQueue mq = new MetricsQueue(0); // Wait forever
+        final MetricsQueue mq = new MetricsQueue();
         final Collection<Metric> toAdd = Lists.newArrayList(new Metric("fake", System.currentTimeMillis(), 123.45));
         final Poller pollsOnce = new Poller(mq);
         Future<?> pollingFuture = executorService.submit(pollsOnce);
@@ -62,7 +62,7 @@ public class MetricsQueueTest {
         public void run() {
             started = true;
             try {
-                retrieved = mq.poll(10);
+                retrieved = mq.poll(10, 30_000L); // Wait a long time
             } 
             catch(InterruptedException ie) {
                 Thread.currentThread().interrupt();

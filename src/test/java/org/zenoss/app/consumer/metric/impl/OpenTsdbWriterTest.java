@@ -53,7 +53,7 @@ public class OpenTsdbWriterTest {
         final Metric metric = new Metric("metric", 0, 0);
         MetricsQueue mq = mock(MetricsQueue.class);
         
-        when (mq.poll(anyInt())).thenReturn(Collections.singleton(metric));
+        when (mq.poll(anyInt(), eq(1L))).thenReturn(Collections.singleton(metric));
         when (clientPool.borrowObject()).thenReturn(client);
         
         configuration.setMaxIdleTime(0); // Never quit due to lack of work
@@ -81,7 +81,7 @@ public class OpenTsdbWriterTest {
         final Metric metric = new Metric("metric", 0, 0);
         MetricsQueue mq = mock(MetricsQueue.class);
         
-        when (mq.poll(anyInt())).thenReturn(Collections.singleton(metric));
+        when (mq.poll(anyInt(), eq(1L))).thenReturn(Collections.singleton(metric));
         when (clientPool.borrowObject()).thenReturn(client);
         
         configuration.setMaxIdleTime(0); // Never quit due to lack of work
@@ -186,10 +186,6 @@ public class OpenTsdbWriterTest {
      */
     private static class WriterTestQueue extends MetricsQueue {
 
-        public WriterTestQueue() {
-            super(5);
-        }
-    
         @Override
         MetricName incomingMetricName() {
             return new MetricName(MetricsQueue.class, "totalIncomingTsdbWriter");
