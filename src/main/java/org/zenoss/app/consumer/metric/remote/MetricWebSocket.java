@@ -24,8 +24,8 @@ import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import static org.zenoss.app.consumer.metric.data.Control.Type.LOW_COLLISION;
 
-@WebSocketListener(name = "metrics")
-@Path("/socket/metric")
+@WebSocketListener(name = "metrics/store")
+@Path("/ws/metrics/store")
 public class MetricWebSocket {
     
     private static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);
