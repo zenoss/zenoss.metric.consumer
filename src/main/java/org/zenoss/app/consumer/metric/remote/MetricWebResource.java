@@ -30,7 +30,7 @@ import javax.ws.rs.core.Response.Status;
 
 
 @Resource(name = "metrics/store")
-@Path("/metrics/store")
+@Path("/api/metrics/store")
 public class MetricWebResource {
     private static final Logger log = LoggerFactory.getLogger(MetricWebResource.class);
 
