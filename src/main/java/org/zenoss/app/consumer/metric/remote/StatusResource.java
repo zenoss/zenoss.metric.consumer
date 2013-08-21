@@ -7,7 +7,7 @@ import javax.ws.rs.HEAD;
 import javax.ws.rs.Path;
 
 @Resource(name = "metrics")
-@Path("/status")
+@Path("/api/metrics/store/status")
 public class StatusResource {
 
     @HEAD
