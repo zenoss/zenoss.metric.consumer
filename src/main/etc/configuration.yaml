@@ -3,7 +3,7 @@ logging:
 http:
   port: 8443
   adminPort: 58443
-  connectorType: nonblocking+ssl
+  connectorType: nonblocking
   ssl:
       keyStore: ${ssl.cert.dir}/ssl.pfx
       keyStorePassword: zapp_pass
