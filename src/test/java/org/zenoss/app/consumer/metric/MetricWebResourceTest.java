@@ -42,15 +42,11 @@ public class MetricWebResourceTest extends ResourceTest {
     public void testPostNullMessage() throws Exception {
         WebResource resource = client().resource("/api/metrics/store");
         WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
-        boolean badStatus = false;
         try {
             builder.post(Control.class, null);
-        } catch (UniformInterfaceException e) {
-            badStatus = true;
-            assertEquals("Unexpected status", 400, e.getResponse().getClientResponseStatus().getStatusCode());
-        }
-        if (!badStatus){
             fail("expected 400 status");
+        } catch (UniformInterfaceException e) {
+            assertEquals("Unexpected status", 400, e.getResponse().getClientResponseStatus().getStatusCode());
         }
     }
 
@@ -58,15 +54,11 @@ public class MetricWebResourceTest extends ResourceTest {
     public void testPostEmptyMessage() throws Exception {
         WebResource resource = client().resource("/api/metrics/store");
         WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
-        boolean badStatus = false;
         try {
             builder.post(Control.class, new Metric[]{});
-        } catch (UniformInterfaceException e) {
-            badStatus = true;
-            assertEquals("Unexpected status", 400, e.getResponse().getClientResponseStatus().getStatusCode());
-        }
-        if (!badStatus){
             fail("expected 400 status");
+        } catch (UniformInterfaceException e) {
+            assertEquals("Unexpected status", 400, e.getResponse().getClientResponseStatus().getStatusCode());
         }
     }
 }
