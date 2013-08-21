@@ -31,7 +31,7 @@ public class MetricWebResourceTest extends ResourceTest {
     public void testPostMessage() throws Exception {
         Metric metric = new Metric("name", 0, 1.0);
         Metric[] metrics = new Metric[]{metric};
-        WebResource resource = client().resource("/metrics/store");
+        WebResource resource = client().resource("/api/metrics/store");
         WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
         assertThat(builder.post(Control.class, metrics)).isEqualTo(control);
         metric = new Metric("name", 0, 1.0);
@@ -40,7 +40,7 @@ public class MetricWebResourceTest extends ResourceTest {
 
     @Test
     public void testPostNullMessage() throws Exception {
-        WebResource resource = client().resource("/metrics/store");
+        WebResource resource = client().resource("/api/metrics/store");
         WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
         boolean badStatus = false;
         try {
@@ -56,7 +56,7 @@ public class MetricWebResourceTest extends ResourceTest {
 
     @Test
     public void testPostEmptyMessage() throws Exception {
-        WebResource resource = client().resource("/metrics/store");
+        WebResource resource = client().resource("/api/metrics/store");
         WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
         boolean badStatus = false;
         try {
