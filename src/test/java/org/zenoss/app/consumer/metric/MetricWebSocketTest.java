@@ -16,7 +16,7 @@ import static org.mockito.Mockito.*;
 
 public class MetricWebSocketTest {
     
-    private static final int TIME_BETWEEN_BROADCAST = 20;
+    private static final int TIME_BETWEEN_BROADCAST = 1000;
 
     EventBus eventBus;
     MetricService service;
