@@ -394,13 +394,13 @@ dflt_component_help:
 	@echo
 	@echo "where <target> is one or more of the following:"
 	@echo $(LINE)
-	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p }' | $(GREP) -v .PHONY| $(SORT) |\
+	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p ; }' | $(GREP) -v .PHONY| $(SORT) |\
 	$(SED) -e "s|:.*||g" | $(EGREP) -v "^\.|^$(BUILD_DIR)\/|install|$(PREFIX)|^\/|^dflt_|clean" | $(PR) -t -w 80 -3
 	@echo $(LINE)
-	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p }' | $(GREP) -v .PHONY| $(SORT) |\
+	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p ; }' | $(GREP) -v .PHONY| $(SORT) |\
 	$(SED) -e "s|:.*||g" | $(EGREP) -v "^\.|^$(BUILD_DIR)\/|^$(PREFIX)\/|^\/|^dflt_" | $(EGREP) install | $(PR) -t -w 80 -3
 	@echo $(LINE)
-	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p }' | $(GREP) -v .PHONY| $(SORT) |\
+	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p ; }' | $(GREP) -v .PHONY| $(SORT) |\
 	$(SED) -e "s|:.*||g" | $(EGREP) -v "^\.|^$(BUILD_DIR)\/|^$(PREFIX)\/|^\/|^dflt_" | $(EGREP) clean |  $(PR) -t -w 80 -3
 	@echo $(LINE)
 	@echo "Build results logged to $(BUILD_LOG)."
