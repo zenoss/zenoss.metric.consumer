@@ -127,9 +127,9 @@ ifeq "$(REQUIRES_JDK)" "1"
     # These become subsitution variables once our configure script is aware
     # of this makefile.
     REQD_JDK_MIN_VER   = 1.7.0
-    REQD_JDK_BRAND     = OpenJDK
+    #REQD_JDK_BRAND    = OpenJDK
     REQD_MVN_MIN_VER   = 3.0.0
-    REQD_MVN_BRAND     = Apache
+    #REQD_MVN_BRAND    = Apache
 
     ifndef CHECK_TOOLS_VERSION_BRAND
         CHECK_TOOLS_VERSION_BRAND := java:$(REQD_JDK_MIN_VER):$(REQD_JDK_BRAND) mvn:$(REQD_MVN_MIN_VER):$(REQD_MVN_BRAND)
@@ -350,7 +350,7 @@ $(CHECKED_TOOLS_VERSION_BRAND):
 				else \
 					desired_brand=`echo $${tool_version_brand} | cut -d":" -f3` ;\
 					actual_brand=`java -version 2>&1 | grep -v java | awk '{print $$1}' | sort -u | grep -i jdk` ;\
-					if [ "$${actual_brand}" != "$${desired_brand}" ];then \
+					if [ ! -z "$${desired_brand}" -a "$${actual_brand}" != "$${desired_brand}" ];then \
 						$(call echol,"ERROR: jdk brand is $${actual_brand}.  Expecting $${desired_brand}.") ;\
 						exit 1;\
 					fi ;\
@@ -368,7 +368,7 @@ $(CHECKED_TOOLS_VERSION_BRAND):
 				else \
 					desired_brand=`echo $${tool_version_brand} | cut -d":" -f3` ;\
 					actual_brand=`mvn -version 2>&1 | head -1 | awk '{print $$1}'` ;\
-					if [ "$${actual_brand}" != "$${desired_brand}" ];then \
+					if [ ! -z "$${desired_brand}" -a "$${actual_brand}" != "$${desired_brand}" ];then \
 						$(call echol,"ERROR: mvn brand is $${actual_brand}.  Expecting $${desired_brand}.") ;\
 						exit 1;\
 					fi ;\
