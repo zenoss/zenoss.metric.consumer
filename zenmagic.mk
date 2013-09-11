@@ -391,6 +391,7 @@ dflt_component_help:
 	@echo "Zenoss 5.x $(_COMPONENT) makefile"
 	@echo
 	@echo "Usage: make <target>"
+	@echo "       make <target> V=1  # for verbose output"
 	@echo
 	@echo "where <target> is one or more of the following:"
 	@echo $(LINE)
