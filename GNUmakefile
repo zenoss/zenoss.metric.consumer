@@ -6,408 +6,102 @@
 # License.zenoss under the directory where your Zenoss product is installed.
 #
 #============================================================================
+.DEFAULT_GOAL   := help # all|build|clean|distclean|devinstall|install|help
 
 #============================================================================
-# BUILD CONFIGURATION
-#============================================================================
-.DEFAULT_GOAL   := help # build|clean|distclean|devinstall|install|help
-
-COMPONENT        = metric-consumer
-_COMPONENT       = $(strip $(COMPONENT))
-BUILD_LOG        = $(_COMPONENT).log
-CHECKED_BUILD    = .checkedbuild
-SRC_DIR          = src
-BUILD_DIR        = target
-SB_IDIR          = install
-POM              = pom.xml
-
-# Prompt before uninstalling.
-SAFE_UNINSTALL   = yes # yes|no
-_SAFE_UNINSTALL  = $(strip $(SAFE_UNINSTALL))
-
-# Trust that maven will only rebuild when necessary.  
-# Otherwise, rely upon make's view of when to rebuild.
-TRUST_MVN_REBUILD  = no # yes|no
-_TRUST_MVN_REBUILD = $(strip $(TRUST_MVN_REBUILD))
-
-ABS_BUILD_LOG    = $(abspath $(BUILD_LOG))
-ABS_BUILD_DIR    = $(abspath $(BUILD_DIR))
+# Build component configuration.
 #
-# These become subsitution variables once our configure script is aware
-# of this makefile.
+# Beware of trailing spaces.
+# Don't let your editor turn tabs into spaces or vice versa.
+#============================================================================
+COMPONENT             = metric-consumer
+COMPONENT_PREFIX      = install
+COMPONENT_SYSCONFDIR  = $(COMPONENT_PREFIX)/etc
+_COMPONENT            = $(strip $(COMPONENT))
+SUPERVISOR_CONF       = $(_COMPONENT)_supervisor.conf
+SUPERVISORD_DIR       = $(SYSCONFDIR)/supervisor
+REQUIRES_JDK          = 1
+#COMPONENT_MAVEN_OPTS = -DskipTests=true
+SRC_DIR               = src
 #
-REQD_JDK_MIN_VER = 1.7.0
-REQD_JDK_BRAND   = OpenJDK
-REQD_MVN_MIN_VER = 3.0.5
-REQD_MVN_BRAND   = Apache
-DATA_FILE_PERMS  = 644
+# For zapp components, keep BUILD_DIR aligned with src/main/assembly/zapp.xml
+#
+BUILD_DIR             = target
 
 #============================================================================
-# BUILD TOOLS
+# Hide common build macros, idioms, and default rules in a separate file.
 #============================================================================
-#----------------------------------------------------------------------------
-# Isolate build primitives for easy global redefinition.
-#----------------------------------------------------------------------------
-AWK              = awk
-BC               = bc
-CUT              = cut
-DATE             = date
-EGREP            = egrep
-FIND             = find
-GREP             = grep
-HEAD             = head
-INSTALL          = install
-INSTALL_PROGRAM  = $(INSTALL)
-INSTALL_DATA     = $(INSTALL) -m $(DATA_FILE_PERMS)
-JAVA             = java
-LN               = ln
-MKDIR            = mkdir
-MVN              = mvn
-PR               = pr
-RM               = rm
-SED              = sed
-SORT             = sort
-TAR              = tar
-TEE              = tee
-TOUCH            = touch
-TR               = tr
-XARGS            = xargs
-
-TOOLS           := $(AWK) $(CUT) $(DATE) $(EGREP) $(FIND) $(HEAD) 
-TOOLS           += $(JAVA) $(LN) $(MKDIR) $(MVN) $(PR) $(SED) $(SORT) 
-TOOLS           += $(TAR) $(TEE) $(TOUCH) $(XARGS)
-TOOLS_VERSION_BRAND := java:$(REQD_JDK_MIN_VER):$(REQD_JDK_BRAND) mvn:$(REQD_MVN_MIN_VER):$(REQD_MVN_BRAND)
-
-# This will be a meaningful install prefix (e.g., /usr/local or /opt/zenoss)
-# once our configure script is aware of this makefile.
-#
-# This will be used for production installs.  Will use other idioms to
-# implement a dev-friendly symlink install.
-PREFIX     = @prefix@
-
-# If the install prefix has not been configured in, then
-# default to a sandbox-relative install directory.
-
-ifeq "$(PREFIX)" "@prefix@"
-    INSTALL_DIR := $(SB_IDIR)
+ifeq "$(wildcard zenmagic.mk)" ""
+    $(error "Makefile for $(_COMPONENT) is unable to include zenmagic.mk.  Please investigate")
 else
-    INSTALL_DIR := $(PREFIX)
+    include zenmagic.mk
 endif
-ABS_INSTALL_DIR := $(abspath $(INSTALL_DIR))
 
-SYSCONFDIR = @sysconfdir@
-ifeq "$(SYSCONFDIR)" "@sysconfdir@"
-    SUPERVISORD_DIR  := $(INSTALL_DIR)/etc/supervisor
-else
-    SUPERVISORD_DIR  := $(SYSCONFDIR)/supervisor
-endif
-SUPERVISOR_CONF  := $(_COMPONENT)_supervisor.conf
+# List of source files needed to build this component.
+COMPONENT_SRC ?= $(DFLT_COMPONENT_SRC)
 
-$(_COMPONENT)_SRC := $(shell $(FIND) $(SRC_DIR) -type f)
+# Name of jar we're building: my-component-x.y.z.jar
+COMPONENT_JAR ?= $(DFLT_COMPONENT_JAR)
 
-# Derive the filename of the component jar we're trying to build:
-#
-#    e.g., <component>-x.y.z-jar
-#
-# by parsing the toplevel pom.xml.  
-#
-# Use this name in a target/dependency relationship to minimize 
-# apparent rebuild activity (until our pom.xml is fixed to accomplish the 
-# same minimal-rebuild behavior through maven idioms).
-#
-COMPONENT_JAR := $(shell $(GREP) -C4 "<artifactId>$(_COMPONENT)</artifactId>" $(POM) | $(GREP) -A3 "<groupId>[orgcom]*.zenoss</groupId>" | $(EGREP) "groupId|artifactId|version" |$(CUT) -d">" -f2 |$(CUT) -d"<" -f1|$(XARGS) echo|$(SED) -e "s|.*zenoss \([^ ]*\) \([^ ]*\)|\1-\2.jar|g"|$(HEAD) -1)
+# Specify install-related directories to create as part of the install target.
+# NB: Intentional usage of _PREFIX and PREFIX here to avoid circular dependency.
+INSTALL_MKDIRS = $(_DESTDIR)$(_PREFIX) $(_DESTDIR)$(PREFIX)/log $(_DESTDIR)$(SUPERVISORD_DIR)
 
 ifeq "$(COMPONENT_JAR)" ""
+    $(call echol,"Please investigate the COMPONENT_JAR macro assignment.")
     $(error Unable to derive component jar filename from pom.xml)
 else
-    # We package up the component jar and related conf files 
-    # into a tar file for easy deployment.  
-    #
-    # Derive the expected name of that binary tar file.
-    #
-    #    e.g., metric-consumer-x.y.z-zapp.tar.gz
-    #
+    # Name of binary tar we're building: my-component-x.y.z-zapp.tar.gz
     COMPONENT_TAR = $(shell echo $(COMPONENT_JAR) | $(SED) -e "s|\.jar|-zapp.tar.gz|g")
 endif
-
-#----------------------------------------------------------------------------
-# Control the verbosity of the build.  
-#
-# By default we build in 'quiet' mode so there is more emphasis on noticing
-# and resolving warnings.
-#
-# Use 'make V=1 <target>' to see the actual commands invoked
-#                         to build a given target.
-#----------------------------------------------------------------------------
-ifdef V
-    ifeq ("$(origin V)", "command line")
-        ZBUILD_VERBOSE = $(V)
-    endif
-endif
-ifndef ZBUILD_VERBOSE
-    ZBUILD_VERBOSE = 0
-endif
-ifeq ($(ZBUILD_VERBOSE),1)
-    quiet =
-    Q =
-else
-    quiet=quiet_
-    Q = @
-endif
-#
-# If the user is running make -s (silent mode), suppress echoing of
-# commands.
-# 
-ifneq ($(findstring s,$(MAKEFLAGS)),)
-        quiet=silent_
-endif
-
-#----------------------------------------------------------------------------
-# Define the 'cmd' macro that controls verbosity of build output.
-#
-# Normally we're in 'quiet' mode meaning we just echo out the short version 
-# of the command before running the full command.
-#
-# In verbose mode, we echo out the full command and run it as well.
-# 
-# Requires commands to define these macros:
-#
-#    quite_cmd_BLAH = BLAH PSA $@
-#          cmd_BLAH = actual_blah_cmd ...
-#----------------------------------------------------------------------------
-
-TIME_TAG=[$(shell $(DATE) +"%H:%M")]
-ifeq "$(ZBUILD_VERBOSE)" "1"
-    #--------------------------------------------------------------
-    # For verbose builds, we echo the raw command and stdout/stderr
-    # to the console and log file.
-    #--------------------------------------------------------------
-cmd = @$(if $($(quiet)cmd_$(1)),\
-        echo '  $(TIME_TAG)  $($(quiet)cmd_$(1))  ' &&) $(cmd_$(1)) 2>&1 | $(TEE) -a $(BUILD_LOG)
-cmd_noat = $(if $($(quiet)cmd_$(1)),\
-        echo '  $(TIME_TAG)  $($(quiet)cmd_$(1))  ' &&) $(cmd_$(1)) 2>&1 | $(TEE) -a $(BUILD_LOG)
-else
-    #--------------------------------------------------------------
-    # For quiet builds, we present abbreviated output to the console.
-    # Build log contains full command plus stdout/stderr.
-    #--------------------------------------------------------------
-cmd = @$(if $($(quiet)cmd_$(1)),\
-        echo '  $(TIME_TAG)  $($(quiet)cmd_$(1))  ' &&) (echo '$(cmd_$(1))' ;$(cmd_$(1))) 2>&1 >>$(BUILD_LOG) || (echo -e "  $(TIME_TAG)  ERROR: See $(ABS_BUILD_LOG) for details.\n" ; exit 1)
-cmd_noat = $(if $($(quiet)cmd_$(1)),\
-        echo '  $(TIME_TAG)  $($(quiet)cmd_$(1))  ' &&) (echo '$(cmd_$(1))' ;$(cmd_$(1))) 2>&1 >>$(BUILD_LOG) || (echo -e "  $(TIME_TAG)  ERROR: See $(ABS_BUILD_LOG) for details.\n" ; exit 1)
-endif
-
-
-#------------------------------------------------------------
-# Create a tar.gz file.  Remove suspect or empty archive on error.
-quiet_cmd_TAR = TAR   $@
-      cmd_TAR = ($(TAR) zcvf $@ -C "$2" $3) || $(RM) -f "$@"
-
-#------------------------------------------------------------
-# maven
-quiet_cmd_MVN = MVN    $2 $3
-      cmd_MVN = $(MVN) $2 
-
-quiet_cmd_MVNASM = MVN    assemble $3
-      cmd_MVNASM = $(MVN) $2 
-
-#------------------------------------------------------------
-# symlink
-quiet_cmd_SYMLINK = SYMLNK $3 -> $2
-      cmd_SYMLINK = $(LN) -sf $2 $3
-
-#----------------------------------------------------------------------------
-# Make a directory.
-quiet_cmd_MKDIR = MKDIR  $2
-      cmd_MKDIR = $(MKDIR) -p $2
-
-#----------------------------------------------------------------------------
-# Untar something into an existing directory
-quiet_cmd_UNTAR = UNTAR  $2 -> $3
-      cmd_UNTAR = $(TAR) -xvf $2 -C $3
-
-#----------------------------------------------------------------------------
-# Touch a file
-quiet_cmd_TOUCH = TOUCH  $2
-      cmd_TOUCH = $(TOUCH) $2
-
-#----------------------------------------------------------------------------
-# Remove a file
-quiet_cmd_RM = RM     $2
-      cmd_RM = $(RM) -f "$2"
-
-
-#----------------------------------------------------------------------------
-# Remove a directory in a safe way.
-#    -I prompt once before removing more than 3 files (in case a dangerous
-#       INSTALL_DIR was specified.
-quiet_cmd_SAFE_RMDIR = RMDIR  $2
-ifeq "$(_SAFE_UNINSTALL)" "yes"
-      cmd_SAFE_RMDIR = $(RM) -r -I --preserve-root "$2"
-else
-      cmd_SAFE_RMDIR = $(RM) -r --preserve-root "$2"
-endif
-
-#----------------------------------------------------------------------------
-# echo and log
-define echol
-	echo $1 | $(TEE) -a $(BUILD_LOG)
-endef
-
-#============================================================================
-# BUILD TARGETS
-#============================================================================
-.PHONY: all build $(_COMPONENT)
-TARGET_TAR := $(BUILD_DIR)/$(COMPONENT_TAR)
-all build $(_COMPONENT): $(TARGET_TAR)
-
 TARGET_JAR := $(BUILD_DIR)/$(COMPONENT_JAR)
-ifeq "$(_TRUST_MVN_REBUILD)" "yes"
-$(TARGET_JAR): checkbuild
-else
-$(TARGET_JAR): $(CHECKED_BUILD) $($(_COMPONENT)_SRC)
-endif
-	$(call cmd,MVN,package,$@)
+TARGET_TAR := $(BUILD_DIR)/$(COMPONENT_TAR)
+
+#============================================================================
+# Subset of standard build targets our makefiles should implement.  
+#
+# See: http://www.gnu.org/prep/standards/html_node/Standard-Targets.html#Standard-Targets
+#============================================================================
+.PHONY: all build clean devinstall distclean install help mrclean uninstall
+all build: $(TARGET_TAR)
 
 # Targets to build the binary *.tar.gz.
 ifeq "$(_TRUST_MVN_REBUILD)" "yes"
-$(TARGET_TAR): checkbuild
+$(TARGET_TAR): checkenv
 else
-$(TARGET_TAR): $(TARGET_JAR)
+$(TARGET_TAR): $(CHECKED_ENV) $(COMPONENT_SRC)
 endif
 	$(call cmd,MVNASM,package -P assemble,$@)
+	@$(call echol,$(LINE))
+	@$(call echol,"$(_COMPONENT) built.  See $@")
 
-.PHONY: tar
-tar: $(TARGET_TAR)
-
-# For some components, the devinstall will be different than a
-# production install.  For java components, not so much.
-.PHONY: devinstall
-devinstall: install
-
-# Create directories needed by our install target.
-# To do: Add ability to change change ownership and perms.
-#
-# NB: Use absolute path on install dir to avoid circular dependency.
-#     Otherwise make gets confused about the logical install target 
-#     depending upon a directory of the same name.
-#     Could avoid this by choosing a different dir name than 'install' :-)
-#
-INSTALL_MKDIRS := $(abspath $(INSTALL_DIR)) $(INSTALL_DIR)/log $(SUPERVISORD_DIR)
 $(INSTALL_MKDIRS):
 	$(call cmd,MKDIR,$@)
 
-# Use the "|" to indicate an existence-only dep rather than
-# one that looks at the modtime.  Ideally suited for triggering the
-# creation of our install-related directories.
-.PHONY: install
+# NB: Use the "|" to indicate an existence-only dep rather than a modtime dep.
+#     This rule should not trigger rebuilding of the component we're installing.
 install: | $(INSTALL_MKDIRS) 
 	@if [ ! -f "$(TARGET_TAR)" ];then \
 		$(call echol) ;\
 		$(call echol,"Error: Missing $(TARGET_TAR)") ;\
 		$(call echol,"Unable to $@ $(_COMPONENT).") ;\
-		$(call echol) ;\
+		$(call echol,"$(LINE)") ;\
 		$(call echol,"Please run 'make build $@'") ;\
-		$(call echol) ;\
+		$(call echol,"$(LINE)") ;\
 		exit 1 ;\
 	fi 
-	$(call cmd,UNTAR,$(abspath $(TARGET_TAR)),$(INSTALL_DIR))
-	$(call cmd,SYMLINK,../$(COMPONENT)/$(SUPERVISOR_CONF),$(SUPERVISORD_DIR)/$(SUPERVISOR_CONF))
+	$(call cmd,UNTAR,$(abspath $(TARGET_TAR)),$(_DESTDIR)$(PREFIX))
+	$(call cmd,SYMLINK,../$(_COMPONENT)/$(SUPERVISOR_CONF),$(_DESTDIR)$(SUPERVISORD_DIR)/$(SUPERVISOR_CONF))
+	@$(call echol,$(LINE))
+	@$(call echol,"$(_COMPONENT) installed to $(_DESTDIR)$(PREFIX)")
 
-.PHONY: uninstall
-uninstall: 
-	@if [ -d "$(INSTALL_DIR)" ];then \
-		$(call cmd_noat,SAFE_RMDIR,$(INSTALL_DIR)) ;\
-	fi
+devinstall: dev% : %
+	@$(call echol,"Add logic to the $@ rule if you want it to behave differently than the $< rule.")
 
-.PHONY: clean
-clean:
-	$(call cmd,MVN,clean)
+uninstall: dflt_component_uninstall
 
-.PHONY: distclean mrclean
-mrclean distclean: uninstall clean
-	@if [ -f "$(CHECKED_BUILD)" ]; then \
-		$(call cmd_noat,RM,$(CHECKED_BUILD)) ;\
-	fi
-	@if [ -f "$(BUILD_LOG)" ]; then \
-		$(call cmd_noat,RM,$(BUILD_LOG)) ;\
-	fi
+clean: dflt_component_clean
 
-.PHONY: help
-help: 
-	@echo -e "\nZenoss 5.x $(_COMPONENT) makefile"
-	@echo -e "\nUsage: make <target>\n"
-	@echo -e "where <target> is one or more of the following:"
-	@echo $(LINE)
-	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p }' | $(GREP) -v .PHONY| $(SORT) |\
-	$(SED) -e "s|:.*||g" | $(EGREP) -v "^\.|^target\/|install|^\/|clean" | $(PR) --omit-pagination --width=80 --columns=3
-	@echo $(LINE)
-	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p }' | $(GREP) -v .PHONY| $(SORT) |\
-	$(SED) -e "s|:.*||g" | $(EGREP) -v "^\.|^target\/|^install\/|^\/" | $(EGREP) install | $(PR) --omit-pagination --width=80 --columns=3
-	@echo $(LINE)
-	@make -rpn | $(SED) -n -e '/^$$/ { n ; /^[^ ]*:/p }' | $(GREP) -v .PHONY| $(SORT) |\
-	$(SED) -e "s|:.*||g" | $(EGREP) -v "^\.|^target\/|^install\/|^\/" | $(EGREP) clean |  $(PR) --omit-pagination --width=80 --columns=3
-	@echo $(LINE)
-	@echo -e "Build results logged to $(BUILD_LOG).\n"
+mrclean distclean: dflt_component_distclean
 
-.PHONY: checkbuild
-checkbuild: $(CHECKED_BUILD)
-$(CHECKED_BUILD): 
-	@for tool in $(TOOLS) ;\
-	do \
-		if [ "$(ZBUILD_VERBOSE)" = "1" ];then \
-			$(call echol,"which $${tool}") ;\
-		else \
-			$(call echol,"  $(TIME_TAG)  CHKBIN $${tool}") ;\
-		fi ;\
-		if ! which $${tool} 2>/dev/null 1>&2; then \
-			$(call echol,"  $(TIME_TAG)  ERROR: Missing $${tool} from search path.") ;\
-			exit 1 ;\
-		fi ;\
-	done
-	@for tool_version_brand in $(TOOLS_VERSION_BRAND) ;\
-	do \
-		tool=`echo $${tool_version_brand} | cut -d":" -f1`;\
-		case "$${tool}" in \
-			"java") \
-				dotted_min_desired_ver=`echo $${tool_version_brand} | cut -d":" -f2` ;\
-				min_desired_ver=`echo $${dotted_min_desired_ver} |tr "." " "|$(AWK) '{printf("(%d*100)+(%d*10)+(%d)\n",$$1,$$2,$$3)}'|$(BC)` ;\
-				dotted_actual_ver=`$(JAVA) -version 2>&1 | grep "^java version" | $(AWK) '{print $$3}' | tr -d '"' | tr -d "'" | cut -d"." -f1-3|cut -d"_" -f1` ;\
-				actual_ver=`echo $${dotted_actual_ver} |tr "." " "|$(AWK) '{printf("(%d*100)+(%d*10)+(%d)\n",$$1,$$2,$$3)}'|$(BC)` ;\
-				$(call echol,"  $(TIME_TAG)  CHKVER $${tool} >= $${dotted_min_desired_ver}") ;\
-				if [ $${actual_ver} -lt $${min_desired_ver} ];then \
-					$(call echol,"  $(TIME_TAG)  ERROR: java version is $${dotted_actual_ver}  Expecting version  >= $${dotted_min_desired_ver}") ;\
-					exit 1;\
-				else \
-					desired_brand=`echo $${tool_version_brand} | cut -d":" -f3` ;\
-					actual_brand=`java -version 2>&1 | grep -v java | awk '{print $$1}' | sort -u | grep -i jdk` ;\
-					if [ "$${actual_brand}" != "$${desired_brand}" ];then \
-						$(call echol,"  $(TIME_TAG)  ERROR: jdk brand is $${actual_brand}.  Expecting $${desired_brand}.") ;\
-						exit 1;\
-					fi ;\
-				fi ;\
-				;;\
-			"mvn") \
-				dotted_min_desired_ver=`echo $${tool_version_brand} | cut -d":" -f2` ;\
-				min_desired_ver=`echo $${dotted_min_desired_ver} |tr "." " "|$(AWK) '{printf("(%d*100)+(%d*10)+(%d)\n",$$1,$$2,$$3)}'|$(BC)` ;\
-				dotted_actual_ver=`$(MVN) -version 2>&1 | head -1 | $(AWK) '{print $$3}' | tr -d '"' | tr -d "'" | cut -d"." -f1-3|cut -d"_" -f1` ;\
-				actual_ver=`echo $${dotted_actual_ver} |tr "." " "|$(AWK) '{printf("(%d*100)+(%d*10)+(%d)\n",$$1,$$2,$$3)}'|$(BC)` ;\
-				$(call echol,"  $(TIME_TAG)  CHKVER $${tool}  >= $${dotted_min_desired_ver}") ;\
-				if [ $${actual_ver} -lt $${min_desired_ver} ];then \
-					$(call echol,"  $(TIME_TAG)  ERROR: mvn version is $${dotted_actual_ver}  Expecting version  >= $${dotted_min_desired_ver}") ;\
-					exit 1;\
-				else \
-					desired_brand=`echo $${tool_version_brand} | cut -d":" -f3` ;\
-					actual_brand=`mvn -version 2>&1 | head -1 | awk '{print $$1}'` ;\
-					if [ "$${actual_brand}" != "$${desired_brand}" ];then \
-						$(call echol,"  $(TIME_TAG)  ERROR: mvn brand is $${actual_brand}.  Expecting $${desired_brand}.") ;\
-						exit 1;\
-					fi ;\
-				fi ;\
-				;;\
-		esac ;\
-	done
-	$(call cmd,TOUCH,$@)
-
-LINE77 := "-----------------------------------------------------------------------------"
-LINE   := $(LINE77)
+help: dflt_component_help
