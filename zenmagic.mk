@@ -128,7 +128,7 @@ ifeq "$(REQUIRES_JDK)" "1"
     # of this makefile.
     REQD_JDK_MIN_VER   = 1.7.0
     REQD_JDK_BRAND     = OpenJDK
-    REQD_MVN_MIN_VER   = 3.0.5
+    REQD_MVN_MIN_VER   = 3.0.0
     REQD_MVN_BRAND     = Apache
 
     ifndef CHECK_TOOLS_VERSION_BRAND
