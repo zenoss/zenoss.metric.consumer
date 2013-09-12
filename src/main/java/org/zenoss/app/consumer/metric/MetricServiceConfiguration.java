@@ -42,7 +42,7 @@ public class MetricServiceConfiguration {
     
     /** Max time in milliseconds with no work before TSDB writer threads will commit seppuku */
     @JsonProperty
-    private int maxIdleTime = 1000;
+    private int maxIdleTime = 10000;
     
     /** Ideal number of TSDB writer threads */
     @JsonProperty
