@@ -122,7 +122,7 @@ class OpenTsdbWriter implements TsdbWriter {
                 } else {
                     log.debug("Error getting OpenTsdbClient", e);
                 }
-                log.debug("Connection back off, sleeping:{}", backOff);
+                log.debug("Connection back off, sleeping {} ms", backOff);
                 Thread.sleep(backOff);
             }
         }
