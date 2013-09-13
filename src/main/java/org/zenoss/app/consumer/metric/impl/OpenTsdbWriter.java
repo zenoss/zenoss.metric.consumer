@@ -27,6 +27,7 @@ import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /**
  * @see TsdbWriter
@@ -47,6 +48,8 @@ class OpenTsdbWriter implements TsdbWriter {
 
         this.batchSize = config.getJobSize();
         this.maxIdleTime = config.getMaxIdleTime();
+        this.maxBackOff = config.getMaxConnectionBackOff();
+        this.minBackOff = config.getMinConnectionBackOff();
 
         this.running = false;
         this.canceled = false;
@@ -70,6 +73,7 @@ class OpenTsdbWriter implements TsdbWriter {
     }
 
     void runUntilCanceled() throws InterruptedException {
+        ExponentialBackOff backoffTracker = null;
         while (!isCanceled()) {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
@@ -98,8 +102,38 @@ class OpenTsdbWriter implements TsdbWriter {
             }
 
             // We have some work to do, some process what we got from the metrics queue
-            processBatch(metrics);
+            try {
+                if (backoffTracker == null) {
+                    backoffTracker = createExponentialBackOff();
+                }
+                processBatch(metrics);
+                backoffTracker.reset();
+            } catch (NoSuchElementException e) {
+                long backOff = this.minBackOff;
+                try {
+                    backOff = backoffTracker.nextBackOffMillis();
+                } catch (IOException e1) {
+                    // shouldn't happen but if it does we'll use the default backOff
+                }
+                if (ExponentialBackOff.STOP == backOff) {
+                    // We've reached the max amount of time to backoff, use max backoff
+                    backOff = backoffTracker.getMaxIntervalMillis();
+                    log.warn("Error getting OpenTsdbClient after {} ms: {}", backoffTracker.getElapsedTimeMillis(), e);
+                } else {
+                    log.debug("Error getting OpenTsdbClient", e);
+                }
+                log.debug("Connection back off, sleeping:{}", backOff);
+                Thread.sleep(backOff);
+            }
         }
+    }
+
+    private ExponentialBackOff createExponentialBackOff() {
+        return new ExponentialBackOff.Builder().
+                setMaxElapsedTimeMillis(this.maxBackOff).
+                setMaxIntervalMillis(this.maxBackOff).
+                setInitialIntervalMillis(Math.min(this.minBackOff, this.maxBackOff)).
+                build();
     }
 
 
@@ -115,20 +149,20 @@ class OpenTsdbWriter implements TsdbWriter {
                     metricsQueue.incrementError(errs);
                 }
 
-                for (Metric m : metrics) {
-                    String message = convert(m);
-                    client.put(message);
-                    processed++;
-                }
+                try {
+                    for (Metric m : metrics) {
+                        String message = convert(m);
+                        client.put(message);
+                        processed++;
+                    }
 
-                client.flush();
-                flushed = true;
-                metricsQueue.incrementProcessed(processed);
-            }
-        } catch (IOException e) {
-            log.warn("Caught unexpected exception processing messages", e);
-            if (client != null) {
-                client.close();
+                    client.flush();
+                    flushed = true;
+                    metricsQueue.incrementProcessed(processed);
+                } catch (IOException e) {
+                    log.warn("Caught unexpected exception processing messages", e);
+                    client.close();
+                }
             }
         } finally {
             if (!flushed) {
@@ -147,40 +181,14 @@ class OpenTsdbWriter implements TsdbWriter {
     }
 
     private OpenTsdbClient getOpenTsdbClient() throws InterruptedException {
-        final int maxElapsed = this.maxIdleTime;
-        final long start = System.currentTimeMillis();
-        final ExponentialBackOff backoffTracker = new ExponentialBackOff.Builder().
-                setMaxElapsedTimeMillis(this.maxIdleTime).
-                setMaxIntervalMillis(this.maxIdleTime).
-                setInitialIntervalMillis(Math.min(this.maxIdleTime, ExponentialBackOff.DEFAULT_INITIAL_INTERVAL_MILLIS)).
-                build();
-        OpenTsdbClient client = null;
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                client = clientPool.borrowObject();
-                break;
-            } catch (InterruptedException e) {
-                // don't swallow InterruptedException
-                throw e;
-            } catch (Exception e) { // Exception required due to GenericObjectPool.borrowObject
-                long elapsed = System.currentTimeMillis() - start;
-                long backOff = 0;
-                try {
-                    backOff = backoffTracker.nextBackOffMillis();
-                } catch (IOException e1) {
-                    // shouldn't happen but default to something
-                    backOff = 1000;
-                }
-                if (elapsed >= maxElapsed || ExponentialBackOff.STOP == backOff) {
-                    log.warn(String.format("Error getting OpenTsdbClient after {0} ms", elapsed), e);
-                    break;
-                } else {
-                    log.debug("Error getting OpenTsdbClient", e);
-                }
-                log.debug("SLEEPING: " + backOff);
-                Thread.sleep(backOff);
-            }
-
+        OpenTsdbClient client;
+        try {
+            client = clientPool.borrowObject();
+        } catch (InterruptedException | NoSuchElementException e) {
+            // don't swallow These exceptions
+            throw e;
+        } catch (Exception e) { // Exception required due to GenericObjectPool.borrowObject
+            throw new NoSuchElementException(e.toString());
         }
         return client;
     }
@@ -235,6 +243,16 @@ class OpenTsdbWriter implements TsdbWriter {
      * Max idle time before suicide
      */
     private final int maxIdleTime;
+
+    /**
+     * Max time for connection backoff
+     */
+    private final int maxBackOff;
+
+    /**
+     * Min time for connection backoff
+     */
+    private final int minBackOff;
 
     /**
      * Is this instance currently running?

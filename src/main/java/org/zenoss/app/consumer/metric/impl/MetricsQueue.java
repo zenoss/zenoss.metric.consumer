@@ -31,7 +31,7 @@ import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 /**
- * Threadsafe queue that can be used to distribute TSDB metric data to multiple 
+ * Threadsafe queue that can be used to distribute TSDB metric data to multiple
  * consumer threads.
  */
 @Component
@@ -44,7 +44,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
     }
-    
+
     @Override
     public Collection<Metric> poll(int size, long maxWaitMillis) throws InterruptedException {
         Preconditions.checkArgument(size > 0);
@@ -58,18 +58,18 @@ class MetricsQueue implements TsdbMetricsQueue {
         final Collection<Metric> metrics = new ArrayList<>(size);
         metrics.add(first);
 
-        while(metrics.size() < size) {
+        while (metrics.size() < size) {
             final Metric m = queue.poll();
             if (m == null) {
-                log.debug("Unable to retrieve metric from queue");
+                log.debug("No more metrics in queue, retrieved {} metrics", metrics.size());
                 break;
             }
             metrics.add(m);
         }
-        
+
         return metrics;
     }
-    
+
     @Override
     public void addAll(Collection<Metric> metrics) {
         addAll(metrics, false);
@@ -83,7 +83,7 @@ class MetricsQueue implements TsdbMetricsQueue {
             incrementIncoming(metrics.size(), metrics.size());
         }
     }
-    
+
     @Override
     public void incrementError(int size) {
         totalErrorsMetric.inc(size);
@@ -99,15 +99,15 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalInFlightMetric.dec(processed);
         totalOutGoingMetric.mark(processed);
     }
-    
+
     private Meter registerIncoming() {
         return Metrics.newMeter(incomingMetricName(), "metrics", TimeUnit.SECONDS);
     }
-    
+
     private Meter registerOutgoing() {
         return Metrics.newMeter(outgoingMetricName(), "metrics", TimeUnit.SECONDS);
     }
-    
+
     // Used for testing
     void resetMetrics() {
         totalErrorsMetric.clear();
@@ -123,27 +123,27 @@ class MetricsQueue implements TsdbMetricsQueue {
     public long getTotalInFlight() {
         return totalInFlightMetric.count();
     }
-    
+
     long getTotalErrors() {
         return totalErrorsMetric.count();
     }
-    
+
     long getTotalIncoming() {
         return totalIncomingMetric.count();
     }
-    
+
     long getTotalOutgoing() {
         return totalOutGoingMetric.count();
     }
-    
+
     double getOneMinuteIncoming() {
         return totalIncomingMetric.oneMinuteRate();
     }
-    
+
     double getOneMinuteOutgoing() {
         return totalOutGoingMetric.oneMinuteRate();
     }
-    
+
     MetricName incomingMetricName() {
         return new MetricName(MetricsQueue.class, "totalIncoming");
     }
@@ -151,7 +151,7 @@ class MetricsQueue implements TsdbMetricsQueue {
     MetricName outgoingMetricName() {
         return new MetricName(MetricsQueue.class, "totalOutgoing");
     }
-    
+
     MetricName inFlightMetricName() {
         return new MetricName(MetricsQueue.class, "totalInFlight");
     }
@@ -159,25 +159,35 @@ class MetricsQueue implements TsdbMetricsQueue {
     MetricName errorsMetricName() {
         return new MetricName(MetricsQueue.class, "totalErrors");
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(MetricsQueue.class);
-    
-    /** Data to be written to TSDB */
+
+    /**
+     * Data to be written to TSDB
+     */
     private final BlockingQueue<Metric> queue;
 
     /* ---------------------------------------------------------------------- *
      *  Yammer Metrics (internal to this process)                             *
      * ---------------------------------------------------------------------- */
-    
-    /** How many errors occured writing to OpenTsdb */
+
+    /**
+     * How many errors occured writing to OpenTsdb
+     */
     private final Counter totalErrorsMetric;
-    
-    /** How many metrics are queued for processing */
+
+    /**
+     * How many metrics are queued for processing
+     */
     private final Counter totalInFlightMetric;
-    
-    /** How many metrics were queued (this # may reset) */
+
+    /**
+     * How many metrics were queued (this # may reset)
+     */
     private Meter totalIncomingMetric;
-    
-    /** How many metrics were written (this # may reset) */
+
+    /**
+     * How many metrics were written (this # may reset)
+     */
     private Meter totalOutGoingMetric;
 }
