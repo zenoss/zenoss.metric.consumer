@@ -46,19 +46,20 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
 
     private final MetricPredicate filter;
     private final Clock clock;
-    private final boolean printJvmMetrics;
+    private final boolean reportJvmMetrics;
     private final String metricPrefix;
     private final MetricPoster poster;
     private final Map<String, String> tags;
     private final VirtualMachineMetrics vm;
 
     private ZenossMetricsReporter(MetricsRegistry registry, String name, MetricPoster poster, MetricPredicate filter,
-                                  String metricPrefix, Map<String, String> tags, Clock clock, VirtualMachineMetrics vm, boolean printJvmMetrics) {
+                                  String metricPrefix, Map<String, String> tags, Clock clock, VirtualMachineMetrics vm,
+                                  boolean reportJvmMetrics) {
         super(registry, name);
         this.poster = poster;
         this.filter = filter;
         this.clock = clock;
-        this.printJvmMetrics = printJvmMetrics;
+        this.reportJvmMetrics = reportJvmMetrics;
         this.metricPrefix = Strings.nullToEmpty(metricPrefix).trim();
         this.tags = Maps.newHashMap(tags);
         this.vm = vm;
@@ -81,7 +82,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
     public void run() {
         final long timestamp = clock.time() / 1000;
         final MetricBatch batchContext = new MetricBatch(timestamp);
-        if (printJvmMetrics) {
+        if (reportJvmMetrics) {
             collectVmMetrics(batchContext);
         }
         collectMetrics(batchContext);
@@ -238,7 +239,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         private String metricPrefix;
         private Clock clock = Clock.defaultClock();
         private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
-        private boolean printJvmMetrics = true;
+        private boolean reportJvmMetrics = true;
 
         /**
          * Create a Builder for a ZenossMetricsReporter
@@ -285,13 +286,13 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
             return this;
         }
 
-        public Builder setPrintJvmMetrics(boolean print) {
-            this.printJvmMetrics = print;
+        public Builder setReportJvmMetrics(boolean report) {
+            this.reportJvmMetrics = report;
             return this;
         }
 
         public ZenossMetricsReporter build() {
-            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock, vm, printJvmMetrics);
+            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock, vm, reportJvmMetrics);
         }
 
 

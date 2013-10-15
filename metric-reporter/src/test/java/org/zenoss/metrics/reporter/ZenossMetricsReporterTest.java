@@ -51,7 +51,7 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
                 .setTags(tags)
                 .setName("Test-Reporter")
                 .setPredicate(MetricPredicate.ALL)
-                .setPrintJvmMetrics(false)
+                .setReportJvmMetrics(false)
                 .build();
     }
 
@@ -118,7 +118,7 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
     @Test
     public void testCollectJvmMetrics() {
         ZenossMetricsReporter zmr = new Builder(mock(MetricPoster.class))
-                .setPrintJvmMetrics(true)
+                .setReportJvmMetrics(true)
                 .build();
         zmr.collectVmMetrics(new MetricBatch(1005));
 

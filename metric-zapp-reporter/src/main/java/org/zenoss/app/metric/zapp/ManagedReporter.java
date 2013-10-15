@@ -114,6 +114,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 .setName(getMetricReporterConfig().getReporterName())
                 .setTags(tags)
                 .setMetricPrefix(getMetricReporterConfig().getMetricPrefix())
+                .setReportJvmMetrics(getMetricReporterConfig().getReportJvmMetrics())
                 .build();
     }
 

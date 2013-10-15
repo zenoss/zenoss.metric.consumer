@@ -27,6 +27,7 @@ public class ManagedReporterConfigTest {
         String prefix = "blam";
         String name = "blamo";
         String path = "path";
+        boolean reportJvm = false;
 
 
         MetricReporterConfig mrc = new Builder()
@@ -35,22 +36,26 @@ public class ManagedReporterConfigTest {
                 .setReporterName(name)
                 .setReportFrequencySeconds(freq)
                 .setShutdownWaitSeconds(shutdown)
+                .setReportJvmMetrics(reportJvm)
                 .build();
-        verify(mrc, freq, prefix, name, path, shutdown);
+        verify(mrc, freq, prefix, name, path, shutdown, reportJvm);
 
     }
 
-    private void verify(MetricReporterConfig mrc, int frequency, String prefix, String name, String path, int shutdown) {
+    private void verify(MetricReporterConfig mrc, int frequency, String prefix, String name, String path, int shutdown,
+                        boolean reportJvmMetrics) {
         Assert.assertEquals(frequency, mrc.getReportFrequencySeconds());
         Assert.assertEquals(prefix, mrc.getMetricPrefix());
         Assert.assertEquals(name, mrc.getReporterName());
         Assert.assertEquals(path, mrc.getApiPath());
         Assert.assertEquals(shutdown, mrc.getShutdownWaitSeconds());
+        Assert.assertEquals(reportJvmMetrics, mrc.getReportJvmMetrics());
 
     }
 
     private void verify(MetricReporterConfig mrc) {
         verify(mrc, MetricReporterConfig.FREQUENCY, MetricReporterConfig.ZEN_INF,
-                MetricReporterConfig.ZENOSS_ZAPP_REPORTER, HttpPoster.METRIC_API, MetricReporterConfig.SHUTDOWN_WAIT);
+                MetricReporterConfig.ZENOSS_ZAPP_REPORTER, HttpPoster.METRIC_API, MetricReporterConfig.SHUTDOWN_WAIT,
+                true);
     }
 }

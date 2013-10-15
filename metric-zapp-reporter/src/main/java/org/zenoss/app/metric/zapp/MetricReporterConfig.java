@@ -31,6 +31,11 @@ public class MetricReporterConfig {
     @JsonProperty
     private int shutdownWaitSeconds = SHUTDOWN_WAIT;
 
+    /**
+     * report JVM metrics
+     */
+    @JsonProperty
+    private boolean reportJvmMetrics = true;
 
     /**
      * Name for the metricreporter
@@ -56,12 +61,13 @@ public class MetricReporterConfig {
     }
 
     public MetricReporterConfig(int reportFrequencySeconds, String reporterName, String apiPath, String metricPrefix,
-                                int shutdownWaitSeconds) {
+                                int shutdownWaitSeconds, boolean reportJvmMetrics) {
         this.reportFrequencySeconds = reportFrequencySeconds;
         this.reporterName = reporterName;
         this.apiPath = apiPath;
         this.metricPrefix = metricPrefix;
         this.shutdownWaitSeconds = shutdownWaitSeconds;
+        this.reportJvmMetrics = reportJvmMetrics;
     }
 
     /**
@@ -89,6 +95,15 @@ public class MetricReporterConfig {
      */
     public String getReporterName() {
         return reporterName;
+    }
+
+    /**
+     * should JVM metrics be reported
+     *
+     * @return boolean
+     */
+    public boolean getReportJvmMetrics() {
+        return reportJvmMetrics;
     }
 
     /**
@@ -140,19 +155,22 @@ public class MetricReporterConfig {
             return this;
         }
 
+        public Builder setReportJvmMetrics(boolean reportJvmMetrics) {
+            this.reportJvmMetrics = reportJvmMetrics;
+            return this;
+        }
+
         public MetricReporterConfig build() {
             return new MetricReporterConfig(reportFrequencySeconds, reporterName, apiPath, metricPrefix,
-                    shutdownWaitSeconds);
+                    shutdownWaitSeconds, reportJvmMetrics);
         }
 
         private String reporterName = ZENOSS_ZAPP_REPORTER;
-
         private String apiPath = METRIC_API;
-
         private String metricPrefix = ZEN_INF;
-
         private int reportFrequencySeconds = FREQUENCY;
         private int shutdownWaitSeconds = SHUTDOWN_WAIT;
+        private boolean reportJvmMetrics= true;
 
 
     }
