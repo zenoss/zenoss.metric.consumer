@@ -14,6 +14,7 @@ public class MetricReporterConfig {
 
     public static final String ZENOSS_ZAPP_REPORTER = "zenoss-zapp-reporter";
     public static final int FREQUENCY = 30;
+    public static final int SHUTDOWN_WAIT = 5;
     public static final String ZEN_INF = "ZEN_INF";
 
     /**
@@ -22,6 +23,14 @@ public class MetricReporterConfig {
     @Min(1)
     @JsonProperty
     private int reportFrequencySeconds = FREQUENCY;
+
+    /**
+     * How long to wait for shutdown of the reporter
+     */
+    @Min(1)
+    @JsonProperty
+    private int shutdownWaitSeconds = SHUTDOWN_WAIT;
+
 
     /**
      * Name for the metricreporter
@@ -46,11 +55,13 @@ public class MetricReporterConfig {
         super();
     }
 
-    public MetricReporterConfig(int reportFrequencySeconds, String reporterName, String apiPath, String metricPrefix) {
+    public MetricReporterConfig(int reportFrequencySeconds, String reporterName, String apiPath, String metricPrefix,
+                                int shutdownWaitSeconds) {
         this.reportFrequencySeconds = reportFrequencySeconds;
         this.reporterName = reporterName;
         this.apiPath = apiPath;
         this.metricPrefix = metricPrefix;
+        this.shutdownWaitSeconds = shutdownWaitSeconds;
     }
 
     /**
@@ -60,6 +71,15 @@ public class MetricReporterConfig {
      */
     public int getReportFrequencySeconds() {
         return reportFrequencySeconds;
+    }
+
+    /**
+     * How long to wait for outstanding report posting before shutting down.
+     *
+     * @return int
+     */
+    public int getShutdownWaitSeconds() {
+        return shutdownWaitSeconds;
     }
 
     /**
@@ -90,11 +110,16 @@ public class MetricReporterConfig {
     }
 
     public static final class Builder {
-        private int reportFrequencySeconds = FREQUENCY;
 
         public Builder setReportFrequencySeconds(int reportFrequencySeconds) {
             checkArgument(reportFrequencySeconds > 0);
             this.reportFrequencySeconds = reportFrequencySeconds;
+            return this;
+        }
+
+        public Builder setShutdownWaitSeconds(int shutdownWaitSeconds) {
+            checkArgument(shutdownWaitSeconds > 0);
+            this.shutdownWaitSeconds = shutdownWaitSeconds;
             return this;
         }
 
@@ -116,7 +141,8 @@ public class MetricReporterConfig {
         }
 
         public MetricReporterConfig build() {
-            return new MetricReporterConfig(reportFrequencySeconds, reporterName, apiPath, metricPrefix);
+            return new MetricReporterConfig(reportFrequencySeconds, reporterName, apiPath, metricPrefix,
+                    shutdownWaitSeconds);
         }
 
         private String reporterName = ZENOSS_ZAPP_REPORTER;
@@ -124,6 +150,9 @@ public class MetricReporterConfig {
         private String apiPath = METRIC_API;
 
         private String metricPrefix = ZEN_INF;
+
+        private int reportFrequencySeconds = FREQUENCY;
+        private int shutdownWaitSeconds = SHUTDOWN_WAIT;
 
 
     }

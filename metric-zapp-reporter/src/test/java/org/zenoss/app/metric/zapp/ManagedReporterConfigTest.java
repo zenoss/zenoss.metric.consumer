@@ -9,31 +9,48 @@ public class ManagedReporterConfigTest {
 
 
     @Test
-    public void testBuilder() {
-        MetricReporterConfig mrc = new Builder().build();
-        verify(mrc);
+    public void testConstructor() {
         verify(new MetricReporterConfig());
 
-        int f = 1024;
+    }
+
+    @Test
+    public void testDefaultBuilder() {
+        verify(new Builder().build());
+    }
+
+    @Test
+    public void testBuilder() {
+
+        int freq = 1024;
+        int shutdown = 36;
         String prefix = "blam";
         String name = "blamo";
         String path = "path";
 
-        mrc = new Builder().setApiPath(path).setMetricPrefix(prefix).setReporterName(name).setReportFrequencySeconds(f).build();
-        verify(mrc, f, prefix, name, path);
+
+        MetricReporterConfig mrc = new Builder()
+                .setApiPath(path)
+                .setMetricPrefix(prefix)
+                .setReporterName(name)
+                .setReportFrequencySeconds(freq)
+                .setShutdownWaitSeconds(shutdown)
+                .build();
+        verify(mrc, freq, prefix, name, path, shutdown);
 
     }
 
-
-    private void verify(MetricReporterConfig mrc, int frequency, String prefix, String name, String path) {
+    private void verify(MetricReporterConfig mrc, int frequency, String prefix, String name, String path, int shutdown) {
         Assert.assertEquals(frequency, mrc.getReportFrequencySeconds());
         Assert.assertEquals(prefix, mrc.getMetricPrefix());
         Assert.assertEquals(name, mrc.getReporterName());
         Assert.assertEquals(path, mrc.getApiPath());
+        Assert.assertEquals(shutdown, mrc.getShutdownWaitSeconds());
+
     }
 
     private void verify(MetricReporterConfig mrc) {
         verify(mrc, MetricReporterConfig.FREQUENCY, MetricReporterConfig.ZEN_INF,
-                MetricReporterConfig.ZENOSS_ZAPP_REPORTER, HttpPoster.METRIC_API);
+                MetricReporterConfig.ZENOSS_ZAPP_REPORTER, HttpPoster.METRIC_API, MetricReporterConfig.SHUTDOWN_WAIT);
     }
 }
