@@ -14,6 +14,7 @@ package org.zenoss.app.consumer;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.zenoss.app.AppConfiguration;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.metric.zapp.MetricReporterConfig;
 
 import javax.validation.Valid;
 
@@ -23,12 +24,25 @@ public class ConsumerAppConfiguration extends AppConfiguration {
     @JsonProperty("metricService")
     private MetricServiceConfiguration metricServiceConfiguration = new MetricServiceConfiguration();
 
+    @Valid
+    @JsonProperty("metricReporter")
+    private MetricReporterConfig metricReporterConfig = new MetricReporterConfig.Builder().setReportFrequencySeconds(1).build();
 
     /**
      * Configuration details for the metric service
+     *
      * @return config
      */
     public MetricServiceConfiguration getMetricServiceConfiguration() {
         return metricServiceConfiguration;
+    }
+
+    /**
+     * Configuration for metric reporting
+     *
+     * @return config
+     */
+    public MetricReporterConfig getMetricReporterConfig() {
+        return metricReporterConfig;
     }
 }

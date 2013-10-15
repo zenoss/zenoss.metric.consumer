@@ -32,6 +32,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.zenoss</groupId>
+            <artifactId>metric-zapp-reporter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.zenoss.zapp</groupId>
             <artifactId>zenoss-app</artifactId>
             <version>${version.zapp}</version>

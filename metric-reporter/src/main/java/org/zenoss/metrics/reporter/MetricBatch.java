@@ -8,7 +8,7 @@ import java.util.List;
 
 public class MetricBatch {
 
-    private final ArrayList<Metric> metrics = new ArrayList<Metric>();
+    private final ArrayList<Metric> metrics = new ArrayList<>();
     private final long timestamp;
 
     public MetricBatch(long timestamp){

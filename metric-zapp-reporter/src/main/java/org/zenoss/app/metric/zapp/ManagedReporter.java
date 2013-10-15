@@ -5,18 +5,22 @@ import com.google.common.collect.Maps;
 import com.yammer.dropwizard.config.Environment;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricPredicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zenoss.app.AppConfiguration;
 import org.zenoss.dropwizardspring.annotations.Managed;
 import org.zenoss.metrics.reporter.HttpPoster;
+import org.zenoss.metrics.reporter.HttpPoster.Builder;
 import org.zenoss.metrics.reporter.MetricPoster;
 import org.zenoss.metrics.reporter.ZenossMetricsReporter;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -25,27 +29,39 @@ import static java.net.InetAddress.*;
 
 @Managed
 public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed {
+    private static final Logger LOG = LoggerFactory.getLogger(ZenossMetricsReporter.class);
 
 
     private static final String DEFAULT_USER = "admin";
     private static final String DEFAULT_PASSWORD = "zenoss";
 
-    private final MetricReporterConfig metricsReporterConfig;
     private final AppConfiguration appConfiguration;
     private final Environment environment;
     private ZenossMetricsReporter metricReporter;
     private MetricPredicate filter = MetricPredicate.ALL;
     private MetricPoster poster;
+    private MetricReporterConfig metricsReporterConfig;
 
     @Autowired
     ManagedReporter(AppConfiguration appConfiguration, Environment environment) {
         this.appConfiguration = appConfiguration;
         this.environment = environment;
-        //TODO check if metricreporterconfig is on the appconfig
-        this.metricsReporterConfig = new MetricReporterConfig();
-        this.metricReporter = null;
+
     }
 
+    MetricReporterConfig getMetricReporterConfig() {
+        if (metricsReporterConfig == null) {
+            try {
+                Method getMethod = appConfiguration.getClass().getMethod("getMetricReporterConfig");
+                metricsReporterConfig = (MetricReporterConfig) getMethod.invoke(appConfiguration);
+
+            } catch (ClassCastException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                LOG.warn("Using defaults for metric reporter configuration", e);
+                metricsReporterConfig = new MetricReporterConfig();
+            }
+        }
+        return metricsReporterConfig;
+    }
 
     @Autowired(required = false)
     void setFilter(MetricPredicate filter) {
@@ -59,11 +75,12 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
 
     @PostConstruct
     public void init() throws IOException {
+
         if (this.poster == null) {
             int port = appConfiguration.getProxyConfiguration().getPort();
             String host = appConfiguration.getProxyConfiguration().getHostname();
-            boolean https = false;
-            String protocol = "http"; //TODO get from config
+            boolean https;
+            String protocol = appConfiguration.getProxyConfiguration().getProtocol();
             checkNotNull(protocol);
             switch (protocol.toLowerCase().trim()) {
                 case "http":
@@ -76,14 +93,9 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                     throw new IllegalStateException("Unknown protocol " + protocol);
             }
             String username = DEFAULT_USER;
-            String password = DEFAULT_USER;
-            String api = this.metricsReporterConfig.getApiPath();
-            this.poster = new HttpPoster.Builder(host, port, https)
-                    .setUsername(username)
-                    .setPassword(password)
-                    .setApi(api)
-                    .setMapper(environment.getObjectMapperFactory().build())
-                    .build();
+            String password = DEFAULT_PASSWORD;
+            String api = this.getMetricReporterConfig().getApiPath();
+            this.poster = buildHttpPoster(port, host, https, username, password, api);
         }
 
         Map<String, String> tags = Maps.newHashMap();
@@ -92,23 +104,40 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         tags.put("host", getLocalHost().getHostName());
         tags.put("instance", ManagementFactory.getRuntimeMXBean().getName());
 
-        this.metricReporter = new ZenossMetricsReporter.Builder(this.poster)
+        this.metricReporter = buildMetricReporter(tags);
+    }
+
+    ZenossMetricsReporter buildMetricReporter(Map<String, String> tags) {
+        return new ZenossMetricsReporter.Builder(this.poster)
                 .setPredicate(this.filter)
                 .setRegistry(Metrics.defaultRegistry())
-                .setName(this.metricsReporterConfig.getReporterName())
+                .setName(getMetricReporterConfig().getReporterName())
                 .setTags(tags)
-                .setMetricPrefix(this.metricsReporterConfig.getMetricPrefix())
+                .setMetricPrefix(getMetricReporterConfig().getMetricPrefix())
                 .build();
+    }
+
+    HttpPoster buildHttpPoster(int port, String host, boolean https, String username, String password, String api) throws MalformedURLException {
+        return new Builder(host, port, https)
+                .setUsername(username)
+                .setPassword(password)
+                .setApi(api)
+                .setMapper(environment.getObjectMapperFactory().build())
+                .build();
+    }
+
+    ZenossMetricsReporter getMetricReporter() {
+        return metricReporter;
     }
 
     @Override
     public void start() throws Exception {
-        this.metricReporter.start(this.metricsReporterConfig.getReportFrequencySeconds(), TimeUnit.SECONDS);
+        this.getMetricReporter().start(getMetricReporterConfig().getReportFrequencySeconds(), TimeUnit.SECONDS);
     }
 
     @Override
     public void stop() throws Exception {
-        this.metricReporter.shutdown(Math.max(this.metricsReporterConfig.getReportFrequencySeconds(), 5), TimeUnit.SECONDS);
+        this.getMetricReporter().shutdown(2, TimeUnit.SECONDS);
     }
 
 

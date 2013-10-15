@@ -21,8 +21,6 @@ import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.protocol.BasicHttpContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 import java.io.IOException;
@@ -40,14 +38,10 @@ import static org.apache.http.entity.ContentType.APPLICATION_JSON;
  */
 public class HttpPoster implements MetricPoster {
     public static final String METRIC_API = "/api/metrics/store";
-    private static final Logger LOG = LoggerFactory.getLogger(ZenossMetricsReporter.class);
 
     private final boolean needsAuth;
     private boolean authenticated = false;
     private URL url;
-    private String api;
-    private String user;
-    private String password;
     private final ObjectMapper mapper;
     private final InstrumentedHttpClient httpClient = new InstrumentedHttpClient();
     private HttpPost post;
@@ -57,8 +51,6 @@ public class HttpPoster implements MetricPoster {
 
     private HttpPoster(final URL url, final String user, final String password, ObjectMapper mapper) {
         this.url = url;
-        this.user = user;
-        this.password = password;
         this.mapper = mapper;
         if (!Strings.nullToEmpty(user).trim().isEmpty()) {
             httpClient.getCredentialsProvider().setCredentials(
@@ -122,8 +114,8 @@ public class HttpPoster implements MetricPoster {
 
     private final class AuthResponseHandler extends BasicResponseHandler {
         @Override
-        public String handleResponse(HttpResponse response) throws HttpResponseException, IOException {
-            String result = null;
+        public String handleResponse(HttpResponse response) throws IOException {
+            String result;
             try {
                 result = super.handleResponse(response);
                 if (needsAuth && !authenticated) {
@@ -147,7 +139,7 @@ public class HttpPoster implements MetricPoster {
     /**
      * Builder to create an HttpPoster for Zenoss metric data.
      */
-    public static final class Builder {
+    public static class Builder {
 
         private final String host;
         private final int port;
@@ -187,7 +179,7 @@ public class HttpPoster implements MetricPoster {
         /**
          * Set username for authentication
          *
-         * @param username
+         * @param username user for authentication
          * @return Builder
          */
         public Builder setUsername(String username) {
@@ -198,7 +190,7 @@ public class HttpPoster implements MetricPoster {
         /**
          * Set password for authentication
          *
-         * @param password
+         * @param password password for authentications
          * @return Builder
          */
         public Builder setPassword(String password) {
@@ -207,7 +199,7 @@ public class HttpPoster implements MetricPoster {
         }
 
         /**
-         * @param mapper
+         * @param mapper Mapper for json serialization
          */
         public Builder setMapper(ObjectMapper mapper) {
             this.mapper = mapper;

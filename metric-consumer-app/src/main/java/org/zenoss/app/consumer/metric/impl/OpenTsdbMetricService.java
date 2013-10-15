@@ -12,8 +12,10 @@
 package org.zenoss.app.consumer.metric.impl;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,20 +35,44 @@ class OpenTsdbMetricService implements MetricService {
 
     @Autowired
     OpenTsdbMetricService(
-            MetricServiceConfiguration config, 
-            @Qualifier("zapp::event-bus::async") EventBus eventBus, 
-            MetricsQueue metricsQueue)
-    {
+            MetricServiceConfiguration config,
+            @Qualifier("zapp::event-bus::async") EventBus eventBus,
+            MetricsQueue metricsQueue) {
         // Dependencies
         this.eventBus = eventBus;
         this.metricsQueue = metricsQueue;
-        
+
         // Configuration
         this.highCollisionMark = config.getHighCollisionMark();
         this.lowCollisionMark = config.getLowCollisionMark();
-        
+
         // State
         this.lastCollisionCount = new AtomicLong();
+    }
+
+    @Override
+    public Control push(final List<Metric> metrics) {
+        if (metrics == null) {
+            return Control.malformedRequest("metrics not nullable");
+        }
+        final List<Metric> copy = Lists.newArrayList(metrics);
+        if (!copy.isEmpty()) {
+            long totalInFlight = metricsQueue.getTotalInFlight();
+            if (collides(totalInFlight + copy.size())) {
+                return Control.dropped("collision detected");
+            }
+
+            metricsQueue.addAll(copy);
+
+            // Notify the bus that we are going from no data to some data.
+            if (totalInFlight == 0) {
+                eventBus.post(Control.dataReceived());
+                log.debug("Data received with zero metrics in flight");
+            }
+        }
+
+        return Control.ok();
+
     }
 
     @Override
@@ -54,21 +80,7 @@ class OpenTsdbMetricService implements MetricService {
         if (metrics == null) {
             return Control.malformedRequest("metrics not nullable");
         }
-        
-        long totalInFlight = metricsQueue.getTotalInFlight();
-        if (collides (totalInFlight + metrics.length)) {
-            return Control.dropped( "collision detected");
-        }
-        
-        metricsQueue.addAll(Arrays.asList(metrics));
-        
-        // Notify the bus that we are going from no data to some data.
-        if (totalInFlight == 0) {
-            eventBus.post(Control.dataReceived());
-            log.debug("Data received with zero metrics in flight");
-        }
-        
-        return Control.ok();
+        return this.push(Lists.newArrayList(metrics));
     }
 
     /**
@@ -82,28 +94,36 @@ class OpenTsdbMetricService implements MetricService {
             log.info("High collision: {}", totalInFlight);
             return true;
         }
-        
+
         if (totalInFlight >= lowCollisionMark && totalInFlight > collisionCount) {
             eventBus.post(Control.lowCollision());
             log.debug("Low collision: {}", totalInFlight);
         }
-        
+
         return false;
     }
 
-    /** event bus for high/low collisions */
+    /**
+     * event bus for high/low collisions
+     */
     private final EventBus eventBus;
-    
-    /** Shared data structure holding metrics to be pushed into TSDB  */
+
+    /**
+     * Shared data structure holding metrics to be pushed into TSDB
+     */
     private final MetricsQueue metricsQueue;
 
-    /** high collision detection mark */
+    /**
+     * high collision detection mark
+     */
     private final int highCollisionMark;
 
-    /** low collision detection mark*/
+    /**
+     * low collision detection mark
+     */
     private final int lowCollisionMark;
-    
-    /** 
+
+    /**
      * Variable for tracking whether or not the number of collisions is
      * still going up or if it is going down
      */

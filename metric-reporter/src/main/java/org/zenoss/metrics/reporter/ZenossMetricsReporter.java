@@ -2,7 +2,7 @@ package org.zenoss.metrics.reporter;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Clock;
 import com.yammer.metrics.core.Counter;
@@ -55,7 +55,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         this.filter = filter;
         this.clock = clock;
         this.metricPrefix = Strings.nullToEmpty(metricPrefix).trim();
-        this.tags = ImmutableMap.copyOf(tags);
+        this.tags = Maps.newHashMap(tags);
     }
 
     @Override

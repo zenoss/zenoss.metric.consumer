@@ -24,7 +24,7 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
             @Override
             public void post(MetricBatch batch) throws IOException {
                 for (Metric m : batch.getMetrics()) {
-                    ow.append(asJson(m) + "\n");
+                    ow.append(asJson(m)).append("\n");
                 }
                 ow.flush();
             }
