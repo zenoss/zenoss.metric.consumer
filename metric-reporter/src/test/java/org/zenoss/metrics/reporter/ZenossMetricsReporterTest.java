@@ -6,14 +6,19 @@ import com.yammer.metrics.core.MetricPredicate;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import com.yammer.metrics.reporting.tests.AbstractPollingReporterTest;
+import org.junit.Test;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.metrics.reporter.ZenossMetricsReporter.Builder;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
     @Override
@@ -46,6 +51,7 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
                 .setTags(tags)
                 .setName("Test-Reporter")
                 .setPredicate(MetricPredicate.ALL)
+                .setPrintJvmMetrics(false)
                 .build();
     }
 
@@ -108,4 +114,32 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
                 String.format("{\"metric\":\"Prefix.java.lang.Object.metric.count\",\"timestamp\":5,\"value\":%s,\"tags\":{\"key\":\"val\"}}", (double) l)
         };
     }
+
+    @Test
+    public void testCollectJvmMetrics() {
+        ZenossMetricsReporter zmr = new Builder(mock(MetricPoster.class))
+                .setPrintJvmMetrics(true)
+                .build();
+        zmr.collectVmMetrics(new MetricBatch(1005));
+
+    }
+
+    @Test
+    public void testShutdown() throws InterruptedException {
+        MetricPoster poster = mock(MetricPoster.class);
+        ZenossMetricsReporter zmr = new Builder(poster).build();
+        zmr.shutdown(1000, TimeUnit.SECONDS);
+        verify(poster).shutdown();
+
+    }
+
+    @Test
+    public void testStart() throws InterruptedException {
+        MetricPoster poster = mock(MetricPoster.class);
+        ZenossMetricsReporter zmr = new Builder(poster).build();
+        zmr.start(1000, TimeUnit.SECONDS);
+        verify(poster).start();
+
+    }
+
 }

@@ -16,9 +16,10 @@ import java.io.IOException;
 public class HttpPosterTest {
 
     private static final String URL_PATH = "/test/path";
+    private static final int MOCK_PORT = 9843;
 
     @Rule
-    public WireMockRule wireMockRule = new WireMockRule(8080); // No-args constructor defaults to port 8080
+    public WireMockRule wireMockRule = new WireMockRule(MOCK_PORT);
 
     @Test
     public void simplePost() throws IOException {
@@ -29,7 +30,7 @@ public class HttpPosterTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody("<response>Some content</response>")));
 
-        HttpPoster poster = new Builder("localhost", 8080, false)
+        HttpPoster poster = new Builder("localhost", MOCK_PORT, false)
                 .setApi(URL_PATH)
                 .build();
         poster.start();
@@ -55,7 +56,7 @@ public class HttpPosterTest {
                         .withHeader("Set-Cookie", "cookieName=cookieValue")
                         .withBody("<response>Some content</response>")));
 
-        HttpPoster poster = new Builder("localhost", 8080, false)
+        HttpPoster poster = new Builder("localhost", MOCK_PORT, false)
                 .setApi(URL_PATH)
                 .setUsername("test_user")
                 .setPassword("test_pass")

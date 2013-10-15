@@ -17,12 +17,14 @@ import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.Sampling;
 import com.yammer.metrics.core.Summarizable;
 import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.VirtualMachineMetrics;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import com.yammer.metrics.stats.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.Thread.State;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -44,18 +46,23 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
 
     private final MetricPredicate filter;
     private final Clock clock;
+    private final boolean printJvmMetrics;
     private final String metricPrefix;
     private final MetricPoster poster;
     private final Map<String, String> tags;
+    private final VirtualMachineMetrics vm;
 
     private ZenossMetricsReporter(MetricsRegistry registry, String name, MetricPoster poster, MetricPredicate filter,
-                                  String metricPrefix, Map<String, String> tags, Clock clock) {
+                                  String metricPrefix, Map<String, String> tags, Clock clock, VirtualMachineMetrics vm, boolean printJvmMetrics) {
         super(registry, name);
         this.poster = poster;
         this.filter = filter;
         this.clock = clock;
+        this.printJvmMetrics = printJvmMetrics;
         this.metricPrefix = Strings.nullToEmpty(metricPrefix).trim();
         this.tags = Maps.newHashMap(tags);
+        this.vm = vm;
+
     }
 
     @Override
@@ -74,6 +81,47 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
     public void run() {
         final long timestamp = clock.time() / 1000;
         final MetricBatch batchContext = new MetricBatch(timestamp);
+        if (printJvmMetrics) {
+            collectVmMetrics(batchContext);
+        }
+        collectMetrics(batchContext);
+        try {
+            post(batchContext);
+        } catch (IOException e) {
+            LOG.error("Error posting metrics", e);
+        }
+    }
+
+
+    void collectVmMetrics(MetricBatch batchContext) {
+
+        addMetric("jvm.memory", "heap_usage", vm.heapUsage(), batchContext);
+        addMetric("jvm.memory", "non_heap_usage", vm.nonHeapUsage(), batchContext);
+        for (Entry<String, Double> pool : vm.memoryPoolUsage().entrySet()) {
+            addMetric("jvm.memory.memory_pool_usages", safeString(pool.getKey()), pool.getValue(), batchContext);
+        }
+
+        addMetric("jvm", "daemon_thread_count", vm.daemonThreadCount(), batchContext);
+        addMetric("jvm", "thread_count", vm.threadCount(), batchContext);
+        addMetric("jvm", "uptime", vm.uptime(), batchContext);
+        addMetric("jvm", "fd_usage", vm.fileDescriptorUsage(), batchContext);
+
+        for (Entry<State, Double> entry : vm.threadStatePercentages().entrySet()) {
+            addMetric("jvm.thread-states", entry.getKey().toString().toLowerCase(), entry.getValue(), batchContext);
+        }
+
+        for (Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors().entrySet()) {
+            final String name = "jvm.gc." + safeString(entry.getKey());
+            addMetric(name, "time", entry.getValue().getTime(TimeUnit.MILLISECONDS), batchContext);
+            addMetric(name, "runs", entry.getValue().getRuns(), batchContext);
+        }
+    }
+
+    private String safeString(String key) {
+        return key.replace(" ","_");  //To change body of created methods use File | Settings | File Templates.
+    }
+
+    private void collectMetrics(MetricBatch batchContext) {
         final Collection<SortedMap<MetricName, Metric>> values = getMetricsRegistry().groupedMetrics(this.filter).values();
         for (SortedMap<MetricName, Metric> map : values) {
             for (Entry<MetricName, Metric> entry : map.entrySet()) {
@@ -86,13 +134,9 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
                     }
                 }
             }
-            try {
-                post(batchContext);
-            } catch (IOException e) {
-                LOG.error("Error posting metrics", e);
-            }
         }
     }
+
 
     @Override
     public void processMeter(MetricName metricName, Metered meter, MetricBatch context) throws Exception {
@@ -165,8 +209,12 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
     }
 
     private void addMetric(MetricName mName, String valueName, double value, MetricBatch batch) {
+        addMetric(getName(mName), valueName, value, batch);
+    }
+
+    private void addMetric(String metricName, String valueName, double value, MetricBatch batch) {
         final org.zenoss.app.consumer.metric.data.Metric metric = new org.zenoss.app.consumer.metric.data.Metric();
-        metric.setMetric(String.format("%s.%s", getName(mName), valueName));
+        metric.setMetric(String.format("%s.%s", metricName, valueName));
         metric.setTimestamp(batch.getTimestamp());
         metric.setValue(value);
         metric.setTags(this.tags);
@@ -189,6 +237,8 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         private Map<String, String> tags = Collections.emptyMap();
         private String metricPrefix;
         private Clock clock = Clock.defaultClock();
+        private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
+        private boolean printJvmMetrics = true;
 
         /**
          * Create a Builder for a ZenossMetricsReporter
@@ -235,8 +285,13 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
             return this;
         }
 
+        public Builder setPrintJvmMetrics(boolean print) {
+            this.printJvmMetrics = print;
+            return this;
+        }
+
         public ZenossMetricsReporter build() {
-            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock);
+            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock, vm, printJvmMetrics);
         }
 
 

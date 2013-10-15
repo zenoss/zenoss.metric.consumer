@@ -14,7 +14,8 @@
 # Beware of trailing spaces.
 # Don't let your editor turn tabs into spaces or vice versa.
 #============================================================================
-COMPONENT             = metric-consumer
+COMPONENT             = metric-consumer-app
+COMPONENT_VERSION     = 0.0.3-SNAPSHOT
 COMPONENT_PREFIX      = install
 COMPONENT_SYSCONFDIR  = $(COMPONENT_PREFIX)/etc
 _COMPONENT            = $(strip $(COMPONENT))
@@ -22,11 +23,12 @@ SUPERVISOR_CONF       = $(_COMPONENT)_supervisor.conf
 SUPERVISORD_DIR       = $(SYSCONFDIR)/supervisor
 REQUIRES_JDK          = 1
 #COMPONENT_MAVEN_OPTS = -DskipTests=true
-SRC_DIR               = src
+SRC_DIR               = metric-consumer-app/src
 #
 # For zapp components, keep BUILD_DIR aligned with src/main/assembly/zapp.xml
 #
-BUILD_DIR             = target
+BUILD_DIR             = metric-consumer-app/target
+POM                   = metric-consumer-app/pom.xml
 
 #============================================================================
 # Hide common build macros, idioms, and default rules in a separate file.
@@ -41,7 +43,7 @@ endif
 COMPONENT_SRC ?= $(DFLT_COMPONENT_SRC)
 
 # Name of jar we're building: my-component-x.y.z.jar
-COMPONENT_JAR ?= $(DFLT_COMPONENT_JAR)
+COMPONENT_JAR ?= $(COMPONENT)-$(COMPONENT_VERSION).jar
 
 # Specify install-related directories to create as part of the install target.
 # NB: Intentional usage of _PREFIX and PREFIX here to avoid circular dependency.

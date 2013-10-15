@@ -9,6 +9,8 @@ import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 
+import java.util.List;
+
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
@@ -32,7 +34,7 @@ public class OpenTsdbMetricServiceTest {
     @Test
     public void testPushHandlesNull() throws Exception {
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.malformedRequest ("metrics not nullable"), service.push(null));
+        assertEquals(Control.malformedRequest ("metrics not nullable"), service.push((List<Metric>) null));
     }
 
     @Test
