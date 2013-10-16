@@ -307,7 +307,7 @@ quiet_cmd_TOUCH = TOUCH  $2
 #----------------------------------------------------------------------------
 # Untar something into an existing directory
 quiet_cmd_UNTAR = UNTAR  $2 -> $3
-      cmd_UNTAR = $(TAR) -xvf $2 -C $3
+      cmd_UNTAR = $(TAR) -xvf "$2" -C $3
 
 #----------------------------------------------------------------------------
 # Verify that required build tools are present in the environment.

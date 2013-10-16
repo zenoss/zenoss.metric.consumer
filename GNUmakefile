@@ -14,7 +14,7 @@
 # Beware of trailing spaces.
 # Don't let your editor turn tabs into spaces or vice versa.
 #============================================================================
-COMPONENT             = metric-consumer
+COMPONENT             = metric-consumer-app
 COMPONENT_PREFIX      = install
 COMPONENT_SYSCONFDIR  = $(COMPONENT_PREFIX)/etc
 _COMPONENT            = $(strip $(COMPONENT))
@@ -22,11 +22,12 @@ SUPERVISOR_CONF       = $(_COMPONENT)_supervisor.conf
 SUPERVISORD_DIR       = $(SYSCONFDIR)/supervisor
 REQUIRES_JDK          = 1
 #COMPONENT_MAVEN_OPTS = -DskipTests=true
-SRC_DIR               = src
+SRC_DIR               = metric-consumer-app/src
 #
 # For zapp components, keep BUILD_DIR aligned with src/main/assembly/zapp.xml
 #
 BUILD_DIR             = target
+POM                   = pom.xml
 
 #============================================================================
 # Hide common build macros, idioms, and default rules in a separate file.
@@ -37,11 +38,23 @@ else
     include zenmagic.mk
 endif
 
+# We need xpath to parse the pom
+XPATH = xpath
+CHECK_TOOLS += $(XPATH)
+
+VERSION_PATH="//project/version/text()"
+ifeq "$(DISTRO)" "Darwin"
+    XPATHCMD = $(XPATH) $(POM) $(VERSION_PATH)
+else
+    XPATHCMD = $(XPATH) -e $(VERSION_PATH) $(POM)
+endif
+COMPONENT_VERSION ?= $(shell $(XPATHCMD) 2>/dev/null)
+
 # List of source files needed to build this component.
 COMPONENT_SRC ?= $(DFLT_COMPONENT_SRC)
 
 # Name of jar we're building: my-component-x.y.z.jar
-COMPONENT_JAR ?= $(DFLT_COMPONENT_JAR)
+COMPONENT_JAR ?= $(COMPONENT)-$(COMPONENT_VERSION).jar
 
 # Specify install-related directories to create as part of the install target.
 # NB: Intentional usage of _PREFIX and PREFIX here to avoid circular dependency.
@@ -54,8 +67,8 @@ else
     # Name of binary tar we're building: my-component-x.y.z-zapp.tar.gz
     COMPONENT_TAR = $(shell echo $(COMPONENT_JAR) | $(SED) -e "s|\.jar|-zapp.tar.gz|g")
 endif
-TARGET_JAR := $(BUILD_DIR)/$(COMPONENT_JAR)
-TARGET_TAR := $(BUILD_DIR)/$(COMPONENT_TAR)
+TARGET_JAR := $(COMPONENT)/$(BUILD_DIR)/$(COMPONENT_JAR)
+TARGET_TAR := $(COMPONENT)/$(BUILD_DIR)/$(COMPONENT_TAR)
 
 #============================================================================
 # Subset of standard build targets our makefiles should implement.  
