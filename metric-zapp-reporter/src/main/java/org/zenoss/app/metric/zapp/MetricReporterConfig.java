@@ -17,6 +17,11 @@ public class MetricReporterConfig {
     public static final int SHUTDOWN_WAIT = 5;
     public static final String ZEN_INF = "ZEN_INF";
 
+    static final String DEFAULT_PASSWORD = "zenoss";
+    static final String DEFAULT_USER = "admin";
+
+    static final String DEFAULT_MARKER = new Object().toString();
+
     /**
      * How often to report metrics in seconds
      */
@@ -55,19 +60,55 @@ public class MetricReporterConfig {
     @JsonProperty
     private String metricPrefix = ZEN_INF;
 
+    /**
+     * Host where metrics will be reported
+     */
+    @JsonProperty
+    private String host = DEFAULT_MARKER;
+
+    /**
+     * Protocol for posting data, http or https
+     */
+    @JsonProperty
+    private String protocol = DEFAULT_MARKER;
+
+    /**
+     * Port
+     */
+    @JsonProperty
+    private Integer port = -1000;
+
+    /**
+     * User for posting metrics
+     */
+    @JsonProperty
+    private String username = DEFAULT_USER;
+
+    /**
+     * Password for posting metrics
+     */
+    @JsonProperty
+    private String password = DEFAULT_PASSWORD;
+
 
     public MetricReporterConfig() {
         super();
     }
 
     public MetricReporterConfig(int reportFrequencySeconds, String reporterName, String apiPath, String metricPrefix,
-                                int shutdownWaitSeconds, boolean reportJvmMetrics) {
+                                int shutdownWaitSeconds, boolean reportJvmMetrics, String host, String protocol,
+                                int port, String username, String password) {
         this.reportFrequencySeconds = reportFrequencySeconds;
         this.reporterName = reporterName;
         this.apiPath = apiPath;
         this.metricPrefix = metricPrefix;
         this.shutdownWaitSeconds = shutdownWaitSeconds;
         this.reportJvmMetrics = reportJvmMetrics;
+        this.port = port;
+        this.host = host;
+        this.protocol = protocol;
+        this.username = username;
+        this.password = password;
     }
 
     /**
@@ -124,6 +165,52 @@ public class MetricReporterConfig {
         return metricPrefix;
     }
 
+
+    /**
+     * Port for posting data
+     *
+     * @return port
+     */
+    public Integer getPort() {
+        return port;
+    }
+
+    /**
+     * Protocol for posting data, http or https
+     *
+     * @return protocol
+     */
+    public String getProtocol() {
+        return protocol;
+    }
+
+    /**
+     * Host where metrics will be reported
+     *
+     * @return host
+     */
+    public String getHost() {
+        return host;
+    }
+
+    /**
+     * Username for posting metrics
+     *
+     * @return username
+     */
+    public String getUsername() {
+        return username;
+    }
+
+    /**
+     * Password for posting metrics
+     *
+     * @return password
+     */
+    public String getPassword() {
+        return password;
+    }
+
     public static final class Builder {
 
         public Builder setReportFrequencySeconds(int reportFrequencySeconds) {
@@ -160,17 +247,50 @@ public class MetricReporterConfig {
             return this;
         }
 
+        public Builder setHost(String host) {
+            this.host = host;
+            return this;
+        }
+
+        public Builder setProtocol(String protocol) {
+            String proto = Strings.nullToEmpty(protocol).trim().toLowerCase();
+            checkArgument(proto == "http" || proto == "https");
+            this.protocol = protocol;
+            return this;
+        }
+
+        public Builder setPort(int port) {
+            this.port = port;
+            return this;
+        }
+
+        public Builder setUsername(String user) {
+            this.username = user;
+            return this;
+        }
+
+        public Builder setPassword(String password) {
+            this.password= password;
+            return this;
+        }
+
+
         public MetricReporterConfig build() {
             return new MetricReporterConfig(reportFrequencySeconds, reporterName, apiPath, metricPrefix,
-                    shutdownWaitSeconds, reportJvmMetrics);
+                    shutdownWaitSeconds, reportJvmMetrics, host, protocol, port, username, password);
         }
 
         private String reporterName = ZENOSS_ZAPP_REPORTER;
         private String apiPath = METRIC_API;
         private String metricPrefix = ZEN_INF;
+        private String host = DEFAULT_MARKER;
+        private String protocol = DEFAULT_MARKER;
+        private String username = DEFAULT_USER;
+        private String password = DEFAULT_PASSWORD;
+        private Integer port = -1000;
         private int reportFrequencySeconds = FREQUENCY;
         private int shutdownWaitSeconds = SHUTDOWN_WAIT;
-        private boolean reportJvmMetrics= true;
+        private boolean reportJvmMetrics = true;
 
 
     }

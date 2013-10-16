@@ -26,7 +26,7 @@ public class ConsumerAppConfiguration extends AppConfiguration {
 
     @Valid
     @JsonProperty("metricReporter")
-    private MetricReporterConfig metricReporterConfig = new MetricReporterConfig.Builder().setReportFrequencySeconds(1).build();
+    private MetricReporterConfig metricReporterConfig = new MetricReporterConfig.Builder().setReportFrequencySeconds(30).build();
 
     /**
      * Configuration details for the metric service

@@ -68,6 +68,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
 
     @Override
     public void start(long period, TimeUnit unit) {
+        LOG.info("Starting ZenossMetricsReporter on {} {} frequency", period, unit);
         super.start(period, unit);
         this.poster.start();
     }
@@ -87,6 +88,13 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         }
         collectMetrics(batchContext);
         try {
+
+            LOG.debug("Posting {} metrics", batchContext.getMetrics().size());
+            if (LOG.isTraceEnabled()) {
+                for (org.zenoss.app.consumer.metric.data.Metric m : batchContext.getMetrics()) {
+                    LOG.trace("Sending metric {}", m.toString());
+                }
+            }
             post(batchContext);
         } catch (IOException e) {
             LOG.error("Error posting metrics", e);
@@ -119,7 +127,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
     }
 
     private String safeString(String key) {
-        return key.replace(" ","_");  //To change body of created methods use File | Settings | File Templates.
+        return key.replace(" ", "_");  //To change body of created methods use File | Settings | File Templates.
     }
 
     private void collectMetrics(MetricBatch batchContext) {

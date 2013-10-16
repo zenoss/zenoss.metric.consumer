@@ -8,6 +8,7 @@ import com.yammer.metrics.core.MetricPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.zenoss.app.AppConfiguration;
 import org.zenoss.dropwizardspring.annotations.Managed;
 import org.zenoss.metrics.reporter.HttpPoster;
@@ -28,6 +29,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.net.InetAddress.*;
 
 @Managed
+@Profile("runtime") //Don't run this profile during tests
 public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed {
     private static final Logger LOG = LoggerFactory.getLogger(ZenossMetricsReporter.class);
 
@@ -56,7 +58,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 metricsReporterConfig = (MetricReporterConfig) getMethod.invoke(appConfiguration);
 
             } catch (ClassCastException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-                LOG.warn("Using defaults for metric reporter configuration", e);
+                LOG.info("Using defaults for metric reporter configuration", e);
                 metricsReporterConfig = new MetricReporterConfig();
             }
         }
@@ -73,14 +75,44 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         this.poster = poster;
     }
 
+    private int getPort() {
+        int port;
+        if (-1000 == getMetricReporterConfig().getPort()) {
+            port = appConfiguration.getProxyConfiguration().getPort();
+        } else {
+            port = getMetricReporterConfig().getPort();
+        }
+        return port;
+    }
+
+    private String getHost() {
+        String host;
+        if (MetricReporterConfig.DEFAULT_MARKER.equals(getMetricReporterConfig().getHost())) {
+            host = appConfiguration.getProxyConfiguration().getHostname();
+        } else {
+            host = getMetricReporterConfig().getHost();
+        }
+        return host;
+    }
+
+    private String getProtocol() {
+        String protocol;
+        if (MetricReporterConfig.DEFAULT_MARKER.equals(getMetricReporterConfig().getProtocol())) {
+            protocol = appConfiguration.getProxyConfiguration().getProtocol();
+        } else {
+            protocol = getMetricReporterConfig().getProtocol();
+        }
+        return protocol;
+    }
+
     @PostConstruct
     public void init() throws IOException {
 
         if (this.poster == null) {
-            int port = appConfiguration.getProxyConfiguration().getPort();
-            String host = appConfiguration.getProxyConfiguration().getHostname();
+            int port = getPort();
+            String host = getHost();
             boolean https;
-            String protocol = appConfiguration.getProxyConfiguration().getProtocol();
+            String protocol = getProtocol();
             checkNotNull(protocol);
             switch (protocol.toLowerCase().trim()) {
                 case "http":
@@ -92,8 +124,8 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 default:
                     throw new IllegalStateException("Unknown protocol " + protocol);
             }
-            String username = DEFAULT_USER;
-            String password = DEFAULT_PASSWORD;
+            String username = this.getMetricReporterConfig().getUsername();
+            String password = this.getMetricReporterConfig().getPassword();
             String api = this.getMetricReporterConfig().getApiPath();
             this.poster = buildHttpPoster(port, host, https, username, password, api);
         }
