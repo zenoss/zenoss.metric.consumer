@@ -4,44 +4,33 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
-    <artifactId>metric-consumer</artifactId>
+    <artifactId>metric-consumer-parent</artifactId>
     <version>0.0.3-SNAPSHOT</version>
+    <packaging>pom</packaging>
     <properties>
-        <version.zapp>0.0.8</version.zapp>
+        <version.zapp>0.0.9</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
+        <version.guava>14.0.1</version.guava>
+        <version.yammermetrics>2.2.0</version.yammermetrics>
         <version.metric.tsdb>0.0.5</version.metric.tsdb>
-        <ssl.cert.dir>target/cert</ssl.cert.dir>
-        <assembly.skipAssembly>true</assembly.skipAssembly>
+        <version.httpcomponents></version.httpcomponents>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <downloadSources>true</downloadSources>
+
     </properties>
+    <modules>
+        <module>metric-consumer-app</module>
+        <module>metric-data</module>
+        <module>metric-reporter</module>
+        <module>metric-zapp-reporter</module>
+    </modules>
     <dependencies>
-        <dependency>
-            <groupId>com.google.http-client</groupId>
-            <artifactId>google-http-client</artifactId>
-            <version>1.17.0-rc</version>
-            <exclusions>
-                <exclusion>  <!-- declare the exclusion here -->
-                    <groupId>org.apache.httpcomponents</groupId>
-                    <artifactId>httpclient</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
         <dependency>
             <groupId>org.zenoss.zapp</groupId>
             <artifactId>zenoss-app</artifactId>
             <version>${version.zapp}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.zenoss.zapp</groupId>
-            <artifactId>zauth-bundle</artifactId>
-            <version>${version.zapp}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.zenoss</groupId>
-            <artifactId>metric-tsdb</artifactId>
-            <version>${version.metric.tsdb}</version>
         </dependency>
         <!--test scope-->
         <dependency>
@@ -56,26 +45,8 @@
             <version>${version.dropwizard}</version>
             <scope>test</scope>
         </dependency>
-        <!--runtime-->
-        <dependency>
-            <groupId>com.sun.jersey</groupId>
-            <artifactId>jersey-server</artifactId>
-            <version>${version.jersey}</version>
-            <scope>runtime</scope>
-        </dependency>
     </dependencies>
     <build>
-        <resources>
-            <resource>
-                <targetPath>${project.build.directory}/etc</targetPath>
-                <filtering>true</filtering>
-                <directory>${basedir}/src/main/etc</directory>
-            </resource>
-            <resource>
-                <filtering>true</filtering>
-                <directory>${basedir}/src/main/resources</directory>
-            </resource>
-        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -87,137 +58,19 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.2.1</version>
-                <configuration>
-                    <mainClass>org.zenoss.app.consumer.ConsumerApp</mainClass>
-                    <arguments>
-                        <argument>server</argument>
-                        <argument>${project.build.directory}/etc/configuration.yaml</argument>
-                    </arguments>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>2.0</version>
-                <configuration>
-                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                    <filters>
-                        <filter>
-                            <artifact>*</artifact>
-                            <excludes>
-                                <exclude>META-INF/*.SF</exclude>
-                                <exclude>META-INF/*.RSA</exclude>
-                                <exclude>META-INF/*.INF</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
-                </configuration>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
                 <executions>
                     <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>org.zenoss.app.consumer.ConsumerApp</mainClass>
-                                </transformer>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                                    <resource>META-INF/spring.handlers</resource>
-                                </transformer>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                                    <resource>META-INF/spring.schemas</resource>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>keytool-maven-plugin</artifactId>
-                <version>1.0</version>
-                <executions>
-                    <execution>
-                        <phase>generate-resources</phase>
-                        <id>clean</id>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <phase>generate-resources</phase>
-                        <id>genkey</id>
-                        <goals>
-                            <goal>genkey</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <keystore>${project.build.directory}/cert/ssl.pfx</keystore>
-                    <dname>cn=localhost</dname>
-                    <keypass>zapp_pass</keypass>
-                    <storepass>zapp_pass</storepass>
-                    <alias>zapp</alias>
-                    <keyalg>RSA</keyalg>
-                    <storetype>pkcs12</storetype>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>2.4</version>
-                <configuration>
-                    <descriptors>
-                        <descriptor>src/main/assembly/zapp.xml</descriptor>
-                    </descriptors>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <!-- this is used for inheritance merges -->
-                        <phase>package</phase>
-                        <!-- bind to the packaging phase -->
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>findbugs-maven-plugin</artifactId>
-                <version>2.5.2</version>
-                <configuration>
-                    <excludeFilterFile>src/test/resources/findbugs-exclude.xml</excludeFilterFile>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>check-for-bugs</id>
+                        <id>attach-sources</id>
                         <phase>verify</phase>
                         <goals>
-                            <goal>check</goal>
+                            <goal>jar-no-fork</goal>
                         </goals>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
-    <profiles>
-        <profile>
-            <id>assemble</id>
-            <properties>
-                <ssl.cert.dir>etc/${project.artifactId}/cert</ssl.cert.dir>
-                <assembly.skipAssembly>false</assembly.skipAssembly>
-            </properties>
-        </profile>
-    </profiles>
 </project>
