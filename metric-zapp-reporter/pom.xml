@@ -27,6 +27,5 @@
             <artifactId>guava</artifactId>
             <version>${version.guava}</version>
         </dependency>
-
     </dependencies>
 </project>

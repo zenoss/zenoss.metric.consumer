@@ -16,7 +16,6 @@ import org.zenoss.metrics.reporter.HttpPoster.Builder;
 import org.zenoss.metrics.reporter.MetricPoster;
 import org.zenoss.metrics.reporter.ZenossMetricsReporter;
 
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.*;
@@ -49,13 +48,18 @@ public class ManagedReporterTest {
         ObjectMapperFactory omf = mock(ObjectMapperFactory.class);
         when(env.getObjectMapperFactory()).thenReturn(omf);
 
+
+        when(proxyConfig.getHostname()).thenReturn(HOST);
+        when(proxyConfig.getPort()).thenReturn(PORT);
+        when(proxyConfig.getProtocol()).thenReturn(PROTOCOL);
+
+
+        when(appConfig.getProxyConfiguration()).thenReturn(proxyConfig);
+
     }
 
     @Test(expected = IllegalStateException.class)
-    public void testManagedReporterBadProtocol() throws IOException {
-        when(appConfig.getProxyConfiguration()).thenReturn(proxyConfig);
-        when(proxyConfig.getHostname()).thenReturn(HOST);
-        when(proxyConfig.getPort()).thenReturn(PORT);
+    public void testManagedReporterBadProtocol() throws Exception {
         when(proxyConfig.getProtocol()).thenReturn("BLAM");
 
         //test everything getst built w/out exceptions
@@ -66,11 +70,7 @@ public class ManagedReporterTest {
     }
 
     @Test
-    public void testManagedReporterHttp() throws IOException {
-        when(appConfig.getProxyConfiguration()).thenReturn(proxyConfig);
-        when(proxyConfig.getHostname()).thenReturn(HOST);
-        when(proxyConfig.getPort()).thenReturn(PORT);
-        when(proxyConfig.getProtocol()).thenReturn(PROTOCOL);
+    public void testManagedReporterHttp() throws Exception {
 
         //test everything getst built w/out exceptions
         ManagedReporter managed = spy(new ManagedReporter(appConfig, env));
@@ -82,10 +82,7 @@ public class ManagedReporterTest {
 
 
     @Test
-    public void testManagedReporterHttps() throws IOException {
-        when(appConfig.getProxyConfiguration()).thenReturn(proxyConfig);
-        when(proxyConfig.getHostname()).thenReturn(HOST);
-        when(proxyConfig.getPort()).thenReturn(PORT);
+    public void testManagedReporterHttps() throws Exception {
         when(proxyConfig.getProtocol()).thenReturn("https");
 
         //test everything gets built w/out exceptions
@@ -94,15 +91,13 @@ public class ManagedReporterTest {
         verify(managed).buildHttpPoster(PORT, HOST, true, "admin", "zenoss", HttpPoster.METRIC_API);
     }
 
+
     @Test
-    public void testManagedReportetWithConfig() throws IOException {
+    public void testManagedReportetWithConfig() throws Exception {
 
         TestAppConfiguration config = mock(TestAppConfiguration.class);
         when(config.getProxyConfiguration()).thenReturn(proxyConfig);
         when(config.getMetricReporterConfig()).thenReturn(new MetricReporterConfig());
-        when(proxyConfig.getHostname()).thenReturn(HOST);
-        when(proxyConfig.getPort()).thenReturn(PORT);
-        when(proxyConfig.getProtocol()).thenReturn("http");
 
         //test everything getst built w/out exceptions
         ManagedReporter managed = spy(new ManagedReporter(config, env));
@@ -135,6 +130,32 @@ public class ManagedReporterTest {
         verify(zmr).shutdown(2, TimeUnit.SECONDS);
 
 
+    }
+
+    @Test
+    public void testUnknownHost() throws Exception {
+
+        ManagedReporter managed = spy(new ManagedReporter(appConfig, env));
+        when(managed.getLocalHostName()).thenReturn(null);
+        String tag = managed.getHostTag();
+        Assert.assertNotNull(tag);
+        verify(managed).exectHostname();
+        when(managed.exectHostname()).thenReturn(null);
+        tag = managed.getHostTag();
+        Assert.assertEquals("UNKNOWN", tag);
+
+    }
+
+    @Test
+    public void testBadHostNameCmd() throws Exception {
+
+        ManagedReporter managed = spy(new ManagedReporter(appConfig, env));
+        when(managed.getLocalHostName()).thenReturn(null);
+        when(managed.getProcBuilder()).thenReturn(new ProcessBuilder("blamo"));
+        String tag = managed.getHostTag();
+        Assert.assertNotNull(tag);
+        verify(managed).exectHostname();
+        Assert.assertEquals("UNKNOWN", tag);
     }
 
 
