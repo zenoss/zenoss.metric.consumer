@@ -90,6 +90,12 @@ public class MetricReporterConfig {
     @JsonProperty
     private String password = DEFAULT_PASSWORD;
 
+    /**
+     * Host tag to use for reported metrics
+     */
+    @JsonProperty
+    private String hostTag = "";
+
 
     public MetricReporterConfig() {
         super();
@@ -97,7 +103,7 @@ public class MetricReporterConfig {
 
     public MetricReporterConfig(int reportFrequencySeconds, String reporterName, String apiPath, String metricPrefix,
                                 int shutdownWaitSeconds, boolean reportJvmMetrics, String host, String protocol,
-                                int port, String username, String password) {
+                                int port, String username, String password, String hostTag) {
         this.reportFrequencySeconds = reportFrequencySeconds;
         this.reporterName = reporterName;
         this.apiPath = apiPath;
@@ -109,6 +115,7 @@ public class MetricReporterConfig {
         this.protocol = protocol;
         this.username = username;
         this.password = password;
+        this.hostTag = hostTag;
     }
 
     /**
@@ -211,7 +218,17 @@ public class MetricReporterConfig {
         return password;
     }
 
+    /**
+     * The host tag to be used when sending metrics.
+     *
+     * @return hostname can be empty or null
+     */
+    public String getHostTag() {
+        return hostTag;
+    }
+
     public static final class Builder {
+
 
         public Builder setReportFrequencySeconds(int reportFrequencySeconds) {
             checkArgument(reportFrequencySeconds > 0);
@@ -274,10 +291,16 @@ public class MetricReporterConfig {
             return this;
         }
 
+        public Builder setHostTag(String hostTag) {
+            checkNotNull(hostTag);
+            this.hostTag = hostTag;
+            return this;
+        }
+
 
         public MetricReporterConfig build() {
             return new MetricReporterConfig(reportFrequencySeconds, reporterName, apiPath, metricPrefix,
-                    shutdownWaitSeconds, reportJvmMetrics, host, protocol, port, username, password);
+                    shutdownWaitSeconds, reportJvmMetrics, host, protocol, port, username, password, hostTag);
         }
 
         private String reporterName = ZENOSS_ZAPP_REPORTER;
@@ -291,6 +314,7 @@ public class MetricReporterConfig {
         private int reportFrequencySeconds = FREQUENCY;
         private int shutdownWaitSeconds = SHUTDOWN_WAIT;
         private boolean reportJvmMetrics = true;
+        private String hostTag = "";
 
 
     }

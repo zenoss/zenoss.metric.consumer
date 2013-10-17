@@ -1,6 +1,7 @@
 package org.zenoss.app.metric.zapp;
 
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.yammer.dropwizard.config.Environment;
 import com.yammer.metrics.Metrics;
@@ -17,16 +18,19 @@ import org.zenoss.metrics.reporter.MetricPoster;
 import org.zenoss.metrics.reporter.ZenossMetricsReporter;
 
 import javax.annotation.PostConstruct;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.net.InetAddress.*;
+import static java.net.InetAddress.getLocalHost;
 
 @Managed
 @Profile("runtime") //Don't run this profile during tests
@@ -106,7 +110,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     }
 
     @PostConstruct
-    public void init() throws IOException {
+    public void init() throws Exception {
 
         if (this.poster == null) {
             int port = getPort();
@@ -133,10 +137,60 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         Map<String, String> tags = Maps.newHashMap();
         tags.put("zapp", environment.getName());
         tags.put("daemon", environment.getName());
-        tags.put("host", getLocalHost().getHostName());
+        tags.put("host", getHostTag());
         tags.put("instance", ManagementFactory.getRuntimeMXBean().getName());
 
         this.metricReporter = buildMetricReporter(tags);
+    }
+
+    String getLocalHostName() {
+        String host = null;
+        try {
+            host = getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            LOG.info("Could not get localhost inetaddress: {}", e.toString());
+            LOG.debug("error getting localhost", e);
+        }
+        return host;
+    }
+
+    String getHostTag() throws InterruptedException {
+        String host = getMetricReporterConfig().getHostTag();
+        if (Strings.nullToEmpty(host).trim().isEmpty()) {
+            host = null;
+        }
+        if (host == null) {
+            host = getLocalHostName();
+        }
+
+        if (host == null) {
+            host = exectHostname();
+        }
+
+        if (host == null) {
+            host = "UNKNOWN";
+        }
+        return host;
+    }
+
+
+    String exectHostname() throws InterruptedException {
+        int exit;
+        String host = null;
+        try {
+            Process p = new ProcessBuilder("hostname", "-s").start();
+            exit = p.waitFor();
+            if (exit == 0) {
+                host = new BufferedReader(new InputStreamReader(p.getInputStream())).readLine();
+            } else {
+                String error = new BufferedReader(new InputStreamReader(p.getErrorStream())).readLine();
+                LOG.info("Could not get exec hostname -s: exit {} {}", exit, Strings.nullToEmpty(error));
+            }
+        } catch (IOException e) {
+            LOG.info("Error getting hostname {}", e.toString());
+            LOG.debug("IO error getting localhost", e);
+        }
+        return host;
     }
 
     ZenossMetricsReporter buildMetricReporter(Map<String, String> tags) {

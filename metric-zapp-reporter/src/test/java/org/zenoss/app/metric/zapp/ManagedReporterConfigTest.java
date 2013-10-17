@@ -33,6 +33,7 @@ public class ManagedReporterConfigTest {
         String user = "testuser";
         String password = "testpass";
         boolean reportJvm = false;
+        String hostTag = "testTag";
 
 
         MetricReporterConfig mrc = new Builder()
@@ -47,13 +48,15 @@ public class ManagedReporterConfigTest {
                 .setPort(port)
                 .setUsername(user)
                 .setPassword(password)
+                .setHostTag(hostTag)
                 .build();
-        verify(mrc, freq, prefix, name, path, shutdown, reportJvm, host, port, protocol, user, password);
+        verify(mrc, freq, prefix, name, path, shutdown, reportJvm, host, port, protocol, user, password, hostTag);
 
     }
 
     private void verify(MetricReporterConfig mrc, int frequency, String prefix, String name, String path, int shutdown,
-                        boolean reportJvmMetrics, String host, Integer port, String protocol, String username, String password) {
+                        boolean reportJvmMetrics, String host, Integer port, String protocol, String username,
+                        String password, String hostTag) {
         Assert.assertEquals(frequency, mrc.getReportFrequencySeconds());
         Assert.assertEquals(prefix, mrc.getMetricPrefix());
         Assert.assertEquals(name, mrc.getReporterName());
@@ -65,7 +68,7 @@ public class ManagedReporterConfigTest {
         Assert.assertEquals(protocol, mrc.getProtocol());
         Assert.assertEquals(username, mrc.getUsername());
         Assert.assertEquals(password, mrc.getPassword());
-
+        Assert.assertEquals(hostTag, mrc.getHostTag());
 
     }
 
@@ -73,6 +76,6 @@ public class ManagedReporterConfigTest {
         verify(mrc, MetricReporterConfig.FREQUENCY, MetricReporterConfig.ZEN_INF,
                 MetricReporterConfig.ZENOSS_ZAPP_REPORTER, HttpPoster.METRIC_API, MetricReporterConfig.SHUTDOWN_WAIT,
                 true, MetricReporterConfig.DEFAULT_MARKER, -1000, MetricReporterConfig.DEFAULT_MARKER,
-                MetricReporterConfig.DEFAULT_USER, MetricReporterConfig.DEFAULT_PASSWORD);
+                MetricReporterConfig.DEFAULT_USER, MetricReporterConfig.DEFAULT_PASSWORD, "");
     }
 }
