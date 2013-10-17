@@ -7,3 +7,10 @@
 *.ear
 
 target/
+.idea/
+
+# emacs
+*~
+
+#build stuff
+.extracted
