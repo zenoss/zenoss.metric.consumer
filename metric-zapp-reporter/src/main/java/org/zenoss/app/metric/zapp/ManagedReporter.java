@@ -173,12 +173,15 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         return host;
     }
 
+    ProcessBuilder getProcBuilder(){
+        return new ProcessBuilder("hostname", "-s");
+    }
 
     String exectHostname() throws InterruptedException {
         int exit;
         String host = null;
         try {
-            Process p = new ProcessBuilder("hostname", "-s").start();
+            Process p = getProcBuilder().start();
             exit = p.waitFor();
             if (exit == 0) {
                 host = new BufferedReader(new InputStreamReader(p.getInputStream())).readLine();
