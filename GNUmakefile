@@ -46,7 +46,11 @@ VERSION_PATH="//project/version/text()"
 ifeq "$(DISTRO)" "Darwin"
     XPATHCMD = $(XPATH) $(POM) $(VERSION_PATH)
 else
-    XPATHCMD = $(XPATH) -e $(VERSION_PATH) $(POM)
+    ifeq "$(shell cat /etc/issue | head -n 1 | awk {'print $3'})" "18"
+        XPATHCMD = $(XPATH) -e $(VERSION_PATH) $(POM)
+    else
+        XPATHCMD = $(XPATH) $(POM) $(VERSION_PATH)
+    endif
 endif
 COMPONENT_VERSION ?= $(shell $(XPATHCMD) 2>/dev/null)
 
