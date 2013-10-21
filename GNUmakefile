@@ -42,6 +42,8 @@ endif
 XPATH = xpath
 CHECK_TOOLS += $(XPATH)
 
+# Fedora 18 has the newer version of xpath that needs the -e arg. Fedora 19 and
+# Darwin don't.
 VERSION_PATH="//project/version/text()"
 ifeq "$(DISTRO)" "Darwin"
     XPATHCMD = $(XPATH) $(POM) $(VERSION_PATH)
