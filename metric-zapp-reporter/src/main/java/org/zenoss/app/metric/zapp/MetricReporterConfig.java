@@ -17,9 +17,6 @@ public class MetricReporterConfig {
     public static final int SHUTDOWN_WAIT = 5;
     public static final String ZEN_INF = "ZEN_INF";
 
-    static final String DEFAULT_PASSWORD = "zenoss";
-    static final String DEFAULT_USER = "admin";
-
     static final String DEFAULT_MARKER = new Object().toString();
 
     /**
@@ -79,18 +76,6 @@ public class MetricReporterConfig {
     private Integer port = -1000;
 
     /**
-     * User for posting metrics
-     */
-    @JsonProperty
-    private String username = DEFAULT_USER;
-
-    /**
-     * Password for posting metrics
-     */
-    @JsonProperty
-    private String password = DEFAULT_PASSWORD;
-
-    /**
      * Host tag to use for reported metrics
      */
     @JsonProperty
@@ -103,7 +88,7 @@ public class MetricReporterConfig {
 
     public MetricReporterConfig(int reportFrequencySeconds, String reporterName, String apiPath, String metricPrefix,
                                 int shutdownWaitSeconds, boolean reportJvmMetrics, String host, String protocol,
-                                int port, String username, String password, String hostTag) {
+                                int port, String hostTag) {
         this.reportFrequencySeconds = reportFrequencySeconds;
         this.reporterName = reporterName;
         this.apiPath = apiPath;
@@ -113,8 +98,6 @@ public class MetricReporterConfig {
         this.port = port;
         this.host = host;
         this.protocol = protocol;
-        this.username = username;
-        this.password = password;
         this.hostTag = hostTag;
     }
 
@@ -201,24 +184,6 @@ public class MetricReporterConfig {
     }
 
     /**
-     * Username for posting metrics
-     *
-     * @return username
-     */
-    public String getUsername() {
-        return username;
-    }
-
-    /**
-     * Password for posting metrics
-     *
-     * @return password
-     */
-    public String getPassword() {
-        return password;
-    }
-
-    /**
      * The host tag to be used when sending metrics.
      *
      * @return hostname can be empty or null
@@ -281,16 +246,6 @@ public class MetricReporterConfig {
             return this;
         }
 
-        public Builder setUsername(String user) {
-            this.username = user;
-            return this;
-        }
-
-        public Builder setPassword(String password) {
-            this.password= password;
-            return this;
-        }
-
         public Builder setHostTag(String hostTag) {
             checkNotNull(hostTag);
             this.hostTag = hostTag;
@@ -300,7 +255,7 @@ public class MetricReporterConfig {
 
         public MetricReporterConfig build() {
             return new MetricReporterConfig(reportFrequencySeconds, reporterName, apiPath, metricPrefix,
-                    shutdownWaitSeconds, reportJvmMetrics, host, protocol, port, username, password, hostTag);
+                    shutdownWaitSeconds, reportJvmMetrics, host, protocol, port, hostTag);
         }
 
         private String reporterName = ZENOSS_ZAPP_REPORTER;
@@ -308,8 +263,6 @@ public class MetricReporterConfig {
         private String metricPrefix = ZEN_INF;
         private String host = DEFAULT_MARKER;
         private String protocol = DEFAULT_MARKER;
-        private String username = DEFAULT_USER;
-        private String password = DEFAULT_PASSWORD;
         private Integer port = -1000;
         private int reportFrequencySeconds = FREQUENCY;
         private int shutdownWaitSeconds = SHUTDOWN_WAIT;
