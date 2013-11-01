@@ -10,6 +10,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.zenoss.app.AppConfiguration;
+import org.zenoss.app.ZenossCredentials;
 import org.zenoss.app.config.ProxyConfiguration;
 import org.zenoss.metrics.reporter.HttpPoster;
 import org.zenoss.metrics.reporter.HttpPoster.Builder;
@@ -55,7 +56,8 @@ public class ManagedReporterTest {
 
 
         when(appConfig.getProxyConfiguration()).thenReturn(proxyConfig);
-
+        ZenossCredentials creds = new ZenossCredentials("admin", "zenoss");
+        when(appConfig.getZenossCredentials()).thenReturn(creds);
     }
 
     @Test(expected = IllegalStateException.class)
@@ -98,6 +100,7 @@ public class ManagedReporterTest {
         TestAppConfiguration config = mock(TestAppConfiguration.class);
         when(config.getProxyConfiguration()).thenReturn(proxyConfig);
         when(config.getMetricReporterConfig()).thenReturn(new MetricReporterConfig());
+        when(config.getZenossCredentials()).thenReturn(new ZenossCredentials("admin", "zenoss"));
 
         //test everything getst built w/out exceptions
         ManagedReporter managed = spy(new ManagedReporter(config, env));

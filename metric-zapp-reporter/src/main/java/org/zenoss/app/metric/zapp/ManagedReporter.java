@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.zenoss.app.AppConfiguration;
+import org.zenoss.app.ZenossCredentials;
 import org.zenoss.dropwizardspring.annotations.Managed;
 import org.zenoss.metrics.reporter.HttpPoster;
 import org.zenoss.metrics.reporter.HttpPoster.Builder;
@@ -60,7 +61,6 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
             try {
                 Method getMethod = appConfiguration.getClass().getMethod("getMetricReporterConfig");
                 metricsReporterConfig = (MetricReporterConfig) getMethod.invoke(appConfiguration);
-
             } catch (ClassCastException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
                 LOG.info("Using defaults for metric reporter configuration", e);
                 metricsReporterConfig = new MetricReporterConfig();
@@ -68,6 +68,10 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         }
         return metricsReporterConfig;
     }
+
+    ZenossCredentials getZenossCredentials() {
+        return appConfiguration.getZenossCredentials();
+     }
 
     @Autowired(required = false)
     void setFilter(MetricPredicate filter) {
@@ -128,8 +132,8 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 default:
                     throw new IllegalStateException("Unknown protocol " + protocol);
             }
-            String username = this.getMetricReporterConfig().getUsername();
-            String password = this.getMetricReporterConfig().getPassword();
+            String username = this.getZenossCredentials().getUsername();
+            String password = this.getZenossCredentials().getPassword();
             String api = this.getMetricReporterConfig().getApiPath();
             this.poster = buildHttpPoster(port, host, https, username, password, api);
         }
