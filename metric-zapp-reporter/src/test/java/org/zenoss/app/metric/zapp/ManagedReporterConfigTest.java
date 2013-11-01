@@ -30,8 +30,6 @@ public class ManagedReporterConfigTest {
         String path = "path";
         String host = "hosttest";
         String protocol = "https";
-        String user = "testuser";
-        String password = "testpass";
         boolean reportJvm = false;
         String hostTag = "testTag";
 
@@ -46,17 +44,14 @@ public class ManagedReporterConfigTest {
                 .setHost(host)
                 .setProtocol(protocol)
                 .setPort(port)
-                .setUsername(user)
-                .setPassword(password)
                 .setHostTag(hostTag)
                 .build();
-        verify(mrc, freq, prefix, name, path, shutdown, reportJvm, host, port, protocol, user, password, hostTag);
+        verify(mrc, freq, prefix, name, path, shutdown, reportJvm, host, port, protocol, hostTag);
 
     }
 
     private void verify(MetricReporterConfig mrc, int frequency, String prefix, String name, String path, int shutdown,
-                        boolean reportJvmMetrics, String host, Integer port, String protocol, String username,
-                        String password, String hostTag) {
+                        boolean reportJvmMetrics, String host, Integer port, String protocol, String hostTag) {
         Assert.assertEquals(frequency, mrc.getReportFrequencySeconds());
         Assert.assertEquals(prefix, mrc.getMetricPrefix());
         Assert.assertEquals(name, mrc.getReporterName());
@@ -66,8 +61,6 @@ public class ManagedReporterConfigTest {
         Assert.assertEquals(host, mrc.getHost());
         Assert.assertEquals(port, mrc.getPort());
         Assert.assertEquals(protocol, mrc.getProtocol());
-        Assert.assertEquals(username, mrc.getUsername());
-        Assert.assertEquals(password, mrc.getPassword());
         Assert.assertEquals(hostTag, mrc.getHostTag());
 
     }
@@ -75,7 +68,6 @@ public class ManagedReporterConfigTest {
     private void verify(MetricReporterConfig mrc) {
         verify(mrc, MetricReporterConfig.FREQUENCY, MetricReporterConfig.ZEN_INF,
                 MetricReporterConfig.ZENOSS_ZAPP_REPORTER, HttpPoster.METRIC_API, MetricReporterConfig.SHUTDOWN_WAIT,
-                true, MetricReporterConfig.DEFAULT_MARKER, -1000, MetricReporterConfig.DEFAULT_MARKER,
-                MetricReporterConfig.DEFAULT_USER, MetricReporterConfig.DEFAULT_PASSWORD, "");
+                true, MetricReporterConfig.DEFAULT_MARKER, -1000, MetricReporterConfig.DEFAULT_MARKER, "");
     }
 }
