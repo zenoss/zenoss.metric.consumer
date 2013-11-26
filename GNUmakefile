@@ -39,7 +39,7 @@ blddir                = target
 #
 #     ./zenmagic.mk ../zenmagic.mk ../../zenmagic.mk ../../../zenmagic.mk
 #---------------------------------------------------------------------------#
-NEAREST_ZENMAGIC_MK := $(word 1,$(wildcard ./zenmagic.mk $(shell for slash in $$(echo $(abspath .) | sed -e "s|.*\(/obj/\)\(.*\)|\1\2|g" -e "s|.*\(/src/\)\(.*\)|\1\2|g" | sed -e "s|[^/]||g" -e "s|/|/ |g"); do string=$${string}../;echo $${string}zenmagic.mk; done | xargs echo)))
+NEAREST_ZENMAGIC_MK := $(word 1,$(wildcard ./zenmagic.mk $(shell for slash in $$(echo $(abspath .) | sed -e "s|.*\(/obj/\)\(.*\)|\1\2|g" | sed -e "s|[^/]||g" -e "s|/|/ |g"); do string=$${string}../;echo $${string}zenmagic.mk; done | xargs echo)))
 
 ifeq "$(NEAREST_ZENMAGIC_MK)" ""
     $(warning "Missing zenmagic.mk needed by the $(COMPONENT)-component makefile.")
@@ -52,11 +52,6 @@ else
     include $(NEAREST_ZENMAGIC_MK)
 endif
 
-# Name of jar we're building: my-component-x.y.z.jar
-COMPONENT_SRC     ?= $(DFLT_COMPONENT_SRC)
-COMPONENT_VERSION ?= $(DFLT_COMPONENT_VERSION)
-COMPONENT_JAR     ?= $(DFLT_COMPONENT_JAR)
-
 # Specify install-related directories to create as part of the install target.
 # NB: Intentional usage of _PREFIX and PREFIX here to avoid circular dependency.
 INSTALL_MKDIRS = $(_DESTDIR)$(prefix) $(_DESTDIR)$(prefix)/log $(_DESTDIR)$(SUPERVISORD_DIR)
@@ -68,8 +63,8 @@ else
     # Name of binary tar we're building: my-component-x.y.z-zapp.tar.gz
     COMPONENT_TAR = $(shell echo $(COMPONENT_JAR) | $(SED) -e "s|\.jar|-zapp.tar.gz|g")
 endif
-TARGET_JAR := $(COMPONENT)/$(blddir)/$(COMPONENT_JAR)
-TARGET_TAR := $(COMPONENT)/$(blddir)/$(COMPONENT_TAR)
+TARGET_JAR := $(_COMPONENT)/$(blddir)/$(COMPONENT_JAR)
+TARGET_TAR := $(_COMPONENT)/$(blddir)/$(COMPONENT_TAR)
 
 #============================================================================
 # Subset of standard build targets our makefiles should implement.  
@@ -81,9 +76,9 @@ all build: $(TARGET_TAR)
 
 # Targets to build the binary *.tar.gz.
 ifeq "$(_TRUST_MVN_REBUILD)" "yes"
-$(TARGET_TAR): checkenv
+$(TARGET_TAR):
 else
-$(TARGET_TAR): $(CHECKED_ENV) $(COMPONENT_SRC)
+$(TARGET_TAR): $(COMPONENT_SRC)
 endif
 	$(call cmd,MVNASM,package -P assemble,$@)
 	@$(call echol,$(LINE))
@@ -114,7 +109,8 @@ devinstall: dev% : %
 
 uninstall: dflt_component_uninstall
 
-clean: dflt_component_clean
+clean:
+	$(call cmd,MVN,clean)
 
 mrclean distclean: dflt_component_distclean
 
