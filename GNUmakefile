@@ -71,7 +71,7 @@ TARGET_TAR := $(_COMPONENT)/$(blddir)/$(COMPONENT_TAR)
 #
 # See: http://www.gnu.org/prep/standards/html_node/Standard-Targets.html#Standard-Targets
 #============================================================================
-.PHONY: all build clean devinstall distclean install help mrclean uninstall
+.PHONY: all build clean devinstall distclean help mrclean
 all build: $(TARGET_TAR)
 
 # Targets to build the binary *.tar.gz.
@@ -89,7 +89,8 @@ $(INSTALL_MKDIRS):
 
 # NB: Use the "|" to indicate an existence-only dep rather than a modtime dep.
 #     This rule should not trigger rebuilding of the component we're installing.
-install: | $(INSTALL_MKDIRS) 
+.PHONY: install installhere
+install installhere: | $(INSTALL_MKDIRS) 
 	@if [ ! -f "$(TARGET_TAR)" ];then \
 		$(call echol) ;\
 		$(call echol,"Error: Missing $(TARGET_TAR)") ;\
@@ -107,7 +108,11 @@ install: | $(INSTALL_MKDIRS)
 devinstall: dev% : %
 	@$(call echol,"Add logic to the $@ rule if you want it to behave differently than the $< rule.")
 
+.PHONY: uninstall uninstallhere
 uninstall: dflt_component_uninstall
+
+uninstallhere:
+	$(call cmd,RMDIR,$(_DESTDIR))
 
 clean:
 	$(call cmd,MVN,clean)
