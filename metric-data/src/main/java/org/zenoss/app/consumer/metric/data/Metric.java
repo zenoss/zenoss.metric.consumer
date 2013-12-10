@@ -1,5 +1,7 @@
 package org.zenoss.app.consumer.metric.data;
 
+import com.google.common.collect.ImmutableMap;
+
 import java.util.Collections;
 import java.util.Map;
 
@@ -23,7 +25,7 @@ public class Metric {
         this.metric = metric;
         this.timestamp = timestamp;
         this.value = value;
-        this.tags = tags;
+        this.tags = ImmutableMap.copyOf(tags);
     }
 
     public String getMetric() {
@@ -55,7 +57,7 @@ public class Metric {
     }
 
     public void setTags(Map<String, String> tags) {
-        this.tags = tags;
+        this.tags = ImmutableMap.copyOf(tags);
     }
 
     @Override
