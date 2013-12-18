@@ -16,6 +16,7 @@
 #============================================================================
 COMPONENT             = metric-consumer-app
 SUPERVISOR_CONF       = $(_COMPONENT)_supervisor.conf
+COMPONENT_SH          = $(_COMPONENT).sh
 SUPERVISORD_DIR       = $(pkgconfdir)/supervisor
 REQUIRES_JDK          = 1
 
@@ -106,6 +107,8 @@ install: | $(INSTALL_MKDIRS)
 	fi 
 	$(call cmd,UNTAR,$(abspath $(TARGET_TAR)),$(_DESTDIR)$(prefix))
 	$(call cmd,SYMLINK,../$(_COMPONENT)/$(SUPERVISOR_CONF),$(_DESTDIR)$(SUPERVISORD_DIR)/$(SUPERVISOR_CONF))
+	@$(call echol,$(LINE))
+	$(call cmd,CHMOD,744,$(bindir)/$(COMPONENT_SH))
 	@$(call echol,$(LINE))
 	@$(call echol,"$(_COMPONENT) installed to $(_DESTDIR)$(prefix)")
 
