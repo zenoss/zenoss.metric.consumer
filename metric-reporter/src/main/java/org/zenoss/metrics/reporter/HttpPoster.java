@@ -21,7 +21,7 @@ import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.protocol.BasicHttpContext;
-import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.data.MetricCollection;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -70,10 +70,10 @@ public class HttpPoster implements MetricPoster {
     @Override
     public void post(MetricBatch batch) throws IOException {
         int size = batch.getMetrics().size();
-        Metric[] metrics = batch.getMetrics().toArray(new Metric[size]);
+        MetricCollection metrics = new MetricCollection();
+        metrics.setMetrics(batch.getMetrics());
 
         String json = asJson(metrics);
-
 
         // Add AuthCache to the execution context
         BasicHttpContext localContext = new BasicHttpContext();
