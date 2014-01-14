@@ -155,6 +155,7 @@ class OpenTsdbWriter implements TsdbWriter {
                 try {
                     for (Metric m : metrics) {
                         String message = convert(m);
+                        log.debug("Put msg: {}", message);
                         client.put(message);
                         processed++;
                     }

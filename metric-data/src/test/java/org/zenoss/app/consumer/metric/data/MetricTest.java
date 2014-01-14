@@ -16,7 +16,7 @@ public class MetricTest {
     @Test
     public void serializesToJSON() throws Exception {
         Map<String, String> tags = new HashMap<>();
-        tags.put( "tagName", "tagValue");
+        tags.put("tagName", "tagValue");
         final Metric metric = new Metric("metric", 0, 0.0, tags);
         assertThat(asJson(metric), is(jsonFixture("fixtures/metric.json")));
     }
@@ -25,8 +25,18 @@ public class MetricTest {
     @Test
     public void deserializesFromJSON() throws Exception {
         Map<String, String> tags = new HashMap<>();
-        tags.put( "tagName", "tagValue");
+        tags.put("tagName", "tagValue");
         final Metric metric = new Metric("metric", 0, 0.0, tags);
         assertThat(fromJson(jsonFixture("fixtures/metric.json"), Metric.class), is(metric));
     }
+
+
+    @Test
+    public void deserializesFromJSONError() throws Exception {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("tagName", "tagValue");
+        final Metric metric = new Metric();
+        assertThat(fromJson(jsonFixture("fixtures/badmetric.json"), Metric.class), is(metric));
+    }
+
 }

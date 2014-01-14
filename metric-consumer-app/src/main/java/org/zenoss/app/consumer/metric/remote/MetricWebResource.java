@@ -18,15 +18,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.data.MetricCollection;
 import org.zenoss.dropwizardspring.annotations.Resource;
 
+import javax.validation.Valid;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response.Status;
+import java.util.List;
 
 
 @Resource(name = "metrics/store")
@@ -41,11 +42,9 @@ public class MetricWebResource {
     @Timed
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Control post(Metric[] metrics) {
-        log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.length);
-        if (metrics == null || metrics.length == 0) {
-            throw new WebApplicationException(Status.BAD_REQUEST);
-        }
+    public Control post( @Valid MetricCollection metricCollection) {
+        List<Metric> metrics = metricCollection.getMetrics();
+        log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
         return metricService.push(metrics);
     }
 
