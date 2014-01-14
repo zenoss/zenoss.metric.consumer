@@ -42,7 +42,7 @@ public class HttpPosterTest {
         poster.shutdown();
         verify(postRequestedFor(urlEqualTo(URL_PATH))
                 .withHeader("Content-Type", equalTo("application/json; charset=UTF-8"))
-                .withRequestBody(equalTo("[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]"))
+                .withRequestBody(equalTo("{\"metrics\":[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]}"))
         );
     }
 
@@ -71,7 +71,7 @@ public class HttpPosterTest {
         verify(postRequestedFor(urlEqualTo(URL_PATH))
                 .withHeader("Content-Type", equalTo("application/json; charset=UTF-8"))
                 .withHeader("Authorization", equalTo("Basic dGVzdF91c2VyOnRlc3RfcGFzcw=="))
-                .withRequestBody(equalTo("[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]"))
+                .withRequestBody(equalTo("{\"metrics\":[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]}"))
         );
 
         //verify cookie and auth header resent and basic auth not sent
@@ -81,7 +81,7 @@ public class HttpPosterTest {
                 .withHeader("Content-Type", equalTo("application/json; charset=UTF-8"))
                 .withHeader("Cookie", equalTo("cookieName=cookieValue"))
                 .withoutHeader("Authorization")
-                .withRequestBody(equalTo("[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]"))
+                .withRequestBody(equalTo("{\"metrics\":[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]}"))
         );
 
         //send 401 to verify re auth
@@ -110,7 +110,7 @@ public class HttpPosterTest {
                 .withHeader("Content-Type", equalTo("application/json; charset=UTF-8"))
                 .withHeader("Authorization", equalTo("Basic dGVzdF91c2VyOnRlc3RfcGFzcw=="))
                 .withoutHeader("Cookie")
-                .withRequestBody(equalTo("[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]"))
+                .withRequestBody(equalTo("{\"metrics\":[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]}"))
         );
 
         //verify no auth and new cookie sent
@@ -121,7 +121,7 @@ public class HttpPosterTest {
                 .withHeader("Cookie", notMatching("cookieName=cookieValue"))
                 .withHeader("Cookie", equalTo("cookieName=newCookie"))
                 .withoutHeader("Authorization")
-                .withRequestBody(equalTo("[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]"))
+                .withRequestBody(equalTo("{\"metrics\":[{\"metric\":\"mname\",\"timestamp\":8,\"value\":9999.0,\"tags\":{}}]}"))
         );
         poster.shutdown();
 

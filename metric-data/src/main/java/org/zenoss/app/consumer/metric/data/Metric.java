@@ -1,12 +1,31 @@
 package org.zenoss.app.consumer.metric.data;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
+
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.Collections;
 import java.util.Map;
 
 public class Metric {
+
+    @NotNull
+    @Size(min=1)
+    @JsonProperty("metric")
     private String metric;
+
+    @Min(0)
+    @JsonProperty("timestamp")
     private long timestamp;
+
+    @JsonProperty("value")
     private double value;
+
+    @NotNull
+    @Size(min=1)
+    @JsonProperty("tags")
     private Map<String, String> tags;
 
     public Metric() {
@@ -23,7 +42,7 @@ public class Metric {
         this.metric = metric;
         this.timestamp = timestamp;
         this.value = value;
-        this.tags = tags;
+        this.tags = ImmutableMap.copyOf(tags);
     }
 
     public String getMetric() {
@@ -55,7 +74,7 @@ public class Metric {
     }
 
     public void setTags(Map<String, String> tags) {
-        this.tags = tags;
+        this.tags = ImmutableMap.copyOf(tags);
     }
 
     @Override

@@ -11,6 +11,7 @@
 package org.zenoss.app.consumer.metric.impl;
 
 import com.google.api.client.util.ExponentialBackOff;
+import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,9 @@ import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
+import java.util.regex.Pattern;
 
 /**
  * @see TsdbWriter
@@ -152,6 +155,7 @@ class OpenTsdbWriter implements TsdbWriter {
                 try {
                     for (Metric m : metrics) {
                         String message = convert(m);
+                        log.debug("Put msg: {}", message);
                         client.put(message);
                         processed++;
                     }
@@ -183,7 +187,7 @@ class OpenTsdbWriter implements TsdbWriter {
     private OpenTsdbClient getOpenTsdbClient() throws InterruptedException {
         OpenTsdbClient client;
         try {
-            client = clientPool.borrowObject();
+            client = (OpenTsdbClient) clientPool.borrowObject();
         } catch (InterruptedException | NoSuchElementException e) {
             // don't swallow These exceptions
             throw e;
@@ -193,14 +197,6 @@ class OpenTsdbWriter implements TsdbWriter {
         return client;
     }
 
-    // TODO: Test directly
-    String convert(Metric metric) {
-        String name = metric.getMetric();
-        long timestamp = metric.getTimestamp();
-        double value = metric.getValue();
-        Map<String, String> tags = metric.getTags();
-        return OpenTsdbClient.toPutMessage(name, timestamp, value, tags);
-    }
 
     @Override
     public boolean isRunning() {
@@ -268,4 +264,25 @@ class OpenTsdbWriter implements TsdbWriter {
      * Last time this instance did work
      */
     private transient long lastWorkTime;
+
+
+    private static final Pattern INVALID_CHARS = Pattern.compile("[^\\w\\./_-]");
+
+    static final String sanitize(String input) {
+        return INVALID_CHARS.matcher(input).replaceAll("-");
+    }
+
+    static final String convert(Metric metric) {
+        String name = metric.getMetric();
+        long timestamp = metric.getTimestamp();
+        double value = metric.getValue();
+        Map<String, String> tags = Maps.newHashMap();
+
+        for (Entry<String, String> entry : metric.getTags().entrySet()) {
+            tags.put(sanitize(entry.getKey()), sanitize(entry.getValue()));
+        }
+
+        return OpenTsdbClient.toPutMessage(name, timestamp, value, tags);
+    }
+
 }

@@ -1,0 +1,9 @@
+{
+    "Metric": "rss",
+    "Value": "246276096",
+    "Timestamp": 1389644660,
+    "Tags": {
+        "datasource": "memory",
+        "uuid": "11b49a0dc250469325407513fda738c45505bb4b676ddae16f0519857f36a0bb"
+    }
+}
