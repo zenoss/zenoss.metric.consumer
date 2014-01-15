@@ -1,3 +1,5 @@
+authEnabled: false
+
 logging:
     level: INFO
 http:
