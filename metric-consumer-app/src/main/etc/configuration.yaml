@@ -1,5 +1,8 @@
+authEnabled: true
+
 logging:
     level: INFO
+
 http:
   port: 8443
   adminPort: 58443
