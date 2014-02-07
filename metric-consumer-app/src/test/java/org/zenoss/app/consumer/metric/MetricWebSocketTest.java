@@ -11,6 +11,8 @@ import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
 
 
+import javax.servlet.http.HttpServletRequest;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -20,12 +22,14 @@ public class MetricWebSocketTest {
 
     EventBus eventBus;
     MetricService service;
+    HttpServletRequest request;
     WebSocket.Connection connection;
 
     @Before
     public void setUp() throws Exception {
         eventBus = mock(EventBus.class);
         service = mock(MetricService.class);
+        request = mock(HttpServletRequest.class);
     }
 
     @Test
@@ -35,8 +39,28 @@ public class MetricWebSocketTest {
         Metric metric = new Metric("name",0, 0.0);
         Control control = new Control();
         Message message = new Message(control, new Metric[]{ metric});
-        assertEquals(new Control(), socket.onMessage( message, connection));
+        assertEquals(new Control(), socket.onMessage( message, connection, request));
         verify(service).push( new Metric[] {metric});
+    }
+
+    @Test
+    public void testOnMessageInjectsTags() throws Exception {
+        MetricWebSocket socket = new MetricWebSocket(config(), service, eventBus);
+        when( service.push( any( Metric[].class))).thenReturn( new Control());
+
+        when( request.getParameter( "tenantId")).thenReturn("1");
+        when( request.getParameter( "serviceId")).thenReturn("2");
+
+        Control control = new Control();
+        Metric metric = new Metric("name",0, 0.0);
+        Message message = new Message(control, new Metric[]{ metric});
+        assertEquals(new Control(), socket.onMessage( message, connection, request));
+
+
+        Metric expected_metric = new Metric("name",0, 0.0);
+        expected_metric.addTag( "tenantId", "1");
+        expected_metric.addTag( "serviceId", "2");
+        verify(service).push( new Metric[] {expected_metric});
     }
 
     @Test
