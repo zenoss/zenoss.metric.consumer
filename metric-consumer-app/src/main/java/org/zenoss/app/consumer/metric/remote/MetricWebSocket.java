@@ -1,6 +1,7 @@
 package org.zenoss.app.consumer.metric.remote;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.api.client.repackaged.com.google.common.base.Strings;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
@@ -18,6 +19,7 @@ import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
 import org.zenoss.dropwizardspring.websockets.annotations.OnMessage;
 import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Path;
 
 import org.zenoss.app.consumer.metric.MetricService;
@@ -49,10 +51,12 @@ public class MetricWebSocket {
     }
 
     @OnMessage
-    public Control onMessage(Message message, Connection connection) {
+    public Control onMessage(Message message, Connection connection, HttpServletRequest request) {
         Metric[] metrics = message.getMetrics();
         int metricsLength = (metrics == null) ? -1 : metrics.length;
         log.debug("Message(control={}, len(metrics)={}) - START", message.getControl(), metricsLength);
+        injectTag("tenantId", request.getParameter("tenantId"), message.getMetrics());
+        injectTag( "serviceId", request.getParameter("serviceId"), message.getMetrics());
         Control control = service.push(message.getMetrics());
         log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
         return control;
@@ -73,6 +77,14 @@ public class MetricWebSocket {
                 break;
                 
             default:
+        }
+    }
+
+    void injectTag(String name, String value, Metric[] metrics) {
+        if ( !Strings.isNullOrEmpty(value)) {
+            for ( Metric metric : metrics) {
+                metric.addTag( name, value);
+            }
         }
     }
     
@@ -121,5 +133,4 @@ public class MetricWebSocket {
     
     /** Last timestamp when we broadcast a high collision message */
     private final AtomicLong lastHighCollisionBroadcast;
-    
 }

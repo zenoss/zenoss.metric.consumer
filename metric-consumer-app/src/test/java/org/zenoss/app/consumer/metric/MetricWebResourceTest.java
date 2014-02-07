@@ -41,6 +41,26 @@ public class MetricWebResourceTest extends ResourceTest {
         verify(service).push(mc.getMetrics());
     }
 
+    @Test
+    public void testPostMessageInjectsTags() throws Exception {
+        Map<String, String> tags = Maps.newHashMap();
+        tags.put("blam", "blamo");
+        Metric metric = new Metric("name", 0, 1.0, tags);
+        MetricCollection mc = new MetricCollection();
+        mc.setMetrics(Lists.newArrayList(metric));
+
+        WebResource resource = client().resource("/api/metrics/store").queryParam("tenantId", "1").queryParam("serviceId", "2");
+        WebResource.Builder builder = resource.type(MediaType.APPLICATION_JSON_TYPE);
+        assertThat(builder.post(Control.class, mc)).isEqualTo(control);
+
+        tags = Maps.newHashMap();
+        tags.put("blam", "blamo");
+        tags.put("tenantId", "1");
+        tags.put("serviceId", "2");
+        Metric expected_metric = new Metric("name", 0, 1.0, tags);
+        verify(service).push( new Metric[] {expected_metric});
+    }
+
     @Test(expected = InvalidEntityException.class)
     public void testPostNullMessage() throws Exception {
         WebResource resource = client().resource("/api/metrics/store");
