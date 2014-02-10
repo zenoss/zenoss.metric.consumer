@@ -4,27 +4,23 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.api.client.repackaged.com.google.common.base.Strings;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import org.eclipse.jetty.websocket.WebSocket.Connection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-
-import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.PostConstruct;
+import org.zenoss.app.consumer.metric.MetricService;
+import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
+import org.zenoss.dropwizardspring.websockets.WebSocketSession;
 import org.zenoss.dropwizardspring.websockets.annotations.OnMessage;
 import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 
-import javax.servlet.http.HttpServletRequest;
+import javax.annotation.PostConstruct;
 import javax.ws.rs.Path;
-
-import org.zenoss.app.consumer.metric.MetricService;
-import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
-import static org.zenoss.app.consumer.metric.data.Control.Type.LOW_COLLISION;
+import java.util.concurrent.atomic.AtomicLong;
 
 @WebSocketListener(name = "metrics/store")
 @Path("/ws/metrics/store")
@@ -51,12 +47,12 @@ public class MetricWebSocket {
     }
 
     @OnMessage
-    public Control onMessage(Message message, Connection connection, HttpServletRequest request) {
+    public Control onMessage(Message message, WebSocketSession session) {
         Metric[] metrics = message.getMetrics();
         int metricsLength = (metrics == null) ? -1 : metrics.length;
         log.debug("Message(control={}, len(metrics)={}) - START", message.getControl(), metricsLength);
-        injectTag("tenantId", request.getParameter("tenantId"), message.getMetrics());
-        injectTag( "serviceId", request.getParameter("serviceId"), message.getMetrics());
+        injectTag("tenantId", session.getParameter("tenantId"), message.getMetrics());
+        injectTag( "serviceId", session.getParameter("serviceId"), message.getMetrics());
         Control control = service.push(message.getMetrics());
         log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
         return control;

@@ -45,7 +45,6 @@ class MetricServicePoster implements MetricPoster {
 
     @Override
     public void start() {
-
     }
 
 }

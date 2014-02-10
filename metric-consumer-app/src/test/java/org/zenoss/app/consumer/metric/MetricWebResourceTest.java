@@ -58,7 +58,7 @@ public class MetricWebResourceTest extends ResourceTest {
         tags.put("tenantId", "1");
         tags.put("serviceId", "2");
         Metric expected_metric = new Metric("name", 0, 1.0, tags);
-        verify(service).push( new Metric[] {expected_metric});
+        verify(service).push( Lists.newArrayList( expected_metric));
     }
 
     @Test(expected = InvalidEntityException.class)
