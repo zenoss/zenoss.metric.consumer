@@ -22,8 +22,10 @@ import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
 import org.zenoss.dropwizardspring.annotations.Resource;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import java.util.List;
 
@@ -40,14 +42,11 @@ public class MetricWebResource {
     @Timed
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Control post(
-            @Valid MetricCollection metricCollection,
-            @QueryParam("tenantId") @DefaultValue("") String tenantId,
-            @QueryParam("serviceId") @DefaultValue("") String serviceId) {
+    public Control post( @Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
         List<Metric> metrics = metricCollection.getMetrics();
         log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
-        injectTag( "tenantId", tenantId, metrics);
-        injectTag( "serviceId", serviceId, metrics);
+        injectTag( "tenantId", request.getParameter("tenantId"), metrics);
+        injectTag( "serviceId", request.getParameter("serviceId"), metrics);
         return metricService.push(metrics);
     }
 
