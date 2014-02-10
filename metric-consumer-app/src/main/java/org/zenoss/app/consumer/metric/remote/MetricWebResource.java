@@ -46,7 +46,7 @@ public class MetricWebResource {
             @QueryParam("serviceId") @DefaultValue("") String serviceId) {
         List<Metric> metrics = metricCollection.getMetrics();
         log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
-        injectTag( "tentantId", tenantId, metrics);
+        injectTag( "tenantId", tenantId, metrics);
         injectTag( "serviceId", serviceId, metrics);
         return metricService.push(metrics);
     }

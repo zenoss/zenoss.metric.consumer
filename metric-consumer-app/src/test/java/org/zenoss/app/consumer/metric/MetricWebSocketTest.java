@@ -9,6 +9,7 @@ import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
+import org.zenoss.dropwizardspring.websockets.WebSocketSession;
 
 
 import javax.servlet.http.HttpServletRequest;
@@ -39,7 +40,7 @@ public class MetricWebSocketTest {
         Metric metric = new Metric("name",0, 0.0);
         Control control = new Control();
         Message message = new Message(control, new Metric[]{ metric});
-        assertEquals(new Control(), socket.onMessage( message, connection, request));
+        assertEquals(new Control(), socket.onMessage( message, new WebSocketSession(request, connection)));
         verify(service).push( new Metric[] {metric});
     }
 
@@ -54,12 +55,12 @@ public class MetricWebSocketTest {
         Control control = new Control();
         Metric metric = new Metric("name",0, 0.0);
         Message message = new Message(control, new Metric[]{ metric});
-        assertEquals(new Control(), socket.onMessage( message, connection, request));
+        assertEquals(new Control(), socket.onMessage( message, new WebSocketSession(request, connection)));
 
 
         Metric expected_metric = new Metric("name",0, 0.0);
         expected_metric.addTag( "tenantId", "1");
-        expected_metric.addTag( "serviceId", "2");
+        expected_metric.addTag("serviceId", "2");
         verify(service).push( new Metric[] {expected_metric});
     }
 
