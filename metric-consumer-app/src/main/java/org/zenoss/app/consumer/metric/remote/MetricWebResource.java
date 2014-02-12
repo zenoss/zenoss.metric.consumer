@@ -16,6 +16,7 @@ import com.yammer.metrics.annotation.Timed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
@@ -27,6 +28,7 @@ import javax.validation.Valid;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import java.util.Enumeration;
 import java.util.List;
 
 
@@ -38,30 +40,57 @@ public class MetricWebResource {
     @Autowired
     private MetricService metricService;
 
-    @POST
-    @Timed
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Control post( @Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
-        List<Metric> metrics = metricCollection.getMetrics();
-        log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
-        injectTag( "tenantId", request.getParameter("tenantId"), metrics);
-        injectTag( "serviceId", request.getParameter("serviceId"), metrics);
-        return metricService.push(metrics);
-    }
+    @Autowired
+    private ConsumerAppConfiguration configuration;
 
     @SuppressWarnings({"unused"})
     public MetricWebResource() {
     }
 
-    public MetricWebResource(MetricService metricService) {
+    public MetricWebResource(MetricService metricService, ConsumerAppConfiguration configuration) {
         this.metricService = metricService;
+        this.configuration = configuration;
     }
 
-    void injectTag( String name, String value, List<Metric> metrics) {
+    @POST
+    @Timed
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Control post(@Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
+        List<Metric> metrics = metricCollection.getMetrics();
+        log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
+        tagMetrics(request, metricCollection.getMetrics());
+        return metricService.push(metrics);
+    }
+
+    void injectTag(String name, String value, List<Metric> metrics) {
         if (!Strings.isNullOrEmpty(value)) {
-            for ( Metric metric: metrics) {
-                metric.addTag( name, value);
+            for (Metric metric : metrics) {
+                metric.addTag(name, value);
+            }
+        }
+    }
+
+    void tagMetrics(HttpServletRequest request, List<Metric> metrics) {
+        if (configuration.getHttpParameterTags() == null || configuration.getHttpParameterTags().isEmpty()) {
+            return;
+        }
+
+        Enumeration<String> parameters = request.getParameterNames();
+        while (parameters.hasMoreElements()) {
+            String parameter = parameters.nextElement();
+            for (String prefix : configuration.getHttpParameterTags()) {
+                if (parameter.startsWith(prefix)) {
+                    injectTag(parameter, request.getParameter(parameter), metrics);
+                }
+            }
+        }
+    }
+
+    void injectTag(String name, String value, Metric[] metrics) {
+        if (!Strings.isNullOrEmpty(value)) {
+            for (Metric metric : metrics) {
+                metric.addTag(name, value);
             }
         }
     }
