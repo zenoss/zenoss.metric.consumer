@@ -28,6 +28,7 @@ import javax.validation.Valid;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 
@@ -59,39 +60,7 @@ public class MetricWebResource {
     public Control post(@Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
         List<Metric> metrics = metricCollection.getMetrics();
         log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
-        tagMetrics(request, metricCollection.getMetrics());
+        Utils.tagMetrics(request, metrics, configuration.getHttpParameterTags());
         return metricService.push(metrics);
-    }
-
-    void injectTag(String name, String value, List<Metric> metrics) {
-        if (!Strings.isNullOrEmpty(value)) {
-            for (Metric metric : metrics) {
-                metric.addTag(name, value);
-            }
-        }
-    }
-
-    void tagMetrics(HttpServletRequest request, List<Metric> metrics) {
-        if (configuration.getHttpParameterTags() == null || configuration.getHttpParameterTags().isEmpty()) {
-            return;
-        }
-
-        Enumeration<String> parameters = request.getParameterNames();
-        while (parameters.hasMoreElements()) {
-            String parameter = parameters.nextElement();
-            for (String prefix : configuration.getHttpParameterTags()) {
-                if (parameter.startsWith(prefix)) {
-                    injectTag(parameter, request.getParameter(parameter), metrics);
-                }
-            }
-        }
-    }
-
-    void injectTag(String name, String value, Metric[] metrics) {
-        if (!Strings.isNullOrEmpty(value)) {
-            for (Metric metric : metrics) {
-                metric.addTag(name, value);
-            }
-        }
     }
 }

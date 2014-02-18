@@ -22,6 +22,7 @@ import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Path;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -57,10 +58,14 @@ public class MetricWebSocket {
         Metric[] metrics = message.getMetrics();
         int metricsLength = (metrics == null) ? -1 : metrics.length;
         log.debug("Message(control={}, len(metrics)={}) - START", message.getControl(), metricsLength);
-        tagMetrics(session.getHttpServletRequest(), metrics);
-        Control control = service.push(message.getMetrics());
-        log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
-        return control;
+        if (metrics != null) {
+            Utils.tagMetrics(session.getHttpServletRequest(), Arrays.asList(metrics), configuration.getHttpParameterTags());
+            Control control = service.push(message.getMetrics());
+            log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
+            return control;
+        } else {
+            return Control.malformedRequest( "Null metrics not accepted");
+        }
     }
 
     @Subscribe
@@ -78,30 +83,6 @@ public class MetricWebSocket {
                 break;
 
             default:
-        }
-    }
-
-    void tagMetrics(HttpServletRequest request, Metric[] metrics) {
-        if (configuration.getHttpParameterTags() == null || configuration.getHttpParameterTags().isEmpty()) {
-            return;
-        }
-
-        Enumeration<String> parameters = request.getParameterNames();
-        while (parameters.hasMoreElements()) {
-            String parameter = parameters.nextElement();
-            for (String prefix : configuration.getHttpParameterTags()) {
-                if (parameter.startsWith(prefix)) {
-                    injectTag(parameter, request.getParameter(parameter), metrics);
-                }
-            }
-        }
-    }
-
-    void injectTag(String name, String value, Metric[] metrics) {
-        if (!Strings.isNullOrEmpty(value)) {
-            for (Metric metric : metrics) {
-                metric.addTag(name, value);
-            }
         }
     }
 
