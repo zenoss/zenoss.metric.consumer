@@ -32,6 +32,3 @@ metricService:
         keepAlive:          true
         connectTimeout:     1000
         soTimeout:          50
-
-httpParameterTags:
-  - controlplane

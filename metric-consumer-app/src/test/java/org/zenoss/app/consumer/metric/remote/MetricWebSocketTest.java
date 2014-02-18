@@ -1,8 +1,10 @@
-package org.zenoss.app.consumer.metric;
+package org.zenoss.app.consumer.metric.remote;
 
 import com.google.api.client.util.Lists;
 import org.zenoss.app.consumer.ConsumerApp;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
+import org.zenoss.app.consumer.metric.MetricService;
+import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.remote.MetricWebSocket;
 import com.google.common.eventbus.EventBus;
 import org.eclipse.jetty.websocket.WebSocket;

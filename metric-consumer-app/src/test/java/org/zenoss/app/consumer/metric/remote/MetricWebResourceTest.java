@@ -1,4 +1,4 @@
-package org.zenoss.app.consumer.metric;
+package org.zenoss.app.consumer.metric.remote;
 
 import com.google.api.client.util.Maps;
 import com.google.common.collect.Lists;
@@ -8,6 +8,7 @@ import com.yammer.dropwizard.validation.InvalidEntityException;
 import org.junit.Before;
 import org.junit.Test;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
+import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
