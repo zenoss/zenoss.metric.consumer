@@ -81,6 +81,21 @@ public class MetricReporterConfig {
     @JsonProperty
     private String hostTag = "";
 
+    @JsonProperty
+    private String username = "";
+
+    @JsonProperty
+    private String usernameEnvironment = "";
+
+    @JsonProperty
+    private String password = "";
+
+    @JsonProperty
+    private String passwordEnvironment = "";
+
+    @JsonProperty
+    private String urlEnvironment = "";
+
 
     public MetricReporterConfig() {
         super();
@@ -99,6 +114,41 @@ public class MetricReporterConfig {
         this.host = host;
         this.protocol = protocol;
         this.hostTag = hostTag;
+    }
+
+
+    /**
+     * endpoint username
+     *
+     * @return String
+     */
+    public String getUsername() {
+        return username;
+    }
+
+    /**
+     * environment variable to identify endpoint username
+     * @return
+     */
+    public String getUsernameEnvironment() {
+        return usernameEnvironment;
+    }
+
+    /**
+     * endpoint password
+     *
+     * @return String
+     */
+    public String getPassword() {
+        return password;
+    }
+
+    /**
+     * environment variable to identify endpoint password
+     * @return
+     */
+    public String getPasswordEnvironment() {
+        return passwordEnvironment;
     }
 
     /**
@@ -192,6 +242,10 @@ public class MetricReporterConfig {
         return hostTag;
     }
 
+    public String getURLEnvironment() {
+        return urlEnvironment;
+    }
+
     public static final class Builder {
 
 
@@ -268,7 +322,5 @@ public class MetricReporterConfig {
         private int shutdownWaitSeconds = SHUTDOWN_WAIT;
         private boolean reportJvmMetrics = true;
         private String hostTag = "";
-
-
     }
 }

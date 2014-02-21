@@ -141,11 +141,8 @@ public class HttpPoster implements MetricPoster {
      */
     public static class Builder {
 
-        private final String host;
-        private final int port;
-        private final String protocol;
+        private final URL url;
 
-        private String api = METRIC_API;
         private String username;
         private String password;
         private ObjectMapper mapper;
@@ -153,27 +150,11 @@ public class HttpPoster implements MetricPoster {
         /**
          * Create a builder for an HttpPoster
          *
-         * @param host  Required, Zenoss host
-         * @param port  Required, Zenoss port
-         * @param https Required, use https if true, http otherwise
+         * @param url Required, Zenoss Http url
          */
-        public Builder(String host, int port, boolean https) {
-            this.host = host;
-            this.port = port;
-            checkNotNull(host);
-            protocol = https ? "https" : "http";
-        }
 
-        /**
-         * Set an alternate API path used for posting data
-         *
-         * @param api API path
-         * @return Builder
-         */
-        public Builder setApi(String api) {
-            checkArgument(Strings.nullToEmpty(api).trim().length() > 0);
-            this.api = api;
-            return this;
+        public Builder(URL url) {
+            this.url = url;
         }
 
         /**
@@ -211,9 +192,8 @@ public class HttpPoster implements MetricPoster {
          *
          * @return Configured HttpPoster
          */
-        public HttpPoster build() throws MalformedURLException {
-            return new HttpPoster(new URL(protocol, host, port, api), username, password, mapper != null ? mapper : new ObjectMapper());
+        public HttpPoster build() {
+            return new HttpPoster(url, username, password, mapper != null ? mapper : new ObjectMapper());
         }
-
     }
 }

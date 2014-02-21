@@ -51,10 +51,14 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
     private final MetricPoster poster;
     private final Map<String, String> tags;
     private final VirtualMachineMetrics vm;
+    private final long period;
+    private final TimeUnit periodUnit;
+    private final long shutdownTimeout;
+    private final TimeUnit shutdownTimeoutUnit;
 
     private ZenossMetricsReporter(MetricsRegistry registry, String name, MetricPoster poster, MetricPredicate filter,
                                   String metricPrefix, Map<String, String> tags, Clock clock, VirtualMachineMetrics vm,
-                                  boolean reportJvmMetrics) {
+                                  boolean reportJvmMetrics, long period, TimeUnit periodUnit, long shutdownTimeout, TimeUnit shutdownTimeoutUnit) {
         super(registry, name);
         this.poster = poster;
         this.filter = filter;
@@ -63,20 +67,31 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         this.metricPrefix = Strings.nullToEmpty(metricPrefix).trim();
         this.tags = Maps.newHashMap(tags);
         this.vm = vm;
-
+        this.period = period;
+        this.periodUnit = periodUnit;
+        this.shutdownTimeout = shutdownTimeout;
+        this.shutdownTimeoutUnit = shutdownTimeoutUnit;
     }
 
     @Override
     public void start(long period, TimeUnit unit) {
-        LOG.info("Starting ZenossMetricsReporter on {} {} frequency", period, unit);
+        LOG.info("Starting ZenossMetricsReporter on {} {} frequency with poster {}", period, unit, poster.getClass());
         super.start(period, unit);
         this.poster.start();
+    }
+
+    public void start() {
+        this.start(period, periodUnit);
     }
 
     @Override
     public void shutdown(long timeout, TimeUnit unit) throws InterruptedException {
         super.shutdown(timeout, unit);
         this.poster.shutdown();
+    }
+
+    public void stop() throws InterruptedException {
+        this.shutdown(shutdownTimeout, shutdownTimeoutUnit);
     }
 
     @Override
@@ -248,6 +263,10 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         private Clock clock = Clock.defaultClock();
         private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
         private boolean reportJvmMetrics = true;
+        private long period = 30;
+        private TimeUnit periodUnit = TimeUnit.SECONDS;
+        private long shutdownTimeout = 5;
+        private TimeUnit shutdownTimeoutUnit = TimeUnit.SECONDS;
 
         /**
          * Create a Builder for a ZenossMetricsReporter
@@ -299,11 +318,21 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
             return this;
         }
 
-        public ZenossMetricsReporter build() {
-            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock, vm, reportJvmMetrics);
+        public Builder setFrequency(long period, TimeUnit periodUnit) {
+            this.period = period;
+            this.periodUnit = periodUnit;
+            return this;
         }
 
+        public Builder setShutdownTimeout(long timeout, TimeUnit unit) {
+            this.shutdownTimeout = timeout;
+            this.shutdownTimeoutUnit = unit;
+            return this;
+        }
 
+        public ZenossMetricsReporter build() {
+            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock, vm,
+                    reportJvmMetrics, period, periodUnit, shutdownTimeout, shutdownTimeoutUnit);
+        }
     }
-
 }
