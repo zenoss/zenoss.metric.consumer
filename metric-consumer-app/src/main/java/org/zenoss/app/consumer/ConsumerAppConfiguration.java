@@ -36,10 +36,6 @@ public class ConsumerAppConfiguration extends AppConfiguration {
     @JsonProperty("httpParameterTags")
     private List<String> httpParameterTags = Lists.newArrayList();
 
-    @Valid
-    @JsonProperty("httpParameterTags")
-    private List<String> httpParameterTags = Lists.newArrayList();
-
     /**
      * Configuration details for the metric service
      *
@@ -56,24 +52,6 @@ public class ConsumerAppConfiguration extends AppConfiguration {
      */
     public ManagedReporterConfig getManagedReporterConfig() {
         return managedReporterConfig;
-    }
-
-
-    /**
-     * A list of http query parameters to include with each metric. Each element is matched as a prefix against
-     * parameter in the http servlet request. If multiple values are associated with a parameter, the first one
-     * is used.
-     */
-    public List<String> getHttpParameterTags() {
-        return httpParameterTags;
-    }
-
-    public void setHttpParameterTags(List<String> httpParameterTags) {
-        this.httpParameterTags = httpParameterTags;
-    }
-
-    public void setMetricServiceConfiguration(MetricServiceConfiguration metricServiceConfiguration) {
-        this.metricServiceConfiguration = metricServiceConfiguration;
     }
 
 
