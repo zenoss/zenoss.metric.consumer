@@ -32,8 +32,3 @@ metricService:
         keepAlive:          true
         connectTimeout:     1000
         soTimeout:          50
-
-managedReporter:
-    metricReporters:
-      - {protocol: http, host: localhost, port: 8443, username: zenoss, password: admin}
-      - {urlEnvironment: "CONTROLPLANE_CONSUMER_URL", usernameEnvironment: "CONTROLPLANE_CONSUMER_USERNAME", passwordEnvironment: "CONTROLPLANE_CONSUMER_PASSWORD"}

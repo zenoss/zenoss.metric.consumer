@@ -1,5 +1,6 @@
 package org.zenoss.app.metric.zapp;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yammer.dropwizard.config.Environment;
 import com.yammer.dropwizard.json.ObjectMapperFactory;
@@ -20,13 +21,21 @@ import org.zenoss.metrics.reporter.ZenossMetricsReporter;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
-public class MetricReporterTest {
+public class ManagedReporterTest {
+
+    @Mock
+    private TestAppConfiguration appConfig;
+
+    @Mock
+    private ManagedReporterConfig manageConfig;
 
     @Mock
     private MetricReporterConfig config;
@@ -60,11 +69,16 @@ public class MetricReporterTest {
 
         when(config.getUsername()).thenReturn("zenoss");
         when(config.getPassword()).thenReturn("admin");
+
+        when( appConfig.getManagedReporterConfig()).thenReturn( manageConfig);
+        List<MetricReporterConfig> configs = new ArrayList<>();
+        configs.add(config);
+        when(manageConfig.getMetricReporters()).thenReturn(configs);
     }
 
     @Test
     public void testGetUrl() throws Exception {
-        Assert.assertEquals(new URL( PROTOCOL, HOST, PORT, HttpPoster.METRIC_API), new MetricReporter(config, env).getURL());
+        Assert.assertEquals(new URL( PROTOCOL, HOST, PORT, HttpPoster.METRIC_API), new ManagedReporter(appConfig, env).getURL(config));
 
         when(config.getHost()).thenReturn(MetricReporterConfig.DEFAULT_MARKER);
         when(config.getPort()).thenReturn(-1000);
@@ -74,58 +88,56 @@ public class MetricReporterTest {
         URL url = new URL( "https://localhost:8444/api/metrics/store?tenant=1");
         Map<String,String> sysEnv = Maps.newHashMap();
         sysEnv.put( "url", "https://localhost:8444/api/metrics/store?tenant=1");
-        Assert.assertEquals(url, new MetricReporter(config, env, sysEnv).getURL());
+        Assert.assertEquals(url, new ManagedReporter(appConfig, env, sysEnv).getURL(config));
     }
 
     @Test
     public void testGetUsername() throws Exception {
         when(config.getUsername()).thenReturn("zenoss");
-        Assert.assertEquals("zenoss", new MetricReporter(config, env).getUsername());
+        Assert.assertEquals("zenoss", new ManagedReporter(appConfig, env).getUsername(config));
 
         when(config.getUsername()).thenReturn("");
         when(config.getUsernameEnvironment()).thenReturn("username");
         Map<String,String> sysEnv = Maps.newHashMap();
         sysEnv.put( "username", "zenoss-env-name");
-        Assert.assertEquals("zenoss-env-name", new MetricReporter(config, env, sysEnv).getUsername());
+        Assert.assertEquals("zenoss-env-name", new ManagedReporter(appConfig, env, sysEnv).getUsername(config));
     }
 
     @Test
     public void testGetPassword() throws Exception {
         when(config.getUsername()).thenReturn("admin");
-        Assert.assertEquals("admin", new MetricReporter(config, env).getPassword());
+        Assert.assertEquals("admin", new ManagedReporter(appConfig, env).getPassword(config));
 
         when(config.getPassword()).thenReturn("");
         when(config.getPasswordEnvironment()).thenReturn("password");
         Map<String,String> sysEnv = Maps.newHashMap();
         sysEnv.put( "password", "zenoss-env-password");
-        Assert.assertEquals("zenoss-env-password", new MetricReporter(config, env, sysEnv).getPassword());
+        Assert.assertEquals("zenoss-env-password", new ManagedReporter(appConfig, env, sysEnv).getPassword(config));
     }
 
     @Test(expected = MalformedURLException.class)
     public void testMetricReporterBadProtocol() throws Exception {
         when(config.getProtocol()).thenReturn("BLAM");
 
-        //test everything getst built w/out exceptions
-        MetricReporter managed = new MetricReporter(config, env);
+        ManagedReporter managed = new ManagedReporter(appConfig, env);
         managed.init();
         Assert.fail();
     }
 
     @Test
     public void testMetricReporterHttp() throws Exception {
-        //test everything getst built w/out exceptions
-        MetricReporter managed = spy(new MetricReporter(config, env));
+        //test everything gets built w/out exceptions
+        ManagedReporter managed = spy(new ManagedReporter(appConfig, env));
         managed.init();
         URL url = new URL( PROTOCOL, HOST, PORT, HttpPoster.METRIC_API);
         verify(managed).buildHttpPoster(url, "zenoss", "admin");
     }
 
-
     @Test
     public void testMetricReporterHttps() throws Exception {
         //test everything gets built w/out exceptions
         when(config.getProtocol()).thenReturn("https");
-        MetricReporter managed = spy(new MetricReporter(config, env));
+        ManagedReporter managed = spy(new ManagedReporter(appConfig, env));
         managed.init();
         URL url = new URL( "https", HOST, PORT, HttpPoster.METRIC_API);
         verify(managed).buildHttpPoster(url, "zenoss", "admin");
@@ -133,33 +145,28 @@ public class MetricReporterTest {
 
     @Test
     public void testSets() {
-        MetricReporter mr = new MetricReporter(config, env);
+        ManagedReporter mr = new ManagedReporter(appConfig, env);
         mr.setFilter(mock(MetricPredicate.class));
         mr.setPoster(mock(MetricPoster.class));
-
     }
 
     @Test
     public void testStartStop() throws Exception {
         ZenossMetricsReporter zmr = mock(ZenossMetricsReporter.class);
+        List<ZenossMetricsReporter> zmrs = Lists.newArrayList( zmr);
         MetricReporterConfig mrc = mock(MetricReporterConfig.class);
-        MetricReporter mr = spy(new MetricReporter(config, env));
+        ManagedReporter mr = spy(new ManagedReporter(appConfig, env));
+        when(mr.getMetricReporters()).thenReturn(zmrs);
 
-        when(mr.getMetricReporter()).thenReturn(zmr);
-        when(mr.getMetricReporterConfig()).thenReturn(mrc);
-        int expectedSecond = 10000;
-        when(mrc.getReportFrequencySeconds()).thenReturn(expectedSecond);
-        when(mrc.getShutdownWaitSeconds()).thenReturn(2);
         mr.start();
-        verify(zmr).start(expectedSecond, TimeUnit.SECONDS);
+        verify(zmr).start();
         mr.stop();
-        verify(zmr).shutdown(2, TimeUnit.SECONDS);
+        verify(zmr).stop();
     }
 
     @Test
     public void testUnknownHost() throws Exception {
-
-        MetricReporter managed = spy(new MetricReporter(config, env));
+        ManagedReporter managed = spy(new ManagedReporter(appConfig, env));
         when(managed.getLocalHostName()).thenReturn(null);
         String tag = managed.getHostTag();
         Assert.assertNotNull(tag);
@@ -171,8 +178,7 @@ public class MetricReporterTest {
 
     @Test
     public void testBadHostNameCmd() throws Exception {
-
-        MetricReporter managed = spy(new MetricReporter(config, env));
+        ManagedReporter managed = spy(new ManagedReporter(appConfig, env));
         when(managed.getLocalHostName()).thenReturn(null);
         when(managed.getProcBuilder()).thenReturn(new ProcessBuilder("blamo"));
         String tag = managed.getHostTag();
@@ -182,6 +188,6 @@ public class MetricReporterTest {
     }
 
     abstract static class TestAppConfiguration extends AppConfiguration {
-        abstract public MetricReporterConfig getMetricReporterConfig();
+        abstract public ManagedReporterConfig getManagedReporterConfig();
     }
 }
