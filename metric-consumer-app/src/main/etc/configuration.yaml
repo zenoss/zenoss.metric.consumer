@@ -12,6 +12,9 @@ http:
       keyStorePassword: zapp_pass
       keyStoreType:     pkcs12
 
+webSocketConfiguration:
+    maxTextMessageSize: 10485760
+
 metricService:
     jobSize: 1000
     highCollisionMark: 200000
