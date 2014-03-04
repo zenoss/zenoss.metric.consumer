@@ -75,7 +75,11 @@ public class Metric {
     }
 
     public void setTags(Map<String, String> tags) {
-        this.tags = Maps.newHashMap( tags);
+        if ( tags == null) {
+            this.tags = Maps.newHashMap( );
+        } else {
+            this.tags = Maps.newHashMap( tags);
+        }
     }
 
     public void addTag( String name, String value) {
