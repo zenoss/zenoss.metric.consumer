@@ -20,6 +20,8 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import com.yammer.metrics.stats.Snapshot;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.HttpResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,6 +113,19 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
                 }
             }
             post(batchContext);
+        } catch(HttpResponseException e) {
+            if (e.getStatusCode() == HttpStatus.SC_UNAUTHORIZED) {
+                // the cookies were cleared so try again
+                try {
+                    post(batchContext);
+                    return;
+                } catch(IOException j) {
+                    // redefine the exception e
+                    LOG.error("Error posting metrics", j);
+                }
+            } else {
+                LOG.error("Error posting metrics", e);
+            }
         } catch (IOException e) {
             LOG.error("Error posting metrics", e);
         }
