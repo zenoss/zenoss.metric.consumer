@@ -11,22 +11,25 @@
 
 package org.zenoss.app.consumer.metric.remote;
 
+import com.google.common.base.Strings;
 import com.yammer.metrics.annotation.Timed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
 import org.zenoss.dropwizardspring.annotations.Resource;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.List;
 
 
@@ -38,21 +41,26 @@ public class MetricWebResource {
     @Autowired
     private MetricService metricService;
 
-    @POST
-    @Timed
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Control post( @Valid MetricCollection metricCollection) {
-        List<Metric> metrics = metricCollection.getMetrics();
-        log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
-        return metricService.push(metrics);
-    }
+    @Autowired
+    private ConsumerAppConfiguration configuration;
 
     @SuppressWarnings({"unused"})
     public MetricWebResource() {
     }
 
-    public MetricWebResource(MetricService metricService) {
+    public MetricWebResource(MetricService metricService, ConsumerAppConfiguration configuration) {
         this.metricService = metricService;
+        this.configuration = configuration;
+    }
+
+    @POST
+    @Timed
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Control post(@Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
+        List<Metric> metrics = metricCollection.getMetrics();
+        log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
+        Utils.tagMetrics(request, metrics, configuration.getHttpParameterTags());
+        return metricService.push(metrics);
     }
 }

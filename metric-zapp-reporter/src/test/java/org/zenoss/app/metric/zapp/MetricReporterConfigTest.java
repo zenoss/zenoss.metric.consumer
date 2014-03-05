@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.zenoss.app.metric.zapp.MetricReporterConfig.Builder;
 import org.zenoss.metrics.reporter.HttpPoster;
 
-public class ManagedReporterConfigTest {
+public class MetricReporterConfigTest {
 
 
     @Test

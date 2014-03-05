@@ -12,6 +12,7 @@ import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.metrics.reporter.HttpPoster.Builder;
 
 import java.io.IOException;
+import java.net.URL;
 
 public class HttpPosterTest {
 
@@ -30,9 +31,8 @@ public class HttpPosterTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody("<response>Some content</response>")));
 
-        HttpPoster poster = new Builder("localhost", MOCK_PORT, false)
-                .setApi(URL_PATH)
-                .build();
+        URL url = new URL( "http", "localhost", MOCK_PORT, URL_PATH);
+        HttpPoster poster = new Builder(url).build();
         poster.start();
 
         MetricBatch batch = new MetricBatch(8);
@@ -56,8 +56,8 @@ public class HttpPosterTest {
                         .withHeader("Set-Cookie", "cookieName=cookieValue")
                         .withBody("<response>Some content</response>")));
 
-        HttpPoster poster = new Builder("localhost", MOCK_PORT, false)
-                .setApi(URL_PATH)
+        URL url = new URL( "http", "localhost", MOCK_PORT, URL_PATH);
+        HttpPoster poster = new Builder(url)
                 .setUsername("test_user")
                 .setPassword("test_pass")
                 .build();

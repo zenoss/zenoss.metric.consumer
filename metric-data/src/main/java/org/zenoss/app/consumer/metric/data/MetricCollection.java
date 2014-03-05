@@ -23,5 +23,4 @@ public class MetricCollection {
     @Size(min=1)
     @Valid
     List<Metric> metrics;
-
 }

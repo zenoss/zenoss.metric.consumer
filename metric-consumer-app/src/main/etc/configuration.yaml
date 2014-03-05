@@ -1,5 +1,8 @@
+authEnabled: true
+
 logging:
     level: INFO
+
 http:
   port: 8443
   adminPort: 58443
@@ -8,6 +11,9 @@ http:
       keyStore: ${ssl.cert.dir}/ssl.pfx
       keyStorePassword: zapp_pass
       keyStoreType:     pkcs12
+
+webSocketConfiguration:
+    maxTextMessageSize: 10485760
 
 metricService:
     jobSize: 1000
