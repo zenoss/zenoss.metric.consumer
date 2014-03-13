@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
+import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
@@ -61,6 +62,7 @@ public class MetricWebResource {
         List<Metric> metrics = metricCollection.getMetrics();
         log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
         Utils.tagMetrics(request, metrics, configuration.getHttpParameterTags());
-        return metricService.push(metrics);
+        String remoteIp = Utils.remoteAddress(request);
+        return metricService.push(metrics, remoteIp);
     }
 }

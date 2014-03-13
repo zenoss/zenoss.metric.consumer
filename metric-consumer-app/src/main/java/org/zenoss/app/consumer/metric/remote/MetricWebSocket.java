@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
@@ -59,8 +60,11 @@ public class MetricWebSocket {
         int metricsLength = (metrics == null) ? -1 : metrics.length;
         log.debug("Message(control={}, len(metrics)={}) - START", message.getControl(), metricsLength);
         if (metrics != null) {
-            Utils.tagMetrics(session.getHttpServletRequest(), Arrays.asList(metrics), configuration.getHttpParameterTags());
-            Control control = service.push(message.getMetrics());
+            HttpServletRequest request = session.getHttpServletRequest();
+            List<Metric> metricList = Arrays.asList(metrics);
+            Utils.tagMetrics(request, metricList, configuration.getHttpParameterTags());
+            String remoteIp = Utils.remoteAddress(request);
+            Control control = service.push(metricList, remoteIp);
             log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
             return control;
         } else {

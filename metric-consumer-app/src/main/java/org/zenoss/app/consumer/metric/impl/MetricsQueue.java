@@ -10,14 +10,13 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
+import com.google.common.util.concurrent.AtomicLongMap;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Meter;
@@ -29,6 +28,7 @@ import org.springframework.stereotype.Component;
 
 import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.remote.Utils;
 
 /**
  * Threadsafe queue that can be used to distribute TSDB metric data to multiple
@@ -39,6 +39,7 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     MetricsQueue() {
         this.queue = new LinkedBlockingQueue<>();
+        this.perClientBacklog = AtomicLongMap.create();
         this.totalErrorsMetric = Metrics.newCounter(errorsMetricName());
         this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
         this.totalIncomingMetric = registerIncoming();
@@ -49,7 +50,7 @@ class MetricsQueue implements TsdbMetricsQueue {
     public Collection<Metric> poll(int size, long maxWaitMillis) throws InterruptedException {
         Preconditions.checkArgument(size > 0);
 
-        Metric first = queue.poll(maxWaitMillis, TimeUnit.MILLISECONDS);
+        final Metric first = queue.poll(maxWaitMillis, TimeUnit.MILLISECONDS);
         if (first == null) {
             log.debug("Unable to retrieve a single element after max wait");
             return Collections.emptyList();
@@ -67,20 +68,37 @@ class MetricsQueue implements TsdbMetricsQueue {
             metrics.add(m);
         }
 
+        for (final Multiset.Entry<String> e : clientCounts(metrics).entrySet()) {
+            perClientBacklog.addAndGet(e.getElement(), - e.getCount());
+        }
+        perClientBacklog.removeAllZeros();
         return metrics;
     }
 
-    @Override
-    public void addAll(Collection<Metric> metrics) {
-        addAll(metrics, false);
+    /** Iterate over all the metrics' {@link #CLIENT_TAG} tag values, counting how many of each. */
+    private Multiset<String> clientCounts(Collection<Metric> metrics) {
+        Multiset<String> counts = HashMultiset.create();
+        for (final Metric m : metrics) {
+            String clientId = m.getTags().get(CLIENT_TAG);
+            counts.add(clientId);
+        }
+        return counts;
     }
 
     @Override
-    public void addAll(Collection<Metric> metrics, boolean alreadyCounted) {
+    public void addAll(Collection<Metric> metrics, String clientId) {
+        Utils.injectTag(TsdbMetricsQueue.CLIENT_TAG, clientId, metrics);
         queue.addAll(metrics);
+        perClientBacklog.addAndGet(clientId, metrics.size());
+        incrementIncoming(metrics.size());
+    }
 
-        if (!alreadyCounted) {
-            incrementIncoming(metrics.size(), metrics.size());
+    @Override
+    public void reAddAll(Collection<Metric> metrics) {
+        Multiset<String> counts = clientCounts(metrics);
+        queue.addAll(metrics);
+        for (Multiset.Entry<String> e : counts.entrySet()) {
+            perClientBacklog.addAndGet(e.getElement(), e.getCount());
         }
     }
 
@@ -89,9 +107,9 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalErrorsMetric.inc(size);
     }
 
-    private void incrementIncoming(long incomingSize, long addedSize) {
-        totalInFlightMetric.inc(addedSize);
-        totalIncomingMetric.mark(incomingSize);
+    private void incrementIncoming(long incoming) {
+        totalInFlightMetric.inc(incoming);
+        totalIncomingMetric.mark(incoming);
     }
 
     @Override
@@ -122,6 +140,11 @@ class MetricsQueue implements TsdbMetricsQueue {
     @Override
     public long getTotalInFlight() {
         return totalInFlightMetric.count();
+    }
+
+    @Override
+    public long clientBacklogSize(String clientId) {
+        return Math.max(0L, perClientBacklog.get(clientId));
     }
 
     long getTotalErrors() {
@@ -166,6 +189,14 @@ class MetricsQueue implements TsdbMetricsQueue {
      * Data to be written to TSDB
      */
     private final BlockingQueue<Metric> queue;
+
+    /**
+     * Count of metrics in the queue, per client.
+     * A metric's client is the value of its "remote_ip" tag.
+     */
+    // We use an AtomicLongMap instead of Multiset since it's theoretically possible for a count to dip below zero
+    // due to thread interleaving, and we want to make sure that the increments and decrements balance out eventually.
+    private final AtomicLongMap<String> perClientBacklog;
 
     /* ---------------------------------------------------------------------- *
      *  Yammer Metrics (internal to this process)                             *

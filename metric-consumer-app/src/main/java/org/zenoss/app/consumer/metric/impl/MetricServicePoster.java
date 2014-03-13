@@ -10,12 +10,9 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.zenoss.app.consumer.metric.MetricService;
-import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.metrics.reporter.MetricBatch;
 import org.zenoss.metrics.reporter.MetricPoster;
 
@@ -36,7 +33,7 @@ class MetricServicePoster implements MetricPoster {
 
     @Override
     public void post(MetricBatch batch) throws IOException {
-        metricService.push(batch.getMetrics());
+        metricService.push(batch.getMetrics(), this.getClass().getCanonicalName());
     }
 
     @Override

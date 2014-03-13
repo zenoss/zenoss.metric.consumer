@@ -1,6 +1,5 @@
 package org.zenoss.app.consumer.metric.impl;
 
-import com.google.api.client.util.Maps;
 import com.yammer.metrics.core.MetricName;
 import org.junit.After;
 import org.junit.Before;
@@ -114,7 +113,7 @@ public class OpenTsdbWriterTest {
 
         when(clientPool.borrowObject()).thenReturn(client);
 
-        metricsQueue.addAll(Collections.singleton(metric));
+        metricsQueue.addAll(Collections.singleton(metric), "test");
         executeWriter();
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
@@ -135,7 +134,7 @@ public class OpenTsdbWriterTest {
         when(clientPool.borrowObject()).thenReturn(badClient, goodClient);
         doThrow(new IOException()).when(badClient).put(anyString());
 
-        metricsQueue.addAll(Collections.singleton(metric));
+        metricsQueue.addAll(Collections.singleton(metric), "test");
         configuration.setMaxIdleTime(100);
         executeWriter();
 
@@ -160,7 +159,7 @@ public class OpenTsdbWriterTest {
         when(clientPool.clearErrorCount()).thenReturn(3, 0);
         when(clientPool.borrowObject()).thenReturn(client);
 
-        metricsQueue.addAll(Collections.singleton(metric));
+        metricsQueue.addAll(Collections.singleton(metric), "test");
         executeWriter();
 
         String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
