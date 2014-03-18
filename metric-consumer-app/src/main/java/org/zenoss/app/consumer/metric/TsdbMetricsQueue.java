@@ -18,12 +18,21 @@ import org.zenoss.app.consumer.metric.data.Metric;
  * Provides information on TSDB metrics that are currently being processed.
  */
 public interface TsdbMetricsQueue {
-    
+
+    public static final String CLIENT_TAG = "x-metric-consumer-client-id";
+
     /**
      * How many metrics are currently queued for delivery?
      * @return total
      */
     long getTotalInFlight();
+
+    /**
+     * How many metrics does the queue currently contain tagged for the given clientId?
+     * @param clientId A value that might be used to tag the client on a metric. {@see #CLIENT_TAG}
+     * @return zero, or a positive number if the queue contains any metrics with a matching tag.
+     */
+     long clientBacklogSize(String clientId);
     
     /**
      * Retrieves and removes a number of elements from the queue. If there are
@@ -39,15 +48,16 @@ public interface TsdbMetricsQueue {
     /**
      * Add elements to the queue.
      * @param metrics added elements
+     * @param clientId an identifier for the remote client that is adding the metrics.
      */
-    void addAll(Collection<Metric> metrics);
+    void addAll(Collection<Metric> metrics, String clientId);
 
     /**
-     * Add elements to the queue.
+     * Add elements back in to the queue, without affecting incoming totals.
+     * This should only be used to reinsert elements that were {@link #poll(int, long)}'d out of the queue.
      * @param metrics added elements
-     * @param alreadyCounted true if the added elements have already been counted toward incoming totals, false otherwise
      */
-    void addAll(Collection<Metric> metrics, boolean alreadyCounted);
+    void reAddAll(Collection<Metric> metrics);
 
     /**
      * Record a number of errors encountered.

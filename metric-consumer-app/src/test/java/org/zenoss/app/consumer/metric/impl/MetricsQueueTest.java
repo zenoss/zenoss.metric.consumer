@@ -88,7 +88,7 @@ public class MetricsQueueTest {
 
         @Override
         public void run() {
-            mq.addAll(toAdd);
+            mq.addAll(toAdd, "test");
         }
     }
 }

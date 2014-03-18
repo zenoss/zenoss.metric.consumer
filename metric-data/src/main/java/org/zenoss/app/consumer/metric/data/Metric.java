@@ -86,6 +86,10 @@ public class Metric {
         this.tags.put( name, value);
     }
 
+    public String removeTag(String name) {
+        return this.tags.remove(name);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

@@ -47,12 +47,13 @@ public class MetricWebSocketTest {
     @Test
     public void testOnMessage() throws Exception {
         MetricWebSocket socket = new MetricWebSocket(config(), service, eventBus);
-        when(service.push(any(Metric[].class))).thenReturn(new Control());
+        when(service.push(anyListOf(Metric.class),anyString())).thenReturn(new Control());
+        when(request.getHeader("X-Forwarded-For")).thenReturn("test");
         Metric metric = new Metric("name", 0, 0.0);
         Control control = new Control();
         Message message = new Message(control, new Metric[]{metric});
         assertEquals(new Control(), socket.onMessage(message, new WebSocketSession(request, connection)));
-        verify(service).push(new Metric[]{metric});
+        verify(service).push(Collections.singletonList(metric),"test");
     }
 
     @Test
@@ -65,10 +66,11 @@ public class MetricWebSocketTest {
         prefixes.add("controlplane");
         MetricWebSocket socket = new MetricWebSocket(config(prefixes), service, eventBus);
 
-        when(service.push(any(Metric[].class))).thenReturn(new Control());
+        when(service.push(anyListOf(Metric.class),anyString())).thenReturn(new Control());
         when(request.getParameterNames()).thenReturn(Collections.enumeration(parameters));
         when(request.getParameter("controlplane_tenant_id")).thenReturn("1");
         when(request.getParameter("controlplane_service_id")).thenReturn("2");
+        when(request.getHeader("X-Forwarded-For")).thenReturn("test");
 
         Control control = new Control();
         Metric metric = new Metric("name", 0, 0.0);
@@ -79,7 +81,7 @@ public class MetricWebSocketTest {
         Metric expected_metric = new Metric("name", 0, 0.0);
         expected_metric.addTag("controlplane_tenant_id", "1");
         expected_metric.addTag("controlplane_service_id", "2");
-        verify(service).push(new Metric[]{expected_metric});
+        verify(service).push(Collections.singletonList(expected_metric),"test");
     }
 
     @Test

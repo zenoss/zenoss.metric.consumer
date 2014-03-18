@@ -19,21 +19,12 @@ import java.util.List;
 public interface MetricService {
     
     /**
-     * Eagerly submit metrics to the tail of the queue until a high collision 
-     * is detected.
-     * 
-     * @param metric metrics to be written to TSDB
-     * @return control message with result
-     */
-    Control push(Metric[] metric);
-
-    /**
      * Eagerly submit metrics to the tail of the queue until a high collision
      * is detected.
      *
      * @param metrics metrics to be written to TSDB
      * @return control message with result
      */
-    Control push(List<Metric> metrics);
+    Control push(List<Metric> metrics, String clientId);
 
 }

@@ -4,6 +4,7 @@ import com.google.common.base.Strings;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
 
@@ -11,6 +12,14 @@ import java.util.List;
  * Shared utilities for Metric WebSockets and WebResources.
  */
 public final class Utils {
+
+    /**
+     * Best guess at the IP address of the remote end of the request.
+     */
+    public static String remoteAddress(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        return (forwardedFor != null) ? forwardedFor : request.getRemoteAddr();
+    }
 
     /**
      * Find and inject all parameters in the servlet request matching the provided prefix into each metric.
@@ -42,7 +51,7 @@ public final class Utils {
      * @param value   tag value
      * @param metrics the metrics to tag
      */
-    public static void injectTag(String name, String value, List<Metric> metrics) {
+    public static void injectTag(String name, String value, Collection<Metric> metrics) {
         if (!Strings.isNullOrEmpty(value)) {
             for (Metric metric : metrics) {
                 metric.addTag(name, value);
