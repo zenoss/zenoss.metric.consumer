@@ -80,6 +80,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         Multiset<String> counts = HashMultiset.create();
         for (final Metric m : metrics) {
             String clientId = m.getTags().get(CLIENT_TAG);
+            if (clientId == null) throw new IllegalStateException("Metric missing required tag: " + CLIENT_TAG);
             counts.add(clientId);
         }
         return counts;

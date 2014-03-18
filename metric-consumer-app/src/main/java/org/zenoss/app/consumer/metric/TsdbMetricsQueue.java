@@ -19,7 +19,7 @@ import org.zenoss.app.consumer.metric.data.Metric;
  */
 public interface TsdbMetricsQueue {
 
-    public static final String CLIENT_TAG = "remote_ip";
+    public static final String CLIENT_TAG = "x-metric-consumer-client-id";
 
     /**
      * How many metrics are currently queued for delivery?

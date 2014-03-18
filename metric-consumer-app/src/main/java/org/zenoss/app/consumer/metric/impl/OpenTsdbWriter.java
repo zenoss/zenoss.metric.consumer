@@ -156,10 +156,16 @@ class OpenTsdbWriter implements TsdbWriter {
 
                 try {
                     for (Metric m : metrics) {
-                        String message = convert(m);
-                        log.debug("Put msg: {}", message);
-                        client.put(message);
-                        processed++;
+                        final String clientId = m.removeTag(TsdbMetricsQueue.CLIENT_TAG);
+                        try {
+                            final String message = convert(m);
+                            log.debug("Put msg: {}", message);
+                            client.put(message);
+                            processed++;
+                        } catch (Exception e) {
+                            m.addTag(TsdbMetricsQueue.CLIENT_TAG, clientId);
+                            throw e;
+                        }
                     }
 
                     client.flush();
