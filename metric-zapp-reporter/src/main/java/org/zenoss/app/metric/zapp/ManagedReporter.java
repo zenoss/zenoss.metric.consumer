@@ -10,8 +10,11 @@ import com.yammer.metrics.core.MetricPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Profile;
 import org.zenoss.app.AppConfiguration;
+import org.zenoss.app.ZenossCredentials;
+import org.zenoss.app.config.ProxyConfiguration;
 import org.zenoss.dropwizardspring.annotations.Managed;
 import org.zenoss.metrics.reporter.HttpPoster;
 import org.zenoss.metrics.reporter.MetricPoster;
@@ -41,31 +44,27 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     private final AppConfiguration appConfiguration;
     private final List<ZenossMetricsReporter> metricReporters = Lists.newArrayList();
     private final Map<String, String> systemEnvironment;
+    private final ApplicationContext appContext;
     private MetricPredicate filter = MetricPredicate.ALL;
-    private MetricPoster poster;
 
     private ManagedReporterConfig managedReporterConfig;
 
 
-    ManagedReporter(AppConfiguration appConfiguration, Environment environment, Map<String, String> systemEnvironment) {
+    ManagedReporter(ApplicationContext appContext, AppConfiguration appConfiguration, Environment environment, Map<String, String> systemEnvironment) {
         this.environment = environment;
+        this.appContext = appContext;
         this.appConfiguration = appConfiguration;
         this.systemEnvironment = systemEnvironment;
     }
 
     @Autowired
-    ManagedReporter(AppConfiguration appConfiguration, Environment environment) {
-        this( appConfiguration, environment, System.getenv());
+    ManagedReporter(ApplicationContext appContext, AppConfiguration appConfiguration, Environment environment) {
+        this(appContext, appConfiguration, environment, System.getenv());
     }
 
     @Autowired(required = false)
     void setFilter(MetricPredicate filter) {
         this.filter = filter;
-    }
-
-    @Autowired(required = false)
-    void setPoster(MetricPoster poster) {
-        this.poster = poster;
     }
 
     @PostConstruct
@@ -77,24 +76,22 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         tags.put("instance", ManagementFactory.getRuntimeMXBean().getName());
         tags.put("internal", "true");
 
-        // include all http posters defined in configuration
-        for ( MetricReporterConfig config : getManagedReporterConfig().getMetricReporters()) {
-            HttpPoster poster = getHttpPoster( config);
-            ZenossMetricsReporter reporter = buildMetricReporter( config, poster, MetricPredicate.ALL, tags);
-            metricReporters.add( reporter);
+        MetricPredicate predicate = filter;
+        if ( predicate == null) {
+            predicate = MetricPredicate.ALL;
         }
 
-        // include the bean reporter, use default config values
-        if ( this.poster != null) {
-            MetricReporterConfig config = new MetricReporterConfig();
-            ZenossMetricsReporter reporter = buildMetricReporter( config, this.poster, this.filter, tags);
-            metricReporters.add( reporter);
+        // include all posters defined in configuration
+        for (MetricReporterConfig config : getManagedReporterConfig().getMetricReporters()) {
+            MetricPoster poster = getPoster( config);
+            ZenossMetricsReporter reporter = buildMetricReporter(config, poster, predicate, tags);
+            metricReporters.add(reporter);
         }
     }
 
     @Override
     public void start() throws Exception {
-        for ( ZenossMetricsReporter reporter : getMetricReporters()) {
+        for (ZenossMetricsReporter reporter : getMetricReporters()) {
             reporter.start();
         }
     }
@@ -102,10 +99,10 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     @Override
     public void stop() {
         boolean interrupted = false;
-        for ( ZenossMetricsReporter reporter : getMetricReporters()) {
+        for (ZenossMetricsReporter reporter : getMetricReporters()) {
             try {
                 reporter.stop();
-            } catch( InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 interrupted = true;
             }
         }
@@ -123,21 +120,34 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
             } catch (ClassCastException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
                 ManagedReporter.LOG.info("Using defaults for metric reporter configuration", e);
                 managedReporterConfig = new ManagedReporterConfig();
-                managedReporterConfig.addMetricReporter( new MetricReporterConfig());
+                managedReporterConfig.addMetricReporter(new MetricReporterConfig());
             }
         }
         return managedReporterConfig;
     }
 
+    MetricPoster getPoster( MetricReporterConfig config) throws MalformedURLException {
+        String type = config.getPosterType();
+        if ( "bean".equals( type)) {
+            String name = config.getBeanName();
+            Object bean = appContext.getBean(name);
+            LOG.debug("got appContext poster bean: {}", bean);
+            return (MetricPoster) bean;
+        } else if ( "http".equals( type)) {
+            return getHttpPoster( config);
+        }
+        throw new IllegalArgumentException( "Unknown posterType: " + type);
+    }
+
     // create an http poster from values within config
-    HttpPoster getHttpPoster( MetricReporterConfig config) throws MalformedURLException {
-        URL url = getURL( config);
-        String username = getUsername( config);
-        String password = getPassword( config);
+    HttpPoster getHttpPoster(MetricReporterConfig config) throws MalformedURLException {
+        URL url = getURL(config);
+        String username = getUsername(config);
+        String password = getPassword(config);
         return buildHttpPoster(url, username, password);
     }
 
-    // Identify url to post metrics, first check config parameter, then check system's environment
+    // Identify url to post metrics, first check config parameter, then check system's environment, finally use proxy
     URL getURL(MetricReporterConfig config) throws MalformedURLException {
         int port = config.getPort();
         String host = config.getHost();
@@ -145,17 +155,24 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         String api = config.getApiPath();
 
         String marker = MetricReporterConfig.DEFAULT_MARKER;
-        if ( marker.equals(host) || marker.equals( protocol) || port == -1000) {
+        if (marker.equals(host) || marker.equals(protocol) || port == -1000) {
             String envName = config.getURLEnvironment();
-            if ( !Strings.isNullOrEmpty(envName)) {
-                String url = systemEnvironment.get( envName);
-                if ( !Strings.isNullOrEmpty(url)) {
-                    return new URL( url);
+            if (!Strings.isNullOrEmpty(envName)) {
+                String url = systemEnvironment.get(envName);
+                if (!Strings.isNullOrEmpty(url)) {
+                    return new URL(url);
                 }
             }
+
+            //use the proxy config
+            ProxyConfiguration proxy = appConfiguration.getProxyConfiguration();
+            protocol = proxy.getProtocol();
+            host = proxy.getHostname();
+            port = proxy.getPort();
+            api = HttpPoster.METRIC_API;
         }
 
-        return new URL( protocol, host, port, api);
+        return new URL(protocol, host, port, api);
     }
 
     String getLocalHostName() {
@@ -170,7 +187,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     }
 
     String getHostTag() throws InterruptedException {
-        String host =  getLocalHostName();
+        String host = getLocalHostName();
         if (host == null) {
             host = exectHostname();
         }
@@ -186,30 +203,28 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     }
 
     String getUsername(MetricReporterConfig config) {
-        String username = config.getUsername();
-        String envName = config.getUsernameEnvironment();
-        if( Strings.isNullOrEmpty(username)) {
-            if (!Strings.isNullOrEmpty(envName)) {
-                username = systemEnvironment.get( envName);
-            }
-            if ( username == null) {
-                username = "";
-            }
+        String username = Strings.nullToEmpty( config.getUsername()).trim();
+        if (username.matches( "\\$env\\[[^\\[]*\\]")) {
+            String var = username.substring( 5, username.length()-1);
+            return systemEnvironment.get( var);
+        }
+
+        if (username.matches( "\\$zcreds\\[\\]")) {
+           return appConfiguration.getZenossCredentials().getUsername();
         }
 
         return username;
     }
 
     String getPassword(MetricReporterConfig config) {
-        String password = config.getPassword();
-        String envName = config.getPasswordEnvironment();
-        if( Strings.isNullOrEmpty(password)) {
-            if (!Strings.isNullOrEmpty(envName)) {
-                password = systemEnvironment.get( envName);
-            }
-            if ( password == null) {
-                password = "";
-            }
+        String password = Strings.nullToEmpty( config.getPassword()).trim();
+        if (password.matches( "\\$env\\[[^\\[]*\\]")) {
+            String var = password.substring( 5, password.length()-1);
+            return systemEnvironment.get( var);
+        }
+
+        if (password.matches( "\\$zcreds\\[\\]")) {
+            return appConfiguration.getZenossCredentials().getPassword();
         }
 
         return password;
@@ -255,7 +270,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 .setMetricPrefix(config.getMetricPrefix())
                 .setReportJvmMetrics(config.getReportJvmMetrics())
                 .setFrequency(config.getReportFrequencySeconds(), TimeUnit.SECONDS)
-                .setShutdownTimeout( config.getShutdownWaitSeconds(), TimeUnit.SECONDS)
+                .setShutdownTimeout(config.getShutdownWaitSeconds(), TimeUnit.SECONDS)
                 .build();
     }
 }

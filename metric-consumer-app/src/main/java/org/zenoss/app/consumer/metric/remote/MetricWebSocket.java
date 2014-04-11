@@ -1,17 +1,17 @@
 package org.zenoss.app.consumer.metric.remote;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.api.client.repackaged.com.google.common.base.Strings;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import org.apache.shiro.subject.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.zenoss.app.security.ZenossTenant;
+import org.zenoss.app.security.ZenossToken;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
-import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
-import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
@@ -23,9 +23,7 @@ import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Path;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 @WebSocketListener(name = "metrics/store")
@@ -59,16 +57,32 @@ public class MetricWebSocket {
         Metric[] metrics = message.getMetrics();
         int metricsLength = (metrics == null) ? -1 : metrics.length;
         log.debug("Message(control={}, len(metrics)={}) - START", message.getControl(), metricsLength);
+
+        //process metrics
         if (metrics != null) {
+            log.debug( "Tagging metics with parameters: {}", configuration.getHttpParameterTags());
             HttpServletRequest request = session.getHttpServletRequest();
+
+            //tag metrics using configured http parameters
             List<Metric> metricList = Arrays.asList(metrics);
             Utils.tagMetrics(request, metricList, configuration.getHttpParameterTags());
+
+            //tag metrics with tenant id (obviously, tenant-id's identified through authentication)
+            if (configuration.isAuthEnabled()) {
+                Subject subject = session.getSubject();
+                ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
+
+                log.debug("Tagging metrics with tenant_id: {}", tenant.id());
+                Utils.injectTag("zenoss_tenant_id", tenant.id(), metricList);
+            }
+
+            //enqueue metrics for transfer
             String remoteIp = Utils.remoteAddress(request);
             Control control = service.push(metricList, remoteIp);
             log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
             return control;
         } else {
-            return Control.malformedRequest( "Null metrics not accepted");
+            return Control.malformedRequest("Null metrics not accepted");
         }
     }
 

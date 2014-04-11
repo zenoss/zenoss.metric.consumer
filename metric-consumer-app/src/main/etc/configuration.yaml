@@ -35,3 +35,7 @@ metricService:
         keepAlive:          true
         connectTimeout:     1000
         soTimeout:          50
+
+managedReporter:
+    metricReporters:
+      - {posterType: bean, beanName: metric-service-poster}

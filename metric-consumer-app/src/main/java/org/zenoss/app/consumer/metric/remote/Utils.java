@@ -1,6 +1,7 @@
 package org.zenoss.app.consumer.metric.remote;
 
 import com.google.common.base.Strings;
+import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 import javax.servlet.http.HttpServletRequest;
@@ -26,17 +27,17 @@ public final class Utils {
      *
      * @param request      The http servlet request
      * @param metrics      The metrics to tag
-     * @param tagsPrefixes The prefixes to find int he servlet request
+     * @param tagPrefixes The prefixes to find int he servlet request
      */
-    public static void tagMetrics(HttpServletRequest request, List<Metric> metrics, List<String> tagsPrefixes) {
-        if (tagsPrefixes == null || tagsPrefixes.isEmpty()) {
+    public static void tagMetrics(HttpServletRequest request, List<Metric> metrics, List<String> tagPrefixes) {
+        if (tagPrefixes == null || tagPrefixes.isEmpty()) {
             return;
         }
 
         Enumeration<String> parameters = request.getParameterNames();
         while (parameters.hasMoreElements()) {
             String parameter = parameters.nextElement();
-            for (String prefix : tagsPrefixes) {
+            for (String prefix : tagPrefixes) {
                 if (parameter.startsWith(prefix)) {
                     injectTag(parameter, request.getParameter(parameter), metrics);
                 }

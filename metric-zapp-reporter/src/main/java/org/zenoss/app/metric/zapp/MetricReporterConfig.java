@@ -2,9 +2,12 @@ package org.zenoss.app.metric.zapp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 
 import javax.validation.Valid;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -85,17 +88,18 @@ public class MetricReporterConfig {
     private String username = "";
 
     @JsonProperty
-    private String usernameEnvironment = "";
-
-    @JsonProperty
     private String password = "";
-
-    @JsonProperty
-    private String passwordEnvironment = "";
 
     @JsonProperty
     private String urlEnvironment = "";
 
+    @NotNull
+    @Pattern(regexp = "bean|http", flags = Pattern.Flag.CASE_INSENSITIVE)
+    @JsonProperty
+    private String posterType = "http";
+
+    @JsonProperty
+    private String beanName;
 
     public MetricReporterConfig() {
         super();
@@ -103,7 +107,7 @@ public class MetricReporterConfig {
 
     public MetricReporterConfig(int reportFrequencySeconds, String reporterName, String apiPath, String metricPrefix,
                                 int shutdownWaitSeconds, boolean reportJvmMetrics, String host, String protocol,
-                                int port, String hostTag) {
+                                int port, String hostTag, String posterType, String beanName) {
         this.reportFrequencySeconds = reportFrequencySeconds;
         this.reporterName = reporterName;
         this.apiPath = apiPath;
@@ -114,8 +118,9 @@ public class MetricReporterConfig {
         this.host = host;
         this.protocol = protocol;
         this.hostTag = hostTag;
+        this.posterType = posterType;
+        this.beanName = beanName;
     }
-
 
     /**
      * endpoint username
@@ -127,28 +132,12 @@ public class MetricReporterConfig {
     }
 
     /**
-     * environment variable to identify endpoint username
-     * @return
-     */
-    public String getUsernameEnvironment() {
-        return usernameEnvironment;
-    }
-
-    /**
      * endpoint password
      *
      * @return String
      */
     public String getPassword() {
         return password;
-    }
-
-    /**
-     * environment variable to identify endpoint password
-     * @return
-     */
-    public String getPasswordEnvironment() {
-        return passwordEnvironment;
     }
 
     /**
@@ -246,8 +235,21 @@ public class MetricReporterConfig {
         return urlEnvironment;
     }
 
-    public static final class Builder {
+    /**
+     * the metric poster type, either bean or http
+     */
+    public String getPosterType() {
+        return posterType;
+    }
 
+    /**
+     * if poster type is bean, then this is the metric poster bean to use from app context
+     */
+    public String getBeanName() {
+        return beanName;
+    }
+
+    public static final class Builder {
 
         public Builder setReportFrequencySeconds(int reportFrequencySeconds) {
             checkArgument(reportFrequencySeconds > 0);
@@ -306,10 +308,22 @@ public class MetricReporterConfig {
             return this;
         }
 
+        public Builder setBeanName(String beanName) {
+            this.beanName = beanName;
+            return this;
+        }
+
+        public Builder setPosterType(String posterType) {
+            posterType = Strings.nullToEmpty(posterType).trim().toLowerCase();
+            checkNotNull(posterType);
+            checkArgument(posterType == "http" || posterType == "bean");
+            this.posterType = posterType;
+            return this;
+        }
 
         public MetricReporterConfig build() {
             return new MetricReporterConfig(reportFrequencySeconds, reporterName, apiPath, metricPrefix,
-                    shutdownWaitSeconds, reportJvmMetrics, host, protocol, port, hostTag);
+                    shutdownWaitSeconds, reportJvmMetrics, host, protocol, port, hostTag, posterType, beanName);
         }
 
         private String reporterName = ZENOSS_ZAPP_REPORTER;
@@ -322,5 +336,7 @@ public class MetricReporterConfig {
         private int shutdownWaitSeconds = SHUTDOWN_WAIT;
         private boolean reportJvmMetrics = true;
         private String hostTag = "";
+        private String posterType = "http";
+        private String beanName;
     }
 }
