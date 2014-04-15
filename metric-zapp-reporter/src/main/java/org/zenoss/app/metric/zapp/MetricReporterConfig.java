@@ -123,7 +123,12 @@ public class MetricReporterConfig {
     }
 
     /**
-     * endpoint username
+     * Http endpoint base-auth username.  The username parameter supports using values from
+     * the ZenossCredentials#getUsername(), the user's environment variables,
+     * or just regular values.  For example to use the ZenossCredentials value
+     * set this string to $zcreds[].  Or, to use an environment variable set
+     * this value to $env[VAR_NAME], where VAR_NAME is the environment variable. Otherwise,
+     * the value's used as is.
      *
      * @return String
      */
@@ -132,7 +137,12 @@ public class MetricReporterConfig {
     }
 
     /**
-     * endpoint password
+     * Http endpoint base-auth password .  The password parameter supports using values from
+     * the ZenossCredentials#getPassword(), the user's environment variables,
+     * or just regular values.  For example to use the ZenossCredentials value
+     * set this string to $zcreds[].  Or, to use an environment variable set
+     * this value to $env[VAR_NAME], where VAR_NAME is the environment variable. Otherwise,
+     * the value's used as is.
      *
      * @return String
      */

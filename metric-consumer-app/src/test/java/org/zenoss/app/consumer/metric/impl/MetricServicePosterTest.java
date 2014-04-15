@@ -28,13 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Created with IntelliJ IDEA.
- * User: scleveland
- * Date: 4/9/14
- * Time: 2:18 PM
- * To change this template use File | Settings | File Templates.
- */
 public class MetricServicePosterTest {
 
     ConsumerAppConfiguration config;
