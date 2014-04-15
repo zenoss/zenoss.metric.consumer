@@ -18,7 +18,7 @@ webSocketConfiguration:
 metricService:
     jobSize: 1000
     highCollisionMark: 200000
-    lowCollisionMark: 100000
+    maxClientWaitTime: 10000
     minTimeBetweenBroadcast: 500
     tsdbWriterThreads: 1
     maxIdleTime: 10000
@@ -35,3 +35,7 @@ metricService:
         keepAlive:          true
         connectTimeout:     1000
         soTimeout:          50
+
+managedReporter:
+    metricReporters:
+      - {posterType: bean, beanName: metric-service-poster}

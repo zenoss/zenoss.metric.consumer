@@ -24,7 +24,7 @@ public class MetricReporterConfigTest {
 
         int freq = 1024;
         int shutdown = 36;
-        int port  = 45867;
+        int port = 45867;
         String prefix = "blam";
         String name = "blamo";
         String path = "path";
@@ -32,6 +32,8 @@ public class MetricReporterConfigTest {
         String protocol = "https";
         boolean reportJvm = false;
         String hostTag = "testTag";
+        String posterType = "http";
+        String beanName = null;
 
 
         MetricReporterConfig mrc = new Builder()
@@ -45,13 +47,17 @@ public class MetricReporterConfigTest {
                 .setProtocol(protocol)
                 .setPort(port)
                 .setHostTag(hostTag)
+                .setPosterType(posterType)
+                .setBeanName(beanName)
                 .build();
-        verify(mrc, freq, prefix, name, path, shutdown, reportJvm, host, port, protocol, hostTag);
 
+        verify(mrc, freq, prefix, name, path, shutdown, reportJvm, host, port, protocol, hostTag, posterType, beanName);
     }
 
     private void verify(MetricReporterConfig mrc, int frequency, String prefix, String name, String path, int shutdown,
-                        boolean reportJvmMetrics, String host, Integer port, String protocol, String hostTag) {
+                        boolean reportJvmMetrics, String host, Integer port, String protocol, String hostTag,
+                        String poster, String bean
+    ) {
         Assert.assertEquals(frequency, mrc.getReportFrequencySeconds());
         Assert.assertEquals(prefix, mrc.getMetricPrefix());
         Assert.assertEquals(name, mrc.getReporterName());
@@ -62,12 +68,14 @@ public class MetricReporterConfigTest {
         Assert.assertEquals(port, mrc.getPort());
         Assert.assertEquals(protocol, mrc.getProtocol());
         Assert.assertEquals(hostTag, mrc.getHostTag());
+        Assert.assertEquals(bean, mrc.getBeanName());
+        Assert.assertEquals(poster, mrc.getPosterType());
 
     }
 
     private void verify(MetricReporterConfig mrc) {
         verify(mrc, MetricReporterConfig.FREQUENCY, MetricReporterConfig.ZEN_INF,
                 MetricReporterConfig.ZENOSS_ZAPP_REPORTER, HttpPoster.METRIC_API, MetricReporterConfig.SHUTDOWN_WAIT,
-                true, MetricReporterConfig.DEFAULT_MARKER, -1000, MetricReporterConfig.DEFAULT_MARKER, "");
+                true, MetricReporterConfig.DEFAULT_MARKER, -1000, MetricReporterConfig.DEFAULT_MARKER, "", "http", null);
     }
 }

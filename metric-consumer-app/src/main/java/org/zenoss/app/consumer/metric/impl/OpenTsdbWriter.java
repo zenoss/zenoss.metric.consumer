@@ -15,6 +15,7 @@ import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
@@ -36,6 +37,7 @@ import java.util.regex.Pattern;
  * @see TsdbWriter
  */
 @Component
+@Profile("prod")
 @Scope("prototype")
 class OpenTsdbWriter implements TsdbWriter {
 
@@ -154,10 +156,16 @@ class OpenTsdbWriter implements TsdbWriter {
 
                 try {
                     for (Metric m : metrics) {
-                        String message = convert(m);
-                        log.debug("Put msg: {}", message);
-                        client.put(message);
-                        processed++;
+                        final String clientId = m.removeTag(TsdbMetricsQueue.CLIENT_TAG);
+                        try {
+                            final String message = convert(m);
+                            log.debug("Put msg: {}", message);
+                            client.put(message);
+                            processed++;
+                        } catch (Exception e) {
+                            m.addTag(TsdbMetricsQueue.CLIENT_TAG, clientId);
+                            throw e;
+                        }
                     }
 
                     client.flush();
@@ -170,7 +178,7 @@ class OpenTsdbWriter implements TsdbWriter {
             }
         } finally {
             if (!flushed) {
-                metricsQueue.addAll(metrics, true);
+                metricsQueue.reAddAll(metrics);
             }
             if (client != null) {
                 try {
@@ -228,7 +236,7 @@ class OpenTsdbWriter implements TsdbWriter {
     /**
      * unprocessed data to write into TSDB
      */
-    private final TsdbMetricsQueue metricsQueue;
+    protected final TsdbMetricsQueue metricsQueue;
 
     /**
      * Size of batches to send to TSDB socket
@@ -263,7 +271,7 @@ class OpenTsdbWriter implements TsdbWriter {
     /**
      * Last time this instance did work
      */
-    private transient long lastWorkTime;
+    protected transient long lastWorkTime;
 
 
     private static final Pattern INVALID_CHARS = Pattern.compile("[^\\w\\./_-]");

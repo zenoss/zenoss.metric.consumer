@@ -31,22 +31,30 @@ public class MetricServiceConfiguration {
     private int jobSize = 5;
 
     /**
-     * how many queued messages before dropping metrics and sending high collisions
+     * How many queued messages before throttling/dropping metrics from all clients and sending high collisions
      */
     @JsonProperty
     private int highCollisionMark = 1024;
 
     /**
-     * how many queued messages before sending low collisions
+     * How many queued messages before throttling/dropping metrics from backlogged clients and sending low collisions
+     * Defaults to 90% of {@link #highCollisionMark}.
      */
     @JsonProperty
-    private int lowCollisionMark = 512;
+    private int lowCollisionMark = -1;
 
     /**
      * minimum time in milliseconds between broadcasting backoff messages
      */
     @JsonProperty
     private int minTimeBetweenBroadcast = 500;
+
+    /**
+     * Max time in milliseconds to have a throttled client wait to add some metrics to a backlogged queue
+     * before we decide to just give up instead.
+     */
+    @JsonProperty
+    private int maxClientWaitTime = 60000;
 
     /**
      * Max time in milliseconds with no work before TSDB writer threads will commit seppuku
@@ -65,6 +73,13 @@ public class MetricServiceConfiguration {
      */
     @JsonProperty
     private int minConnectionBackOff = 100;
+
+    /**
+     * How many queued messages per client, before throttling.
+     * Defaults to 80% of {@link #highCollisionMark}.
+     */
+    @JsonProperty
+    private int perClientMaxBacklogSize = -1;
 
     /**
      * Ideal number of TSDB writer threads
@@ -126,13 +141,28 @@ public class MetricServiceConfiguration {
     /**
      * Number of metrics in the backlog used to warn that metrics are being
      * queued faster than they can be processed. Once this threshold has been
-     * reached, {@link Type#LOW_COLLISION} messages will be broadcast
-     * to any connected websocket clients.
+     * reached, no further metrics will be accepted from clients that are already
+     * in the backlog until some have been written to TSDB. This will also cause
+     * {@link Type#LOW_COLLISION} messages to be broadcast to any connected
+     * websocket clients.
      *
      * @return threshold
      */
     public int getLowCollisionMark() {
-        return lowCollisionMark;
+        if (lowCollisionMark <= 0)
+            return highCollisionMark * 9 / 10;
+        else
+            return lowCollisionMark;
+    }
+
+    /**
+     * The maximum time to have a throttled client wait to add some metrics to a backlogged queue before we decide
+     * to just give up instead.
+     *
+     * @return milliseconds
+     */
+    public int getMaxClientWaitTime() {
+        return maxClientWaitTime;
     }
 
     /**
@@ -173,6 +203,22 @@ public class MetricServiceConfiguration {
     public int getMinTimeBetweenBroadcast() {
         return minTimeBetweenBroadcast;
     }
+
+
+    /**
+     * A threshold number of metrics in the backlog from a single client, after
+     * which no further metrics will be accepted from that clients until some
+     * have been written to TSDB.
+     *
+     * @return threshold
+     */
+    public int getPerClientMaxBacklogSize() {
+        if (perClientMaxBacklogSize <= 0)
+            return highCollisionMark * 8 / 10;
+        else
+            return perClientMaxBacklogSize;
+    }
+
 
     /**
      * The frequency with which this application will report internal metrics
@@ -236,13 +282,25 @@ public class MetricServiceConfiguration {
     /**
      * Number of metrics in the backlog used to warn that metrics are being
      * queued faster than they can be processed. Once this threshold has been
-     * reached, {@link Type#LOW_COLLISION} messages will be broadcast
-     * to any connected websocket clients.
+     * reached, no further metrics will be accepted from clients that are already
+     * in the backlog until some have been written to TSDB. This will also cause
+     * {@link Type#LOW_COLLISION} messages to be broadcast to any connected
+     * websocket clients.
      *
      * @param lowCollisionMark threshold
      */
     public void setLowCollisionMark(int lowCollisionMark) {
         this.lowCollisionMark = lowCollisionMark;
+    }
+
+    /**
+     * The maximum time to have a throttled client wait to add some metrics to a backlogged queue before we decide
+     * to just give up instead.
+
+     * @param maxClientWaitTime milliseconds
+     */
+    public void setMaxClientWaitTime(int maxClientWaitTime) {
+        this.maxClientWaitTime = maxClientWaitTime;
     }
 
     /**
@@ -264,6 +322,17 @@ public class MetricServiceConfiguration {
      */
     public void setMinTimeBetweenBroadcast(int minTimeBetweenBroadcast) {
         this.minTimeBetweenBroadcast = minTimeBetweenBroadcast;
+    }
+
+    /**
+     * A threshold number of metrics in the backlog from a single client, after
+     * which no further metrics will be accepted from that clients until some
+     * have been written to TSDB.
+     *
+     * @param perClientMaxBacklogSize threshold
+     */
+    public void setPerClientMaxBacklogSize(int perClientMaxBacklogSize) {
+        this.perClientMaxBacklogSize = perClientMaxBacklogSize;
     }
 
     /**

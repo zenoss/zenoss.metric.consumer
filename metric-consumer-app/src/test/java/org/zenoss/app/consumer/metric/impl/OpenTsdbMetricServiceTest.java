@@ -9,6 +9,8 @@ import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
@@ -33,56 +35,59 @@ public class OpenTsdbMetricServiceTest {
 
     @Test
     public void testPushHandlesNull() throws Exception {
+        List<Metric> metrics  = Collections.singletonList(new Metric("name", 0, 0.0));
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.malformedRequest ("metrics not nullable"), service.push((List<Metric>) null));
+        assertEquals(Control.malformedRequest("metrics not nullable"), service.push(null, "test"));
+        assertEquals(Control.malformedRequest("clientId not nullable"), service.push(metrics, null));
     }
 
     @Test
     public void testPush() throws Exception {
         Metric metric = new Metric("name", 0, 0.0);
-        Metric[] metrics  = new Metric[] {metric};
+        List<Metric> metrics  = Collections.singletonList(metric);
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.ok(), service.push(metrics));
-        verify(metricsQueue, times(1)).addAll (Lists.newArrayList (metric));
+        assertEquals(Control.ok(), service.push(metrics, "test"));
+        verify(metricsQueue, times(1)).addAll(metrics, "test");
     }
 
     @Test
     public void testPushWithOverflow() throws Exception {
         Metric metric = new Metric("name", 0, 0.0);
-        Metric[] metrics = {metric};
+        List<Metric> metrics  = Collections.singletonList(metric);
         config.setJobSize(Integer.MAX_VALUE);
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.ok(), service.push(metrics));
-        verify(metricsQueue, times(1)).addAll (Lists.newArrayList (metric));
+        assertEquals(Control.ok(), service.push(metrics, "test"));
+        verify(metricsQueue, times(1)).addAll(metrics, "test");
     }
 
     @Test
     public void testPushCollidesLow() throws Exception {
         Metric metric = new Metric("name", 0, 0.0);
-        Metric[] metrics = {metric, metric};
+        ArrayList<Metric> metrics = Lists.newArrayList(metric, metric);
         config.setLowCollisionMark(1);
         
         when(metricsQueue.getTotalInFlight()).thenReturn(2L);
         
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.ok(), service.push(metrics));
+        assertEquals(Control.ok(), service.push(metrics,"test"));
         
-        verify(metricsQueue, times(1)).addAll(Lists.newArrayList(metric, metric));
+        verify(metricsQueue, times(1)).addAll(metrics, "test");
         verify(eventBus, times(1)).post(Control.lowCollision());
     }
 
     @Test
     public void testPushCollidesHigh() throws Exception {
         Metric metric = new Metric("name", 0, 0.0);
-        Metric[] metrics = {metric, metric};
-        config.setHighCollisionMark(2);
+        List<Metric> metricList = Lists.newArrayList(metric, metric);
+        config.setHighCollisionMark(3);
         config.setLowCollisionMark(1);
-        when(metricsQueue.getTotalInFlight()).thenReturn(2L);
+        config.setMaxClientWaitTime(1);
+        when(metricsQueue.getTotalInFlight()).thenReturn(3L);
         
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.dropped("collision detected"), service.push(metrics));
+        assertEquals(Control.dropped("collision detected"), service.push(metricList,"test"));
         
-        verify(metricsQueue, never()).addAll(anyListOf(Metric.class));
-        verify(eventBus, times(1)).post(Control.highCollision());
+        verify(metricsQueue, never()).addAll(metricList, "test");
+        verify(eventBus, atLeastOnce()).post(Control.highCollision());
     }
 }

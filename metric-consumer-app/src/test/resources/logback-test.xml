@@ -6,6 +6,7 @@
     </encoder>
   </appender>
 
+  <logger name="org.zenoss.app.consumer.metric.impl.FakeTsdbWriter" level="INFO" />
   <logger name="org.zenoss.app.consumer.metric.impl.OpenTsdbWriter" level="off" />
   <logger name="org.zenoss.app.consumer.metric.remote.MetricWebSocket" level="ERROR" />
 

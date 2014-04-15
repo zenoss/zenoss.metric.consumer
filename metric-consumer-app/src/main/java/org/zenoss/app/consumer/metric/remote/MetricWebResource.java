@@ -11,16 +11,19 @@
 
 package org.zenoss.app.consumer.metric.remote;
 
-import com.google.common.base.Strings;
 import com.yammer.metrics.annotation.Timed;
+import org.apache.shiro.subject.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.zenoss.app.security.ZenossTenant;
+import org.zenoss.app.security.ZenossToken;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
+import org.zenoss.app.zauthbundle.ZappSecurity;
 import org.zenoss.dropwizardspring.annotations.Resource;
 
 import javax.servlet.http.HttpServletRequest;
@@ -28,8 +31,6 @@ import javax.validation.Valid;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.List;
 
 
@@ -44,13 +45,17 @@ public class MetricWebResource {
     @Autowired
     private ConsumerAppConfiguration configuration;
 
+    @Autowired
+    private ZappSecurity security;
+
     @SuppressWarnings({"unused"})
     public MetricWebResource() {
     }
 
-    public MetricWebResource(MetricService metricService, ConsumerAppConfiguration configuration) {
+    public MetricWebResource(MetricService metricService, ZappSecurity security, ConsumerAppConfiguration configuration) {
         this.metricService = metricService;
         this.configuration = configuration;
+        this.security = security;
     }
 
     @POST
@@ -60,7 +65,21 @@ public class MetricWebResource {
     public Control post(@Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
         List<Metric> metrics = metricCollection.getMetrics();
         log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
+
+        //tag metrics with http parameters
+        log.debug( "Tagging metrics with http parameter prefixes: {}", configuration.getHttpParameterTags());
         Utils.tagMetrics(request, metrics, configuration.getHttpParameterTags());
-        return metricService.push(metrics);
+
+        //tag metrics with tenant id
+        if ( configuration.isAuthEnabled()) {
+            Subject subject = security.getSubject();
+            ZenossTenant tenant= subject.getPrincipals().oneByType(ZenossTenant.class);
+
+            log.debug( "Tagging metics with tenant-id: {}", tenant.id());
+            Utils.injectTag("zenoss_tenant_id", tenant.id(), metrics);
+        }
+
+        String remoteIp = Utils.remoteAddress(request);
+        return metricService.push(metrics, remoteIp);
     }
 }
