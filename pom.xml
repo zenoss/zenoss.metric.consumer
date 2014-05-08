@@ -14,7 +14,7 @@
         <version.dropwizard>0.6.2</version.dropwizard>
         <version.guava>14.0.1</version.guava>
         <version.yammermetrics>2.2.0</version.yammermetrics>
-        <version.metric.tsdb>0.0.6-SNAPSHOT</version.metric.tsdb>
+        <version.metric.tsdb>0.0.6</version.metric.tsdb>
         <version.httpcomponents></version.httpcomponents>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <downloadSources>true</downloadSources>
