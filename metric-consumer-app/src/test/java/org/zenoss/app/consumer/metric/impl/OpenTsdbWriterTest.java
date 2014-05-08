@@ -1,5 +1,6 @@
 package org.zenoss.app.consumer.metric.impl;
 
+import com.google.common.eventbus.EventBus;
 import com.yammer.metrics.core.MetricName;
 import org.junit.After;
 import org.junit.Before;
@@ -29,6 +30,7 @@ public class OpenTsdbWriterTest {
     OpenTsdbClient goodClient;
     OpenTsdbClientPool clientPool;
     OpenTsdbWriterRegistry registry;
+    EventBus eventBus;
 
     @Before
     public void setUp() {
@@ -40,6 +42,7 @@ public class OpenTsdbWriterTest {
         goodClient = mock(OpenTsdbClient.class);
         clientPool = mock(OpenTsdbClientPool.class);
         registry = mock(OpenTsdbWriterRegistry.class);
+        eventBus = mock(EventBus.class);
         executor = Executors.newSingleThreadExecutor();
 
     }
@@ -59,7 +62,7 @@ public class OpenTsdbWriterTest {
         when(clientPool.borrowObject()).thenReturn(client);
 
         configuration.setMaxIdleTime(0); // Never quit due to lack of work
-        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq);
+        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq, eventBus);
 
         Future<?> future = executor.submit(writer);
         boolean writerStarted = false;
@@ -87,7 +90,7 @@ public class OpenTsdbWriterTest {
         when(clientPool.borrowObject()).thenReturn(client);
 
         configuration.setMaxIdleTime(0); // Never quit due to lack of work
-        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq);
+        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, mq, eventBus);
 
         executor.submit(writer);
 
@@ -175,6 +178,31 @@ public class OpenTsdbWriterTest {
         assertEquals(0, metricsQueue.getTotalInFlight());
     }
 
+    @Test
+    public void testSubmitHasCollision() throws Exception {
+        final Metric metric = new Metric("metric", 0, 0);
+
+        when(clientPool.clearErrorCount()).thenReturn(1, 0);
+        when(clientPool.hasCollision()).thenReturn(true, false);
+        when(clientPool.borrowObject()).thenReturn(client);
+
+        metricsQueue.addAll(Collections.singleton(metric), "test");
+        executeWriter();
+
+        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
+        verify(client, times(1)).put(message);
+        verify(client, never()).read();
+        verify(client, times(1)).flush();
+        verify(client, never()).close();
+        //the object's returned twice
+        verify(clientPool, times(2)).returnObject(client);
+
+        assertEquals(1, metricsQueue.getTotalErrors());
+        assertEquals(1, metricsQueue.getTotalIncoming());
+        assertEquals(1, metricsQueue.getTotalOutgoing());
+        assertEquals(0, metricsQueue.getTotalInFlight());
+    }
+
 
     @Test
     public void testConvert() {
@@ -215,7 +243,7 @@ public class OpenTsdbWriterTest {
     }
 
     private void executeWriter() throws Exception {
-        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, metricsQueue);
+        TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, metricsQueue, eventBus);
         Future<?> future = executor.submit(writer);
         future.get();
     }
