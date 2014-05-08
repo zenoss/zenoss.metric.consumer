@@ -12,9 +12,11 @@ package org.zenoss.app.consumer.metric.impl;
 
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,7 @@ import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.TsdbWriter;
 import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
+import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.lib.tsdb.OpenTsdbClient;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
@@ -46,10 +49,13 @@ class OpenTsdbWriter implements TsdbWriter {
             MetricServiceConfiguration config,
             TsdbWriterRegistry registry,
             OpenTsdbClientPool clientPool,
-            TsdbMetricsQueue metricsQueue) {
+            TsdbMetricsQueue metricsQueue,
+            @Qualifier("zapp::event-bus::async") EventBus eventBus
+            ) {
         this.clientPool = clientPool;
         this.metricsQueue = metricsQueue;
         this.writerRegistry = registry;
+        this.eventBus = eventBus;
 
         this.batchSize = config.getJobSize();
         this.maxIdleTime = config.getMaxIdleTime();
@@ -154,6 +160,11 @@ class OpenTsdbWriter implements TsdbWriter {
                     metricsQueue.incrementError(errs);
                 }
 
+                if ( clientPool.hasCollision()) {
+                    eventBus.post(Control.highCollision());
+                    throw new NoSuchElementException("Collision detected");
+                }
+
                 try {
                     for (Metric m : metrics) {
                         final String clientId = m.removeTag(TsdbMetricsQueue.CLIENT_TAG);
@@ -189,7 +200,6 @@ class OpenTsdbWriter implements TsdbWriter {
             }
             lastWorkTime = System.currentTimeMillis();
         }
-
     }
 
     private OpenTsdbClient getOpenTsdbClient() throws InterruptedException {
@@ -237,6 +247,11 @@ class OpenTsdbWriter implements TsdbWriter {
      * unprocessed data to write into TSDB
      */
     protected final TsdbMetricsQueue metricsQueue;
+
+    /**
+     * EventBus for broadcasting tsdb collision detection
+     */
+    protected final EventBus eventBus;
 
     /**
      * Size of batches to send to TSDB socket

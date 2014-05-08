@@ -10,6 +10,7 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
+import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,8 +39,9 @@ class FakeTsdbWriter extends OpenTsdbWriter {
             MetricServiceConfiguration config,
             TsdbWriterRegistry registry,
             OpenTsdbClientPool clientPool,
-            TsdbMetricsQueue metricsQueue) {
-        super(config, registry, clientPool, metricsQueue);
+            TsdbMetricsQueue metricsQueue,
+            EventBus eventBus) {
+        super(config, registry, clientPool, metricsQueue, eventBus);
     }
 
 
