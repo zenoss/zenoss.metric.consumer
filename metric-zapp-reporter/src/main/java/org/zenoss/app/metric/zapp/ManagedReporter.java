@@ -84,8 +84,12 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         // include all posters defined in configuration
         for (MetricReporterConfig config : getManagedReporterConfig().getMetricReporters()) {
             MetricPoster poster = getPoster( config);
-            ZenossMetricsReporter reporter = buildMetricReporter(config, poster, predicate, tags);
-            metricReporters.add(reporter);
+            if ( poster != null) {
+                ZenossMetricsReporter reporter = buildMetricReporter(config, poster, predicate, tags);
+                metricReporters.add(reporter);
+            } else {
+                LOG.info( "Unable to build reporter");
+            }
         }
     }
 
@@ -142,6 +146,11 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     // create an http poster from values within config
     HttpPoster getHttpPoster(MetricReporterConfig config) throws MalformedURLException {
         URL url = getURL(config);
+        if ( url == null) {
+            LOG.info("Missing url for HttpPoster");
+            return null;
+        }
+        LOG.info("Building HttpPoster w/url: {}", url);
         String username = getUsername(config);
         String password = getPassword(config);
         return buildHttpPoster(url, username, password);
@@ -164,12 +173,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 }
             }
 
-            //use the proxy config
-            ProxyConfiguration proxy = appConfiguration.getProxyConfiguration();
-            protocol = proxy.getProtocol();
-            host = proxy.getHostname();
-            port = proxy.getPort();
-            api = HttpPoster.METRIC_API;
+            return null;
         }
 
         return new URL(protocol, host, port, api);
