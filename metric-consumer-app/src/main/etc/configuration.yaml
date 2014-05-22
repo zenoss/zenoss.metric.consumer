@@ -38,4 +38,5 @@ metricService:
 
 managedReporter:
     metricReporters:
+      - {posterType: http, username: "$env[CONTROLPLANE_CONSUMER_USERNAME]", password: "$env[CONTROLPLANE_CONSUMER_PASSWORD]", urlEnvironment: "CONTROLPLANE_CONSUMER_URL"}
       - {posterType: bean, beanName: metric-service-poster}
