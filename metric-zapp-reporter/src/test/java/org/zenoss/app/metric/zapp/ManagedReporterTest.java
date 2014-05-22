@@ -106,16 +106,12 @@ public class ManagedReporterTest {
     }
 
     @Test
-    public void testGetUrlReturnsFromProxy() throws Exception {
+    public void testGetUrlReturnsNull() throws Exception {
         when(config.getHost()).thenReturn(MetricReporterConfig.DEFAULT_MARKER);
         when(config.getPort()).thenReturn(-1000);
         when(config.getProtocol()).thenReturn(MetricReporterConfig.DEFAULT_MARKER);
-
-        ProxyConfiguration proxy = new ProxyConfiguration();
-        when(appConfig.getProxyConfiguration()).thenReturn(proxy);
-
-        URL expected = new URL("http", "127.0.0.1", 8080, HttpPoster.METRIC_API);
-        Assert.assertEquals(expected, new ManagedReporter(appContext, appConfig, env).getURL(config));
+        when(config.getURLEnvironment()).thenReturn( "UNKNOWN");
+        Assert.assertEquals(null, new ManagedReporter(appContext, appConfig, env).getURL(config));
     }
 
     @Test
