@@ -79,6 +79,9 @@ public class MetricWebResource {
             Utils.injectTag("zenoss_tenant_id", tenant.id(), metrics);
         }
 
+        //filter tags using configuration white list
+        Utils.filterMetricTags( metrics, configuration.getTagWhiteList());
+
         String remoteIp = Utils.remoteAddress(request);
         return metricService.push(metrics, remoteIp);
     }
