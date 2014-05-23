@@ -76,6 +76,9 @@ public class MetricWebSocket {
                 Utils.injectTag("zenoss_tenant_id", tenant.id(), metricList);
             }
 
+            //filter tags using configuration white list
+            Utils.filterMetricTags( metricList, configuration.getTagWhiteList());
+
             //enqueue metrics for transfer
             String remoteIp = Utils.remoteAddress(request);
             Control control = service.push(metricList, remoteIp);

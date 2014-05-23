@@ -36,6 +36,10 @@ public class ConsumerAppConfiguration extends AppConfiguration {
     @JsonProperty("httpParameterTags")
     private List<String> httpParameterTags = Lists.newArrayList();
 
+    @Valid
+    @JsonProperty("tagWhiteList")
+    private List<String> tagWhiteList = null;
+
     /**
      * Configuration details for the metric service
      *
@@ -66,6 +70,14 @@ public class ConsumerAppConfiguration extends AppConfiguration {
 
     public void setHttpParameterTags(List<String> httpParameterTags) {
         this.httpParameterTags = httpParameterTags;
+    }
+
+    public List<String> getTagWhiteList() {
+        return tagWhiteList;
+    }
+
+    public void setTagWhiteList(List<String> list) {
+        tagWhiteList = list;
     }
 
     public void setMetricServiceConfiguration(MetricServiceConfiguration metricServiceConfiguration) {

@@ -64,7 +64,7 @@ public class MetricWebSocketTest {
 
         List<String> prefixes = Lists.newArrayList();
         prefixes.add("controlplane");
-        MetricWebSocket socket = new MetricWebSocket(config(prefixes, true), service, eventBus);
+        MetricWebSocket socket = new MetricWebSocket(config(prefixes, null, true), service, eventBus);
 
         when(service.push(anyListOf(Metric.class),anyString())).thenReturn(new Control());
         when(request.getParameterNames()).thenReturn(Collections.enumeration(parameters));
@@ -86,6 +86,42 @@ public class MetricWebSocketTest {
         expected_metric.addTag("controlplane_tenant_id", "1");
         expected_metric.addTag("controlplane_service_id", "2");
         expected_metric.addTag("zenoss_tenant_id", "3");
+        verify(service).push(Collections.singletonList(expected_metric),"test");
+    }
+
+    @Test
+    public void testOnMessageFiltersTags() throws Exception {
+        List<String> prefixes = Lists.newArrayList();
+        prefixes.add("controlplane");
+
+        List<String> whiteList = Lists.newArrayList();
+        whiteList.add( "controlplane_tenant_id");
+        whiteList.add( "controlplane_service_id");
+
+        MetricWebSocket socket = new MetricWebSocket(config(prefixes, whiteList, true), service, eventBus);
+
+        List<String> parameters = Lists.newArrayList();
+        parameters.add( "controlplane_tenant_id");
+        parameters.add( "controlplane_service_id");
+        when(service.push(anyListOf(Metric.class),anyString())).thenReturn(new Control());
+        when(request.getParameterNames()).thenReturn(Collections.enumeration(parameters));
+        when(request.getParameter("controlplane_tenant_id")).thenReturn("1");
+        when(request.getParameter("controlplane_service_id")).thenReturn("2");
+        when(request.getHeader("X-Forwarded-For")).thenReturn("test");
+
+        PrincipalCollection principles = mock(PrincipalCollection.class);
+        when(subject.getPrincipals()).thenReturn(principles);
+        ZenossTenant tenant = new ZenossTenant( "3");
+        when(principles.oneByType(ZenossTenant.class)).thenReturn( tenant);
+
+        Control control = new Control();
+        Metric metric = new Metric("name", 0, 0.0);
+        Message message = new Message(control, new Metric[]{metric});
+        assertEquals(new Control(), socket.onMessage(message, new WebSocketSession(subject, request, connection)));
+
+        Metric expected_metric = new Metric("name", 0, 0.0);
+        expected_metric.addTag("controlplane_tenant_id", "1");
+        expected_metric.addTag("controlplane_service_id", "2");
         verify(service).push(Collections.singletonList(expected_metric),"test");
     }
 
@@ -131,16 +167,17 @@ public class MetricWebSocketTest {
     }
 
     ConsumerAppConfiguration config(boolean authEnabled) {
-        return config(null, authEnabled);
+        return config(null, null, authEnabled);
     }
 
-    ConsumerAppConfiguration config(List<String> prefixes, boolean authEnabled) {
+    ConsumerAppConfiguration config(List<String> prefixes, List<String> whiteList, boolean authEnabled) {
         MetricServiceConfiguration config = new MetricServiceConfiguration();
         config.setMinTimeBetweenBroadcast(TIME_BETWEEN_BROADCAST);
         ConsumerAppConfiguration appConfiguration = new ConsumerAppConfiguration();
         appConfiguration.setAuthEnabled(authEnabled);
         appConfiguration.setHttpParameterTags(prefixes);
         appConfiguration.setMetricServiceConfiguration( config);
+        appConfiguration.setTagWhiteList( whiteList);
         return appConfiguration;
     }
 }
