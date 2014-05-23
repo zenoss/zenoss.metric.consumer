@@ -15,6 +15,7 @@ import org.zenoss.app.security.ZenossTenant;
 import org.zenoss.app.zauthbundle.ZappSecurity;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -91,6 +92,34 @@ public class MetricWebResourceTest {
     public void testPostMessageInjectsTenantId() throws Exception {
         configuration.setAuthEnabled(true);
         Map<String, String> tags = Maps.newHashMap();
+        Metric metric = new Metric("name", 0, 1.0, tags);
+        MetricCollection mc = new MetricCollection();
+        mc.setMetrics(Lists.newArrayList(metric));
+        when(request.getHeader("X-Forwarded-For")).thenReturn("test");
+
+        PrincipalCollection collection = mock(PrincipalCollection.class);
+        when(subject.getPrincipals()).thenReturn(collection);
+        ZenossTenant tenant = new ZenossTenant("tenant");
+        when(collection.oneByType(ZenossTenant.class)).thenReturn(tenant);
+        assertThat(resource.post(mc, request)).isEqualTo(control);
+
+        tags = Maps.newHashMap();
+        tags.put("zenoss_tenant_id", "tenant");
+        Metric expected_metric = new Metric("name", 0, 1.0, tags);
+        verify(service).push(Lists.newArrayList(expected_metric), "test");
+    }
+
+    @Test
+    public void testPostMessageWhiteListsTags() throws Exception {
+        List<String> whitelist = Lists.newArrayList();
+        whitelist.add( "zenoss_tenant_id");
+
+        configuration.setAuthEnabled(true);
+        configuration.setTagWhiteList(whitelist);
+
+        Map<String, String> tags = Maps.newHashMap();
+        tags.put( "internal", "true");
+        tags.put( "host", "1h3j1k");
         Metric metric = new Metric("name", 0, 1.0, tags);
         MetricCollection mc = new MetricCollection();
         mc.setMetrics(Lists.newArrayList(metric));

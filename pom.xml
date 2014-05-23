@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
     <artifactId>metric-consumer-parent</artifactId>
-    <version>0.0.6</version>
+    <version>0.0.7</version>
     <packaging>pom</packaging>
     <properties>
         <version.zapp>0.0.15</version.zapp>

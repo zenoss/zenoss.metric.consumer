@@ -1,6 +1,7 @@
 package org.zenoss.app.consumer.metric.remote;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
 
@@ -8,6 +9,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Shared utilities for Metric WebSockets and WebResources.
@@ -58,5 +60,42 @@ public final class Utils {
                 metric.addTag(name, value);
             }
         }
+    }
+
+    /**
+     * Filter tags in each metric using a white list. No white listing performed when
+     * the list's null.  An empty white list removes all tags.
+     *
+     * @param metrics the metrics to tag
+     * @param whiteList tags to white list
+     */
+    public static void filterMetricTags(List<Metric> metrics, List<String> whiteList) {
+        if (whiteList != null) {
+            for ( Metric m : metrics) {
+                Map<String, String> tags = filterTags( m.getTags(), whiteList);
+                m.setTags( tags);
+            }
+        }
+    }
+
+    /**
+     * Create a new tag map from an existing tag map using a white list to filter tags.  When
+     * white list is null the old tags are the new tags.
+     *
+     * @param tags the tags to filter
+     * @param whiteList tags to white list
+     */
+    public static Map<String, String> filterTags(  Map<String,String> tags, List<String> whiteList) {
+        if (whiteList != null) {
+            final Map<String, String> newTags = Maps.newHashMap();
+            for( Map.Entry<String, String> entry : tags.entrySet()) {
+                final String key = entry.getKey();
+                if (whiteList.contains( key)) {
+                    newTags.put( key, entry.getValue());
+                }
+            }
+            return newTags;
+        }
+        return tags;
     }
 }
