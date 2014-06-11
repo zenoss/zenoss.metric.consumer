@@ -2,10 +2,7 @@ package org.zenoss.app.consumer.metric.impl;
 
 import com.google.api.client.util.Maps;
 import com.yammer.metrics.httpclient.InstrumentedHttpClient;
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
+import org.apache.http.*;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.protocol.HttpContext;
@@ -19,6 +16,7 @@ import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.metrics.reporter.MetricBatch;
 
+import java.io.InputStream;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -72,6 +70,16 @@ public class MetricServicePosterTest {
 
         final HttpResponse response = mock(HttpResponse.class);
         when(response.getFirstHeader("X-ZAuth-TenantId")).thenReturn(header);
+
+        final StatusLine status = mock(StatusLine.class);
+        when(response.getStatusLine()).thenReturn(status);
+        when(status.getStatusCode()).thenReturn( 200);
+
+        final HttpEntity entity = mock(HttpEntity.class);
+        when(response.getEntity()).thenReturn( entity);
+
+        final InputStream stream = mock(InputStream.class);
+        when(entity.getContent()).thenReturn(stream);
 
         when(httpClient.execute((HttpHost) anyObject(), (HttpRequest) anyObject(), (HttpContext) anyObject())).thenReturn(response);
 

@@ -12,6 +12,7 @@ package org.zenoss.app.consumer.metric.impl;
 
 import com.google.api.client.repackaged.com.google.common.base.Strings;
 import org.apache.http.Header;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
@@ -111,6 +112,7 @@ class MetricServicePoster implements MetricPoster {
      */
     String getTenantId() throws IOException {
         if (tenantId == null) {
+            log.debug( "Requesting tenant id");
             // get the hostname and port from ProxyConfiguration
             ProxyConfiguration proxyConfig = configuration.getProxyConfiguration();
             String hostname = proxyConfig.getHostname();
@@ -143,12 +145,30 @@ class MetricServicePoster implements MetricPoster {
 
             //handle response -- collect tenantId
             HttpResponse response = httpClient.execute(host, post, context);
-            Header id = response.getFirstHeader(ZenossTenant.ID_HTTP_HEADER);
-            if (id == null) {
-                throw new RuntimeException("Failed to get zauth tenant id after login");
+            int statusCode = response.getStatusLine().getStatusCode();
+            HttpEntity entity = response.getEntity();
+            try {
+                log.debug( "Tenant id request complete with status: {}", statusCode);
+
+                if (statusCode >= 200 && statusCode <= 299) {
+                    Header id = response.getFirstHeader(ZenossTenant.ID_HTTP_HEADER);
+                    if (id == null) {
+                        log.warn( "Failed to get zauth tenant id after login");
+                        throw new RuntimeException("Failed to get zauth tenant id after successful login");
+                    }
+                    tenantId = id.getValue();
+                    log.info("Got tenant id: {}", tenantId);
+                } else {
+                    log.warn( "Unsuccessful response from server: {}", response.getStatusLine());
+                    throw new IOException( "Login for tenantId failed");
+                }
+            } finally {
+                try {
+                    entity.getContent().close();
+                } catch( IOException ex) {
+                    log.warn( "Failed to close entity: {}", ex);
+                }
             }
-            tenantId = id.getValue();
-            log.info("Got tenant id: {}", tenantId);
         }
         return tenantId;
     }
