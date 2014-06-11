@@ -77,7 +77,11 @@ class OpenTsdbWriter implements TsdbWriter {
         } catch (InterruptedException ie) {
             log.info("Exiting due to thread interrupt");
             Thread.currentThread().interrupt();
-        } finally {
+        } catch (Exception e) {
+            log.error("Caught exception running writer: {}", e.getMessage(), e);
+        }
+        finally
+        {
             running = false;
             writerRegistry.unregister(this);
         }
@@ -89,10 +93,11 @@ class OpenTsdbWriter implements TsdbWriter {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
             }
-
             Collection<Metric> metrics = metricsQueue.poll(batchSize, maxIdleTime);
-
+            log.debug("Back from polling metricsQueue. metrics.size = {}", null == metrics ? "null" : metrics.size());
             // Check to see if we should down this writer entirely.
+            log.debug("Checking for shutdown. lastWorkTime = {}; maxIdleTime = {}; sum = {}; currentTime ={}",
+                lastWorkTime, maxIdleTime, lastWorkTime+maxIdleTime, System.currentTimeMillis());
             if (metrics.isEmpty() &&    // No records could be read from the metrics queue
                     lastWorkTime > 0 && // This thread has done work at least once
                     maxIdleTime > 0 &&  // The max idle time is set to something meaningful
@@ -125,18 +130,20 @@ class OpenTsdbWriter implements TsdbWriter {
                     backOff = backoffTracker.nextBackOffMillis();
                 } catch (IOException e1) {
                     // shouldn't happen but if it does we'll use the default backOff
+                    log.debug("caught IOException backing off tracker - should go to default backOff.");
                 }
                 if (ExponentialBackOff.STOP == backOff) {
                     // We've reached the max amount of time to backoff, use max backoff
                     backOff = backoffTracker.getMaxIntervalMillis();
-                    log.warn("Error getting OpenTsdbClient after {} ms: {}", backoffTracker.getElapsedTimeMillis(), e);
-                } else {
-                    log.debug("Error getting OpenTsdbClient", e);
+                    log.warn("Error getting OpenTsdbClient after {} ms: {}", backoffTracker.getElapsedTimeMillis(), e.getMessage());
                 }
                 log.debug("Connection back off, sleeping {} ms", backOff);
                 Thread.sleep(backOff);
+            } catch (Exception e) {
+                log.error("Caught exception processing batch or backing off tracker.", e);
             }
         }
+        log.debug("work canceled.");
     }
 
     private ExponentialBackOff createExponentialBackOff() {
@@ -170,26 +177,36 @@ class OpenTsdbWriter implements TsdbWriter {
                         final String clientId = m.removeTag(TsdbMetricsQueue.CLIENT_TAG);
                         try {
                             final String message = convert(m);
-                            log.debug("Put msg: {}", message);
                             client.put(message);
                             processed++;
                         } catch (Exception e) {
-                            m.addTag(TsdbMetricsQueue.CLIENT_TAG, clientId);
+                            log.warn("Caught (and rethrowing) exception while processing metric: {}", e.getMessage());
                             throw e;
+                        } finally {
+                            // if openTSDB goes down, we don't get an exception until client.flush() below.
+                            // Putting the client id back here prevents a later exception  in metricsQueue.reAddAll() that kills the service.
+                            m.addTag(TsdbMetricsQueue.CLIENT_TAG, clientId);
                         }
                     }
-
                     client.flush();
                     flushed = true;
                     metricsQueue.incrementProcessed(processed);
                 } catch (IOException e) {
-                    log.warn("Caught unexpected exception processing messages", e);
-                    client.close();
+                    log.warn("Caught exception while processing messages: {}", e.getMessage());
+                    if (null != client) {
+                        client.close();
+                    }
                 }
+            } else {
+                log.warn("Unable to get client to process metrics.");
             }
         } finally {
             if (!flushed) {
+                try {
                 metricsQueue.reAddAll(metrics);
+                } catch (Exception e) {
+                    log.error("We were unable to add metrics back to the queue. Eating exception to prevent thread death.", e);
+                }
             }
             if (client != null) {
                 try {
@@ -206,7 +223,13 @@ class OpenTsdbWriter implements TsdbWriter {
         OpenTsdbClient client;
         try {
             client = (OpenTsdbClient) clientPool.borrowObject();
+            if ( null == client) {
+                log.warn("got null client from pool.");
+            } else {
+                log.debug(String.format("Got client from pool.  isAlive = %s. isClosed = %s", String.valueOf(client.isAlive()), String.valueOf(client.isClosed())));
+            }
         } catch (InterruptedException | NoSuchElementException e) {
+            log.warn("Caught exception getting OpenTsdbClient - rethrowing.", e);
             // don't swallow These exceptions
             throw e;
         } catch (Exception e) { // Exception required due to GenericObjectPool.borrowObject

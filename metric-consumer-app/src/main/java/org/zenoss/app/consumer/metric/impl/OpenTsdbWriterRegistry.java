@@ -10,15 +10,14 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
-import java.util.Collection;
-
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.zenoss.app.consumer.metric.TsdbWriter;
 import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import org.zenoss.dropwizardspring.annotations.Managed;
+
+import java.util.Collection;
 
 
 /**

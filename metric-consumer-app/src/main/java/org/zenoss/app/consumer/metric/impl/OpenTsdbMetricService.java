@@ -11,10 +11,6 @@
 
 package org.zenoss.app.consumer.metric.impl;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -23,11 +19,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 class OpenTsdbMetricService implements MetricService {
@@ -69,6 +68,7 @@ class OpenTsdbMetricService implements MetricService {
         final List<Metric> copy = Lists.newArrayList(metrics);
         if (!copy.isEmpty()) {
             long totalInFlight = metricsQueue.getTotalInFlight();
+            log.debug("totalInFlight = {}", totalInFlight);
             if (keepsColliding(copy.size(), clientId)) {
                 return Control.dropped("collision detected");
             }
@@ -79,6 +79,11 @@ class OpenTsdbMetricService implements MetricService {
             if (totalInFlight == 0) {
                 eventBus.post(Control.dataReceived());
                 log.debug("Data received with zero metrics in flight");
+            } else {
+                log.debug("totalInFlight is nonzero. Sending dataReceived event anyway.");
+                // ZEN-11665: In the event of an openTSDB shutdown, we could be left with inFlight metrics, but not have an event triggered.
+                //            Post event for nonzero inFlight so queue doesn't stop polling.
+                eventBus.post(Control.dataReceived());
             }
         }
 
@@ -106,6 +111,7 @@ class OpenTsdbMetricService implements MetricService {
                 backOff = backOffTracker.nextBackOffMillis();
             } catch (IOException e) {
                 // should never happen
+                log.error("Caught IOException backing off tracker.", e);
                 throw new RuntimeException(e);
             }
             long elapsed = backOffTracker.getElapsedTimeMillis();
