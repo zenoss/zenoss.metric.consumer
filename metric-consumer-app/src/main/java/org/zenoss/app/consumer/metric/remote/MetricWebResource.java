@@ -16,19 +16,21 @@ import org.apache.shiro.subject.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.zenoss.app.security.ZenossTenant;
-import org.zenoss.app.security.ZenossToken;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
+import org.zenoss.app.security.ZenossTenant;
 import org.zenoss.app.zauthbundle.ZappSecurity;
 import org.zenoss.dropwizardspring.annotations.Resource;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.ws.rs.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import java.util.List;
@@ -75,7 +77,7 @@ public class MetricWebResource {
             Subject subject = security.getSubject();
             ZenossTenant tenant= subject.getPrincipals().oneByType(ZenossTenant.class);
 
-            log.debug( "Tagging metics with tenant-id: {}", tenant.id());
+            log.debug( "Tagging metrics with tenant-id: {}", tenant.id());
             Utils.injectTag("zenoss_tenant_id", tenant.id(), metrics);
         }
 
