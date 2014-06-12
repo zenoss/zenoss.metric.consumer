@@ -5,10 +5,10 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.fromJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.jsonFixture;
+import static com.yammer.dropwizard.testing.JsonHelpers.*;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class MetricTest {
@@ -37,6 +37,17 @@ public class MetricTest {
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric();
         assertThat(fromJson(jsonFixture("fixtures/badmetric.json"), Metric.class), is(metric));
+    }
+
+    @Test
+    public void copyConstructorReturnsNewInstance() {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("tagName", "tagValue");
+        final Metric originalMetric = new Metric("testMetric", 1, 2.3, tags);
+        final Metric copyMetric = new Metric(originalMetric);
+        assertThat(originalMetric, equalTo(copyMetric));
+        copyMetric.getTags().put("tagName","newtagValue");
+        assertThat(originalMetric,not(equalTo(copyMetric)));
     }
 
 }
