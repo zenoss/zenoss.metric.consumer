@@ -94,7 +94,7 @@ class OpenTsdbWriter implements TsdbWriter {
             // Check to see if we should down this writer entirely.
             log.debug("Checking for shutdown. lastWorkTime = {}; maxIdleTime = {}; sum = {}; currentTime ={}",
                 lastWorkTime, maxIdleTime, lastWorkTime+maxIdleTime, System.currentTimeMillis());
-            if (metrics.isEmpty() &&    // No records could be read from the metrics queue
+            if (isNullOrEmpty(metrics) &&    // No records could be read from the metrics queue
                 lastWorkTime > 0 && // This thread has done work at least once
                 maxIdleTime > 0 &&  // The max idle time is set to something meaningful
                 System.currentTimeMillis() > lastWorkTime + maxIdleTime) // The max idle time has expired
@@ -108,7 +108,7 @@ class OpenTsdbWriter implements TsdbWriter {
              * we still might want to just abort this run if we didn't get any
              * data from the metrics queue
              */
-            if (metrics.isEmpty()) {
+            if (isNullOrEmpty(metrics)) {
                 log.debug("No work to do, so checking again.");
                 continue;
             }
@@ -138,6 +138,10 @@ class OpenTsdbWriter implements TsdbWriter {
             }
         }
         log.debug("work canceled.");
+    }
+
+    private boolean isNullOrEmpty(Collection<Metric> metrics) {
+        return null == metrics || metrics.isEmpty();
     }
 
     private ExponentialBackOff createExponentialBackOff() {
@@ -185,9 +189,7 @@ class OpenTsdbWriter implements TsdbWriter {
                     metricsQueue.incrementProcessed(processed);
                 } catch (IOException e) {
                     log.warn("Caught exception while processing messages: {}", e.getMessage());
-                    if (null != client) {
-                        client.close();
-                    }
+                    client.close();
                 }
             } else {
                 log.warn("Unable to get client to process metrics.");

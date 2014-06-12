@@ -95,7 +95,11 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     @Override
     public void addAll(Collection<Metric> metrics, String clientId) {
-        log.debug("AddAll entry. clientId = {}, queue.size() = {}", clientId, null == queue ? "null" : queue.size());
+        if (null == queue) {
+            log.warn("queue is null. Nothing will be added.");
+            return;
+        }
+        log.debug("AddAll entry. clientId = {}, queue.size() = {}", clientId, queue.size());
         Utils.injectTag(TsdbMetricsQueue.CLIENT_TAG, clientId, metrics);
         queue.addAll(metrics);
         perClientBacklog.addAndGet(clientId, metrics.size());
