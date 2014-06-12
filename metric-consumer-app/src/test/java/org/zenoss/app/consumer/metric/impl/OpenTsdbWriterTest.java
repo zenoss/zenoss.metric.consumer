@@ -5,6 +5,8 @@ import com.yammer.metrics.core.MetricName;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.consumer.metric.TsdbWriter;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.lib.tsdb.OpenTsdbClient;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
@@ -12,15 +14,18 @@ import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.*;
-
-import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
-import org.zenoss.app.consumer.metric.TsdbWriter;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 public class OpenTsdbWriterTest {
+
+    static final Map<String, String> EMPTY_MAP = Collections.emptyMap();
 
     MetricServiceConfiguration configuration;
     ExecutorService executor;
@@ -113,13 +118,13 @@ public class OpenTsdbWriterTest {
     @Test
     public void testSubmitSuccess() throws Exception {
         final Metric metric = new Metric("metric", 0, 0);
+        String message = OpenTsdbClient.toPutMessage("metric", 0, 0.0, EMPTY_MAP);
 
         when(clientPool.borrowObject()).thenReturn(client);
 
         metricsQueue.addAll(Collections.singleton(metric), "test");
         executeWriter();
 
-        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(clientPool, times(1)).returnObject(client);
         verify(client, never()).close();
@@ -133,6 +138,7 @@ public class OpenTsdbWriterTest {
     @Test
     public void testSubmitSuccessAfterWriteException() throws Exception {
         final Metric metric = new Metric("metric", 0, 0);
+        String message = OpenTsdbClient.toPutMessage("metric", 0, 0.0, EMPTY_MAP);
 
         when(clientPool.borrowObject()).thenReturn(badClient, goodClient);
         doThrow(new IOException()).when(badClient).put(anyString());
@@ -141,7 +147,6 @@ public class OpenTsdbWriterTest {
         configuration.setMaxIdleTime(100);
         executeWriter();
 
-        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(badClient, times(1)).put(message);
         verify(goodClient, times(1)).put(message);
         verify(goodClient, times(1)).flush();
@@ -158,6 +163,7 @@ public class OpenTsdbWriterTest {
     @Test
     public void testSubmitSuccessWithErrorResponse() throws Exception {
         final Metric metric = new Metric("metric", 0, 0);
+        String message = OpenTsdbClient.toPutMessage("metric", 0, 0.0, EMPTY_MAP);
 
         when(clientPool.clearErrorCount()).thenReturn(3, 0);
         when(clientPool.borrowObject()).thenReturn(client);
@@ -165,7 +171,6 @@ public class OpenTsdbWriterTest {
         metricsQueue.addAll(Collections.singleton(metric), "test");
         executeWriter();
 
-        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, never()).read();
         verify(client, times(1)).flush();
@@ -181,6 +186,7 @@ public class OpenTsdbWriterTest {
     @Test
     public void testSubmitHasCollision() throws Exception {
         final Metric metric = new Metric("metric", 0, 0);
+        String message = OpenTsdbClient.toPutMessage("metric", 0, 0.0, EMPTY_MAP);
 
         when(clientPool.clearErrorCount()).thenReturn(1, 0);
         when(clientPool.hasCollision()).thenReturn(true, false);
@@ -189,7 +195,6 @@ public class OpenTsdbWriterTest {
         metricsQueue.addAll(Collections.singleton(metric), "test");
         executeWriter();
 
-        String message = OpenTsdbClient.toPutMessage(metric.getMetric(), metric.getTimestamp(), metric.getValue(), metric.getTags());
         verify(client, times(1)).put(message);
         verify(client, never()).read();
         verify(client, times(1)).flush();

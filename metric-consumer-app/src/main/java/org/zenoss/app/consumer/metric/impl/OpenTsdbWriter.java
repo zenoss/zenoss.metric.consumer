@@ -172,7 +172,7 @@ class OpenTsdbWriter implements TsdbWriter {
                         Metric workingCopy = new Metric(m);
                         workingCopy.removeTag(TsdbMetricsQueue.CLIENT_TAG);
                         try {
-                            final String message = convert(m);
+                            final String message = convert(workingCopy);
                             client.put(message);
                             processed++;
                         } catch (IOException e) {
