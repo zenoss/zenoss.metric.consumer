@@ -15,6 +15,7 @@ import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
@@ -90,6 +91,10 @@ class MetricServicePoster implements MetricPoster {
 
         if (configuration.isAuthEnabled()) {
             String tenantId = getTenantId();
+            if (tenantId == null) {
+                //tenantId's required not posting internal metrics
+                return;
+            }
             Utils.injectTag("zenoss_tenant_id", tenantId, metrics);
         }
 
@@ -143,13 +148,14 @@ class MetricServicePoster implements MetricPoster {
                 context.setAttribute( ClientContext.AUTH_CACHE, cache);
             }
 
-            //handle response -- collect tenantId
-            HttpResponse response = httpClient.execute(host, post, context);
-            int statusCode = response.getStatusLine().getStatusCode();
-            HttpEntity entity = response.getEntity();
+            //handle response and collect tenantId
+            HttpResponse response = null;
             try {
-                log.debug( "Tenant id request complete with status: {}", statusCode);
+                response = httpClient.execute(host, post, context);
+                StatusLine statusLine = response.getStatusLine();
+                int statusCode = statusLine.getStatusCode();
 
+                log.debug( "Tenant id request complete with status: {}", statusCode);
                 if (statusCode >= 200 && statusCode <= 299) {
                     Header id = response.getFirstHeader(ZenossTenant.ID_HTTP_HEADER);
                     if (id == null) {
@@ -162,11 +168,15 @@ class MetricServicePoster implements MetricPoster {
                     log.warn( "Unsuccessful response from server: {}", response.getStatusLine());
                     throw new IOException( "Login for tenantId failed");
                 }
+            } catch (NullPointerException ex) {
+                log.warn( "npe retrieving tenantId: {}", ex);
             } finally {
                 try {
-                    entity.getContent().close();
-                } catch( IOException ex) {
-                    log.warn( "Failed to close entity: {}", ex);
+                    if ( response != null) {
+                        response.getEntity().getContent().close();
+                    }
+                } catch( NullPointerException | IOException ex) {
+                    log.warn( "Failed to close request: {}", ex);
                 }
             }
         }

@@ -1,14 +1,16 @@
 package org.zenoss.app.consumer.metric.impl;
 
 import com.google.api.client.util.Maps;
-import com.yammer.metrics.httpclient.InstrumentedHttpClient;
-import org.apache.http.*;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.protocol.HttpContext;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.zenoss.app.ZenossCredentials;
 import org.zenoss.app.config.ProxyConfiguration;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
