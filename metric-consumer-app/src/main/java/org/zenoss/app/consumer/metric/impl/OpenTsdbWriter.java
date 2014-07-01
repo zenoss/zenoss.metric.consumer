@@ -46,12 +46,12 @@ class OpenTsdbWriter implements TsdbWriter {
 
     @Autowired
     OpenTsdbWriter(
-            MetricServiceConfiguration config,
-            TsdbWriterRegistry registry,
-            OpenTsdbClientPool clientPool,
-            TsdbMetricsQueue metricsQueue,
-            @Qualifier("zapp::event-bus::async") EventBus eventBus
-            ) {
+        MetricServiceConfiguration config,
+        TsdbWriterRegistry registry,
+        OpenTsdbClientPool clientPool,
+        TsdbMetricsQueue metricsQueue,
+        @Qualifier("zapp::event-bus::async") EventBus eventBus
+    ) {
         this.clientPool = clientPool;
         this.metricsQueue = metricsQueue;
         this.writerRegistry = registry;
@@ -89,14 +89,15 @@ class OpenTsdbWriter implements TsdbWriter {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
             }
-
             Collection<Metric> metrics = metricsQueue.poll(batchSize, maxIdleTime);
-
+            log.debug("Back from polling metricsQueue. metrics.size = {}", null == metrics ? "null" : metrics.size());
             // Check to see if we should down this writer entirely.
-            if (metrics.isEmpty() &&    // No records could be read from the metrics queue
-                    lastWorkTime > 0 && // This thread has done work at least once
-                    maxIdleTime > 0 &&  // The max idle time is set to something meaningful
-                    System.currentTimeMillis() > lastWorkTime + maxIdleTime) // The max idle time has expired
+            log.debug("Checking for shutdown. lastWorkTime = {}; maxIdleTime = {}; sum = {}; currentTime ={}",
+                lastWorkTime, maxIdleTime, lastWorkTime+maxIdleTime, System.currentTimeMillis());
+            if (isNullOrEmpty(metrics) &&    // No records could be read from the metrics queue
+                lastWorkTime > 0 && // This thread has done work at least once
+                maxIdleTime > 0 &&  // The max idle time is set to something meaningful
+                System.currentTimeMillis() > lastWorkTime + maxIdleTime) // The max idle time has expired
             {
                 log.info("Shutting down writer due to dearth of work");
                 break;
@@ -107,7 +108,7 @@ class OpenTsdbWriter implements TsdbWriter {
              * we still might want to just abort this run if we didn't get any
              * data from the metrics queue
              */
-            if (metrics.isEmpty()) {
+            if (isNullOrEmpty(metrics)) {
                 log.debug("No work to do, so checking again.");
                 continue;
             }
@@ -125,26 +126,30 @@ class OpenTsdbWriter implements TsdbWriter {
                     backOff = backoffTracker.nextBackOffMillis();
                 } catch (IOException e1) {
                     // shouldn't happen but if it does we'll use the default backOff
+                    log.debug("caught IOException backing off tracker - should go to default backOff.");
                 }
                 if (ExponentialBackOff.STOP == backOff) {
                     // We've reached the max amount of time to backoff, use max backoff
                     backOff = backoffTracker.getMaxIntervalMillis();
-                    log.warn("Error getting OpenTsdbClient after {} ms: {}", backoffTracker.getElapsedTimeMillis(), e);
-                } else {
-                    log.debug("Error getting OpenTsdbClient", e);
+                    log.warn("Error getting OpenTsdbClient after {} ms: {}", backoffTracker.getElapsedTimeMillis(), e.getMessage());
                 }
                 log.debug("Connection back off, sleeping {} ms", backOff);
                 Thread.sleep(backOff);
             }
         }
+        log.debug("work canceled.");
+    }
+
+    private boolean isNullOrEmpty(Collection<Metric> metrics) {
+        return null == metrics || metrics.isEmpty();
     }
 
     private ExponentialBackOff createExponentialBackOff() {
         return new ExponentialBackOff.Builder().
-                setMaxElapsedTimeMillis(this.maxBackOff).
-                setMaxIntervalMillis(this.maxBackOff).
-                setInitialIntervalMillis(Math.min(this.minBackOff, this.maxBackOff)).
-                build();
+            setMaxElapsedTimeMillis(this.maxBackOff).
+            setMaxIntervalMillis(this.maxBackOff).
+            setInitialIntervalMillis(Math.min(this.minBackOff, this.maxBackOff)).
+            build();
     }
 
 
@@ -167,29 +172,35 @@ class OpenTsdbWriter implements TsdbWriter {
 
                 try {
                     for (Metric m : metrics) {
-                        final String clientId = m.removeTag(TsdbMetricsQueue.CLIENT_TAG);
+                        // ZEN-11665 - make copy of metric before messing with it. This prevents side-effect issues when exceptions occur.
+                        Metric workingCopy = new Metric(m);
+                        workingCopy.removeTag(TsdbMetricsQueue.CLIENT_TAG);
                         try {
-                            final String message = convert(m);
-                            log.debug("Put msg: {}", message);
+                            final String message = convert(workingCopy);
                             client.put(message);
                             processed++;
-                        } catch (Exception e) {
-                            m.addTag(TsdbMetricsQueue.CLIENT_TAG, clientId);
+                        } catch (IOException e) {
+                            log.warn("Caught (and rethrowing) IOException while processing metric: {}", e.getMessage());
                             throw e;
                         }
                     }
-
                     client.flush();
                     flushed = true;
                     metricsQueue.incrementProcessed(processed);
                 } catch (IOException e) {
-                    log.warn("Caught unexpected exception processing messages", e);
+                    log.warn("Caught exception while processing messages: {}", e.getMessage());
                     client.close();
                 }
+            } else {
+                log.warn("Unable to get client to process metrics.");
             }
         } finally {
             if (!flushed) {
-                metricsQueue.reAddAll(metrics);
+                try {
+                    metricsQueue.reAddAll(metrics);
+                } catch (IllegalStateException e) {
+                    log.error("We were unable to add metrics back to the queue. Eating exception to prevent thread death.", e);
+                }
             }
             if (client != null) {
                 try {
@@ -206,7 +217,13 @@ class OpenTsdbWriter implements TsdbWriter {
         OpenTsdbClient client;
         try {
             client = (OpenTsdbClient) clientPool.borrowObject();
+            if ( null == client) {
+                log.warn("got null client from pool.");
+            } else {
+                log.debug(String.format("Got client from pool.  isAlive = %s. isClosed = %s", String.valueOf(client.isAlive()), String.valueOf(client.isClosed())));
+            }
         } catch (InterruptedException | NoSuchElementException e) {
+            log.warn("Caught exception getting OpenTsdbClient - rethrowing.", e);
             // don't swallow These exceptions
             throw e;
         } catch (Exception e) { // Exception required due to GenericObjectPool.borrowObject
