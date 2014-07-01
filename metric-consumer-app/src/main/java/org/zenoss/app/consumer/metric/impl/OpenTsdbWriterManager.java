@@ -10,10 +10,6 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
-import javax.annotation.PostConstruct;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.slf4j.Logger;
@@ -22,11 +18,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
-
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.TsdbWriter;
 import org.zenoss.app.consumer.metric.TsdbWriterRegistry;
 import org.zenoss.app.consumer.metric.data.Control;
+
+import javax.annotation.PostConstruct;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Subscribes to EventBus messages to ensure an appropriate number of TSDB 
@@ -63,6 +62,7 @@ class OpenTsdbWriterManager {
     
     @Subscribe
     public void processControl(Control event) {
+        log.debug("Received event {}", event.getType());
         switch (event.getType()) {
             case LOW_COLLISION:
             case HIGH_COLLISION:
@@ -81,12 +81,14 @@ class OpenTsdbWriterManager {
     }
     
     void createWriters() {
-        
+        log.debug("createWriters(): tsdbWriterThreads = {}, writerRegistry.size() = {}. WritersToCreate = {}",
+            tsdbWriterThreads, writerRegistry.size(), tsdbWriterThreads - writerRegistry.size());
         final int writersToCreate = tsdbWriterThreads - writerRegistry.size();
         int created = 0;
 
         while (created < writersToCreate) {
             TsdbWriter writer = appContext.getBean(TsdbWriter.class);
+            log.debug("createWriters(): new writer: {}", writer.toString());
             executorService.submit(writer);
             created++;
         }

@@ -10,9 +10,6 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
-import java.util.*;
-import java.util.concurrent.*;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
@@ -25,10 +22,16 @@ import com.yammer.metrics.core.MetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
 import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.remote.Utils;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Threadsafe queue that can be used to distribute TSDB metric data to multiple
@@ -50,6 +53,7 @@ class MetricsQueue implements TsdbMetricsQueue {
     public Collection<Metric> poll(int size, long maxWaitMillis) throws InterruptedException {
         Preconditions.checkArgument(size > 0);
 
+        log.debug("Polling. size = {}, queue size = {}", size, queue.size());
         final Metric first = queue.poll(maxWaitMillis, TimeUnit.MILLISECONDS);
         if (first == null) {
             log.debug("Unable to retrieve a single element after max wait");
@@ -80,7 +84,10 @@ class MetricsQueue implements TsdbMetricsQueue {
         Multiset<String> counts = HashMultiset.create();
         for (final Metric m : metrics) {
             String clientId = m.getTags().get(CLIENT_TAG);
-            if (clientId == null) throw new IllegalStateException("Metric missing required tag: " + CLIENT_TAG);
+            if (clientId == null) {
+                log.error("Metric {} missing required tag {}. throwing IllegalStateException", m.toString(), CLIENT_TAG);
+                throw new IllegalStateException("Metric missing required tag: " + CLIENT_TAG);
+            }
             counts.add(clientId);
         }
         return counts;
@@ -88,10 +95,16 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     @Override
     public void addAll(Collection<Metric> metrics, String clientId) {
+        if (null == queue) {
+            log.warn("queue is null. Nothing will be added.");
+            return;
+        }
+        log.debug("AddAll entry. clientId = {}, queue.size() = {}", clientId, queue.size());
         Utils.injectTag(TsdbMetricsQueue.CLIENT_TAG, clientId, metrics);
         queue.addAll(metrics);
         perClientBacklog.addAndGet(clientId, metrics.size());
         incrementIncoming(metrics.size());
+        log.debug("AddAll exit. queue.size() = {}", queue.size());
     }
 
     @Override

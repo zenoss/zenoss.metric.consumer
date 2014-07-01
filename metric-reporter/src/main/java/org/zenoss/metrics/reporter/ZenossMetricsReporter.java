@@ -117,6 +117,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
             if (e.getStatusCode() == HttpStatus.SC_UNAUTHORIZED) {
                 // the cookies were cleared so try again
                 try {
+                    LOG.debug("Error posting metrics. Posting with batchContext.", e);
                     post(batchContext);
                     return;
                 } catch(IOException j) {
