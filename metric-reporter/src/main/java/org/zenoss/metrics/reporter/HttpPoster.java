@@ -66,6 +66,16 @@ public class HttpPoster implements MetricPoster {
 
     @Override
     public void post(MetricBatch batch) throws IOException {
+        try {
+            postImpl(batch);
+        } catch (HttpResponseException e) {
+            if (e.getStatusCode() == HttpStatus.SC_UNAUTHORIZED) {
+                postImpl(batch);
+            }
+        }
+    }
+
+    private final void postImpl(MetricBatch batch) throws IOException {
         int size = batch.getMetrics().size();
         MetricCollection metrics = new MetricCollection();
         metrics.setMetrics(batch.getMetrics());

@@ -25,6 +25,7 @@
         <module>metric-data</module>
         <module>metric-reporter</module>
         <module>metric-zapp-reporter</module>
+        <module>metric-spring-reporter</module>
     </modules>
     <dependencies>
         <dependency>
