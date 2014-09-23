@@ -25,7 +25,7 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
     public static final String FILTER_REF = "filter-ref";
     public static final String PASSWORD = "password";
     public static final String USERNAME = "username";
-    public static final String TAGS = "username";
+    public static final String TAGS = "tags";
 
 
     @Override
