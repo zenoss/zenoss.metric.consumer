@@ -6,6 +6,8 @@ import org.zenoss.metrics.reporter.HttpPoster;
 import org.zenoss.metrics.reporter.HttpPoster.Builder;
 import org.zenoss.metrics.v3reporter.ZenossMetricsReporter;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryBean<ZenossMetricsReporter> {
@@ -23,6 +25,7 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
     public static final String FILTER_REF = "filter-ref";
     public static final String PASSWORD = "password";
     public static final String USERNAME = "username";
+    public static final String TAGS = "username";
 
 
     @Override
@@ -55,6 +58,17 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
             reporter.filter(metricFilterPattern(getProperty(FILTER_PATTERN)));
         } else if (hasProperty(FILTER_REF)) {
             reporter.filter(getPropertyRef(FILTER_REF, MetricFilter.class));
+        }
+        if (hasProperty(TAGS)) {
+
+            String prop = getProperty(TAGS);
+            String[] entries = prop.split(",");
+            Map<String, String> tags = new HashMap<>();
+            for (String entry : entries) {
+                String[] keyval = entry.split(":");
+                tags.put(keyval[0].trim(), keyval[1].trim());
+            }
+            reporter.setTags(tags);
         }
 
         String url = getProperty(POSTURL, "http://localhost:8080" + HttpPoster.METRIC_API);

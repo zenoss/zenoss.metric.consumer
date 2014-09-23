@@ -188,7 +188,7 @@ public class ZenossMetricsReporter extends ScheduledReporter {
         try {
             this.poster.post(batchContext);
         } catch (IOException e) {
-            LOG.error("Error posting metrics", e);
+            LOG.error("Error posting metrics", e.getMessage());
         }
     }
 
@@ -269,6 +269,7 @@ public class ZenossMetricsReporter extends ScheduledReporter {
         metric.setValue(value);
         metric.setTags(this.tags);
         batch.addMetric(metric);
+        LOG.debug("reporting metric: {}", metric.toString());
     }
 
 

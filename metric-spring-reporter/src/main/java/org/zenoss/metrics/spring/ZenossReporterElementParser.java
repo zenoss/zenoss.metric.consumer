@@ -27,6 +27,7 @@ public class ZenossReporterElementParser extends AbstractReporterElementParser {
         c.optional(FILTER_REF);
         c.optional(USERNAME);
         c.optional(PASSWORD);
+        c.optional(TAGS);
         if (c.has(FILTER_PATTERN) && c.has(FILTER_REF)) {
             c.reject(FILTER_REF, "Reporter element not specify both the 'filter' and 'filter-ref' attributes");
         }
