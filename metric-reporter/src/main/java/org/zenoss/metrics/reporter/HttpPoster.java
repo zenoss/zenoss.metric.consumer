@@ -78,6 +78,7 @@ public class HttpPoster implements MetricPoster {
                     postImpl(batch);
                 } catch (HttpResponseException ex) {
                     LOG.warn("Error posting metrics {}", ex.getMessage());
+                    throw ex;
                 }
             }
         }
