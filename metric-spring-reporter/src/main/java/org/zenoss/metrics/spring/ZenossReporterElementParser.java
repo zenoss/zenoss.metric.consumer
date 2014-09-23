@@ -25,6 +25,8 @@ public class ZenossReporterElementParser extends AbstractReporterElementParser {
         c.optional(DURATION_UNIT, TIMEUNIT_STRING_REGEX, "Duration unit must be one of the enum constants from java.util.concurrent.TimeUnit");
         c.optional(FILTER_PATTERN);
         c.optional(FILTER_REF);
+        c.optional(USERNAME);
+        c.optional(PASSWORD);
         if (c.has(FILTER_PATTERN) && c.has(FILTER_REF)) {
             c.reject(FILTER_REF, "Reporter element not specify both the 'filter' and 'filter-ref' attributes");
         }

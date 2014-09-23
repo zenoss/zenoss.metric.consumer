@@ -21,8 +21,8 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
     public static final String RATE_UNIT = "rate-unit";
     public static final String FILTER_PATTERN = "filter";
     public static final String FILTER_REF = "filter-ref";
-    private static final String PASSWORD = "password";
-    private static final String USERNAME = "username";
+    public static final String PASSWORD = "password";
+    public static final String USERNAME = "username";
 
 
     @Override
