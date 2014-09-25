@@ -5,6 +5,8 @@ import com.ryantenney.metrics.spring.reporter.AbstractScheduledReporterFactoryBe
 import org.zenoss.metrics.reporter.HttpPoster;
 import org.zenoss.metrics.reporter.HttpPoster.Builder;
 import org.zenoss.metrics.v3reporter.ZenossMetricsReporter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,8 +29,10 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
     public static final String USERNAME = "username";
     public static final String TAGS = "tags";
 
+    private static final Logger LOG = LoggerFactory.getLogger(ZenossReporterFactoryBean.class);
 
     @Override
+
     protected long getPeriod() {
         return convertDurationString(getProperty(PERIOD));
     }
@@ -59,9 +63,10 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
         } else if (hasProperty(FILTER_REF)) {
             reporter.filter(getPropertyRef(FILTER_REF, MetricFilter.class));
         }
-        if (hasProperty(TAGS)) {
 
+        if (hasProperty(TAGS)) {
             String prop = getProperty(TAGS);
+	    LOG.info("setting metric tags: {}", prop);
             String[] entries = prop.split(",");
             Map<String, String> tags = new HashMap<>();
             for (String entry : entries) {
@@ -73,12 +78,16 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
 
         String url = getProperty(POSTURL, "http://localhost:8080" + HttpPoster.METRIC_API);
 
+	LOG.info("setting metric url: {}", url);
         HttpPoster.Builder poster = new Builder(new java.net.URL(url));
         if (hasProperty(USERNAME)) {
-            poster.setPassword(getProperty(USERNAME));
+	    LOG.info("setting metric user: {}", getProperty(USERNAME));
+            poster.setUsername(getProperty(USERNAME));
         }
-        if (hasProperty(PASSWORD)) {
-            poster.setUsername(PASSWORD);
+
+	if (hasProperty(PASSWORD)) {
+            LOG.info("setting metric password: ********");
+            poster.setPassword(getProperty(PASSWORD));
         }
 
         return reporter.build(poster.build());
