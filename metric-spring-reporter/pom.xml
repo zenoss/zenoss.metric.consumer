@@ -9,7 +9,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>metric-zapp-reporter</artifactId>
+    <artifactId>metric-spring-reporter</artifactId>
+    <properties>
+        <metrics.version>3.0.1</metrics.version>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -18,14 +21,15 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
-            <artifactId>dropwizard-core</artifactId>
-            <version>${version.dropwizard}</version>
+            <groupId>com.ryantenney.metrics</groupId>
+            <artifactId>metrics-spring</artifactId>
+            <version>3.0.1</version>
         </dependency>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${version.guava}</version>
+            <groupId>com.codahale.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+            <version>${metrics.version}</version>
         </dependency>
+
     </dependencies>
 </project>

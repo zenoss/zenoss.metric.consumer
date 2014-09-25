@@ -21,6 +21,8 @@ import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.protocol.BasicHttpContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
 
 import java.io.IOException;
@@ -34,6 +36,8 @@ import static org.apache.http.entity.ContentType.APPLICATION_JSON;
  * Sends metrics to Zenoss via http post
  */
 public class HttpPoster implements MetricPoster {
+    private static final Logger LOG = LoggerFactory.getLogger(HttpPoster.class);
+
     public static final String METRIC_API = "/api/metrics/store";
 
     private final boolean needsAuth;
@@ -66,6 +70,21 @@ public class HttpPoster implements MetricPoster {
 
     @Override
     public void post(MetricBatch batch) throws IOException {
+        try {
+            postImpl(batch);
+        } catch (HttpResponseException e) {
+            if (e.getStatusCode() == HttpStatus.SC_UNAUTHORIZED) {
+                try {
+                    postImpl(batch);
+                } catch (HttpResponseException ex) {
+                    LOG.warn("Error posting metrics {}", ex.getMessage());
+                    throw ex;
+                }
+            }
+        }
+    }
+
+    private final void postImpl(MetricBatch batch) throws IOException {
         int size = batch.getMetrics().size();
         MetricCollection metrics = new MetricCollection();
         metrics.setMetrics(batch.getMetrics());
