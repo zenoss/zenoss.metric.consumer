@@ -66,7 +66,7 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
 
         if (hasProperty(TAGS)) {
             String prop = getProperty(TAGS);
-	    LOG.info("setting metric tags: {}", prop);
+            LOG.info("setting metric tags: {}", prop);
             String[] entries = prop.split(",");
             Map<String, String> tags = new HashMap<>();
             for (String entry : entries) {
@@ -78,14 +78,14 @@ public class ZenossReporterFactoryBean extends AbstractScheduledReporterFactoryB
 
         String url = getProperty(POSTURL, "http://localhost:8080" + HttpPoster.METRIC_API);
 
-	LOG.info("setting metric url: {}", url);
+        LOG.info("setting metric url: {}", url);
         HttpPoster.Builder poster = new Builder(new java.net.URL(url));
         if (hasProperty(USERNAME)) {
-	    LOG.info("setting metric user: {}", getProperty(USERNAME));
+            LOG.info("setting metric user: {}", getProperty(USERNAME));
             poster.setUsername(getProperty(USERNAME));
         }
 
-	if (hasProperty(PASSWORD)) {
+        if (hasProperty(PASSWORD)) {
             LOG.info("setting metric password: ********");
             poster.setPassword(getProperty(PASSWORD));
         }
