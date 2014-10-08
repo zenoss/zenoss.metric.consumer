@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
     <artifactId>metric-consumer-parent</artifactId>
-    <version>0.0.10</version>
+    <version>0.0.11</version>
     <packaging>pom</packaging>
     <properties>
         <version.zapp>0.0.16</version.zapp>
@@ -16,6 +16,8 @@
         <version.yammermetrics>2.2.0</version.yammermetrics>
         <version.metric.tsdb>0.0.6</version.metric.tsdb>
         <version.httpcomponents></version.httpcomponents>
+        <version.jackson>2.1.4</version.jackson>
+        <version.mockito>1.9.5</version.mockito>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <downloadSources>true</downloadSources>
 
@@ -27,26 +29,49 @@
         <module>metric-zapp-reporter</module>
         <module>metric-spring-reporter</module>
     </modules>
-    <dependencies>
-        <dependency>
-            <groupId>org.zenoss.zapp</groupId>
-            <artifactId>zenoss-app</artifactId>
-            <version>${version.zapp}</version>
-        </dependency>
-        <!--test scope-->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${version.junit}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
-            <artifactId>dropwizard-testing</artifactId>
-            <version>${version.dropwizard}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.zenoss.zapp</groupId>
+                <artifactId>zenoss-app</artifactId>
+                <version>${version.zapp}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${version.jackson}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${version.jackson}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.validation</groupId>
+                <artifactId>validation-api</artifactId>
+                <version>1.0.0.GA</version>
+            </dependency>
+            <!--test scope-->
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>${version.junit}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.yammer.dropwizard</groupId>
+                <artifactId>dropwizard-testing</artifactId>
+                <version>${version.dropwizard}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-all</artifactId>
+                <version>${version.mockito}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <build>
         <plugins>
             <plugin>
