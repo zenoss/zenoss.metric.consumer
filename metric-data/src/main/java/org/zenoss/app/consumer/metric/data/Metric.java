@@ -1,11 +1,11 @@
 package org.zenoss.app.consumer.metric.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Maps;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.util.HashMap;
 import java.util.Map;
 
 public class Metric {
@@ -34,21 +34,21 @@ public class Metric {
         this.metric = metric;
         this.timestamp = timestamp;
         this.value = value;
-        this.tags = Maps.newHashMap();
+        this.tags = new HashMap<>();
     }
 
     public Metric(String metric, long timestamp, double value, Map<String, String> tags) {
         this.metric = metric;
         this.timestamp = timestamp;
         this.value = value;
-        this.tags = Maps.newHashMap(tags);
+        this.tags = new HashMap<>(tags);
     }
 
     public Metric(Metric other) {
         this.metric = other.metric;
         this.timestamp = other.timestamp;
         this.value = other.value;
-        this.tags = Maps.newHashMap(other.tags);
+        this.tags = new HashMap<>(other.tags);
     }
 
 
@@ -82,9 +82,9 @@ public class Metric {
 
     public void setTags(Map<String, String> tags) {
         if ( tags == null) {
-            this.tags = Maps.newHashMap( );
+            this.tags = new HashMap<>();
         } else if ( this.tags != tags) {
-            this.tags = Maps.newHashMap( tags);
+            this.tags = new HashMap<>(tags);
         }
     }
 

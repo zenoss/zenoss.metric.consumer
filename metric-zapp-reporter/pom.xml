@@ -13,6 +13,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.zenoss.zapp</groupId>
+            <artifactId>zenoss-app</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.zenoss</groupId>
             <artifactId>metric-reporter</artifactId>
             <version>${project.version}</version>
@@ -26,6 +30,15 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>${version.guava}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
         </dependency>
     </dependencies>
 </project>
