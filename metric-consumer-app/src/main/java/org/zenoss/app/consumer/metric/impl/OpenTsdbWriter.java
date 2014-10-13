@@ -312,6 +312,8 @@ class OpenTsdbWriter implements TsdbWriter {
         return INVALID_CHARS.matcher(input).replaceAll("-");
     }
 
+    protected static final String SPACE_REPLACEMENT = "//-";
+
     static final String convert(Metric metric) {
         String name = metric.getMetric();
         long timestamp = metric.getTimestamp();
@@ -321,6 +323,9 @@ class OpenTsdbWriter implements TsdbWriter {
         for (Entry<String, String> entry : metric.getTags().entrySet()) {
             tags.put(sanitize(entry.getKey()), sanitize(entry.getValue()));
         }
+
+        // escape spaces from the metric name since space is an invalid OpenTSDB metric name
+        name = name.replace(" ", SPACE_REPLACEMENT);
 
         return OpenTsdbClient.toPutMessage(name, timestamp, value, tags);
     }
