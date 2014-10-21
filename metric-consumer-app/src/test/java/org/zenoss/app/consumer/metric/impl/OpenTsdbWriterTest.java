@@ -238,6 +238,10 @@ public class OpenTsdbWriterTest {
         expected = "put testName 1000 1.2 tagKey=tagVal test-key=test-value\n";
         assertEquals(expected, put);
 
+        m = new Metric("test Name", timestamp, value, tags);
+        put = OpenTsdbWriter.convert(m);
+        expected = "put test" + OpenTsdbWriter.SPACE_REPLACEMENT  + "Name 1000 1.2 tagKey=tagVal test-key=test-value\n";
+        assertEquals(expected, put);
     }
 
     @Test
