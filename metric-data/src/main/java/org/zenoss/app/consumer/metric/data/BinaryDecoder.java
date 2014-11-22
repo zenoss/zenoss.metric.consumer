@@ -3,6 +3,8 @@ package org.zenoss.app.consumer.metric.data;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CharStreams;
+import org.xerial.snappy.Snappy;
+import org.xerial.snappy.SnappyInputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -37,7 +39,7 @@ public class BinaryDecoder {
 
     public Message decode(byte[] data) throws IOException {
         Message msg = new Message();
-        DataInputStream stream = new DataInputStream(new ByteArrayInputStream(data));
+        DataInputStream stream = new DataInputStream(new SnappyInputStream(new ByteArrayInputStream(data)));
         short numMetrics = stream.readShort();
         EncodedMetric[] encodedMetrics = new EncodedMetric[numMetrics];
         Metric[] metrics = new Metric[numMetrics];
