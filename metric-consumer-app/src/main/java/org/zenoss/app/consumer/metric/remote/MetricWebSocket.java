@@ -60,7 +60,7 @@ public class MetricWebSocket {
 
         //process metrics
         if (metrics != null) {
-            log.debug( "Tagging metics with parameters: {}", configuration.getHttpParameterTags());
+            log.debug( "Tagging metrics with parameters: {}", configuration.getHttpParameterTags());
             HttpServletRequest request = session.getHttpServletRequest();
 
             //tag metrics using configured http parameters
