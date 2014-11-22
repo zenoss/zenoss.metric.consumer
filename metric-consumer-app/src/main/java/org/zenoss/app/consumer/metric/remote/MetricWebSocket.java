@@ -4,10 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.apache.shiro.subject.Subject;
+import org.eclipse.jetty.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.zenoss.app.consumer.metric.data.BinaryDecoder;
 import org.zenoss.app.security.ZenossTenant;
 import org.zenoss.app.security.ZenossToken;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
@@ -23,6 +25,7 @@ import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Path;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,6 +36,8 @@ public class MetricWebSocket {
     private static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);
 
     private ConsumerAppConfiguration configuration;
+
+    private final WeakHashMap<WebSocket.Connection, BinaryDecoder> decoders = new WeakHashMap<>();
 
     @Autowired
     public MetricWebSocket(
@@ -50,6 +55,21 @@ public class MetricWebSocket {
     @PostConstruct
     public void registerSelf() {
         eventBus.register(this);
+    }
+
+    @OnMessage
+    public Control onMessage(byte[] data, WebSocketSession session) {
+        BinaryDecoder decoder = decoders.get(session.getConnection());
+        if (decoder == null) {
+            decoder = new BinaryDecoder();
+            decoders.put(session.getConnection(), decoder);
+        }
+        try {
+            return onMessage(decoder.decode(data), session);
+        } catch (IOException e) {
+            log.error("Invalid message");
+            return null;
+        }
     }
 
     @OnMessage

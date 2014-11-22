@@ -54,9 +54,11 @@ public class BinaryDecoder {
             encodedMetrics[i] = new EncodedMetric(timestamp, metricEnc, metricVal, encodedTags);
         }
         String json = CharStreams.toString(new InputStreamReader(stream, "UTF-8"));
-        Map<Integer, String> map = mapper.readValue(json, new TypeReference<HashMap<Integer, String>>() {});
-        dictionary.putAll(map);
-
+        Map<String, String> map = mapper.readValue(json, new TypeReference<HashMap<String, String>>() {
+        });
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            dictionary.put(Integer.parseInt(entry.getKey()), entry.getValue());
+        }
         for (int z = 0; z < encodedMetrics.length; z++) {
             EncodedMetric em = encodedMetrics[z];
             Metric met = new Metric(translate(em.metric), em.timestamp, em.value);
