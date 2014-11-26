@@ -40,6 +40,7 @@ public class BinaryDecoder {
     public Message decode(byte[] data) throws IOException {
         Message msg = new Message();
         DataInputStream stream = new DataInputStream(new SnappyInputStream(new ByteArrayInputStream(data)));
+        byte apiVersion = stream.readByte();
         short numMetrics = stream.readShort();
         EncodedMetric[] encodedMetrics = new EncodedMetric[numMetrics];
         Metric[] metrics = new Metric[numMetrics];
