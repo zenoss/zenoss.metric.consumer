@@ -1,13 +1,25 @@
+/*
+ * ****************************************************************************
+ *
+ *  Copyright (C) Zenoss, Inc. 2013, all rights reserved.
+ *
+ *  This content is made available according to terms specified in
+ *  License.zenoss distributed with this file.
+ *
+ * ***************************************************************************
+ */
 package org.zenoss.app.consumer.metric.remote;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.apache.shiro.subject.Subject;
+import org.eclipse.jetty.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.zenoss.app.consumer.metric.data.BinaryDecoder;
 import org.zenoss.app.security.ZenossTenant;
 import org.zenoss.app.security.ZenossToken;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
@@ -23,6 +35,7 @@ import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Path;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,6 +46,8 @@ public class MetricWebSocket {
     private static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);
 
     private ConsumerAppConfiguration configuration;
+
+    private final WeakHashMap<WebSocket.Connection, BinaryDecoder> decoders = new WeakHashMap<>();
 
     @Autowired
     public MetricWebSocket(
@@ -53,6 +68,21 @@ public class MetricWebSocket {
     }
 
     @OnMessage
+    public Control onMessage(byte[] data, WebSocketSession session) {
+        BinaryDecoder decoder = decoders.get(session.getConnection());
+        if (decoder == null) {
+            decoder = new BinaryDecoder();
+            decoders.put(session.getConnection(), decoder);
+        }
+        try {
+            return onMessage(decoder.decode(data), session);
+        } catch (IOException e) {
+            log.error("Invalid message");
+            return null;
+        }
+    }
+
+    @OnMessage
     public Control onMessage(Message message, WebSocketSession session) {
         Metric[] metrics = message.getMetrics();
         int metricsLength = (metrics == null) ? -1 : metrics.length;
@@ -60,7 +90,7 @@ public class MetricWebSocket {
 
         //process metrics
         if (metrics != null) {
-            log.debug( "Tagging metics with parameters: {}", configuration.getHttpParameterTags());
+            log.debug( "Tagging metrics with parameters: {}", configuration.getHttpParameterTags());
             HttpServletRequest request = session.getHttpServletRequest();
 
             //tag metrics using configured http parameters
