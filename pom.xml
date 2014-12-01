@@ -8,13 +8,13 @@
     <version>0.0.14-SNAPSHOT</version>
     <packaging>pom</packaging>
     <properties>
-        <version.zapp>0.0.17</version.zapp>
+        <version.zapp>0.0.18</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
         <version.guava>14.0.1</version.guava>
         <version.yammermetrics>2.2.0</version.yammermetrics>
-        <version.metric.tsdb>0.0.6</version.metric.tsdb>
+        <version.metric.tsdb>0.0.7</version.metric.tsdb>
         <version.httpcomponents></version.httpcomponents>
         <version.jackson>2.1.4</version.jackson>
         <version.mockito>1.9.5</version.mockito>
