@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.zenoss.app.consumer.metric.data.BinaryDecoder;
 import org.zenoss.app.security.ZenossTenant;
-import org.zenoss.app.security.ZenossToken;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
@@ -29,6 +28,7 @@ import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
 import org.zenoss.dropwizardspring.websockets.WebSocketSession;
+import org.zenoss.dropwizardspring.websockets.annotations.OnClose;
 import org.zenoss.dropwizardspring.websockets.annotations.OnMessage;
 import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 
@@ -65,6 +65,11 @@ public class MetricWebSocket {
     @PostConstruct
     public void registerSelf() {
         eventBus.register(this);
+    }
+
+    @OnClose
+    public void onClose(Integer closeCode, String message, WebSocketSession session) {
+        decoders.remove(session.getConnection());
     }
 
     @OnMessage
