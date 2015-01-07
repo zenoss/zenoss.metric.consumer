@@ -8,7 +8,7 @@
     <version>0.0.15</version>
     <packaging>pom</packaging>
     <properties>
-        <version.zapp>0.0.18</version.zapp>
+        <version.zapp>0.0.19</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.15</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>

@@ -3,7 +3,6 @@ package org.zenoss.app.consumer.metric.data;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CharStreams;
-import org.xerial.snappy.Snappy;
 import org.xerial.snappy.SnappyInputStream;
 
 import java.io.ByteArrayInputStream;
@@ -60,7 +59,7 @@ public class BinaryDecoder {
         Map<String, String> map = mapper.readValue(json, new TypeReference<HashMap<String, String>>() {
         });
         for (Map.Entry<String, String> entry : map.entrySet()) {
-            dictionary.put(Integer.parseInt(entry.getKey()), entry.getValue());
+            dictionary.put(Integer.parseInt(entry.getKey()), entry.getValue().intern());
         }
         for (int z = 0; z < encodedMetrics.length; z++) {
             EncodedMetric em = encodedMetrics[z];
