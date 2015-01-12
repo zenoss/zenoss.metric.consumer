@@ -47,6 +47,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
+        this.totalLostMetric = registerLost();
     }
 
     @Override
@@ -132,12 +133,22 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalOutGoingMetric.mark(processed);
     }
 
+    @Override
+    public void incrementLostMetrics(long lost) {
+        totalInFlightMetric.dec(lost);
+        totalLostMetric.mark(lost);
+    }
+
     private Meter registerIncoming() {
         return Metrics.newMeter(incomingMetricName(), "metrics", TimeUnit.SECONDS);
     }
 
     private Meter registerOutgoing() {
         return Metrics.newMeter(outgoingMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
+    private Meter registerLost() {
+        return Metrics.newMeter(lostMetricName(), "metrics", TimeUnit.SECONDS);
     }
 
     // Used for testing
@@ -147,8 +158,10 @@ class MetricsQueue implements TsdbMetricsQueue {
         MetricsRegistry registry = Metrics.defaultRegistry();
         registry.removeMetric(incomingMetricName());
         registry.removeMetric(outgoingMetricName());
+        registry.removeMetric(lostMetricName());
         totalIncomingMetric = registerIncoming();
         totalOutGoingMetric = registerOutgoing();
+        totalLostMetric = registerLost();
     }
 
     @Override
@@ -173,12 +186,20 @@ class MetricsQueue implements TsdbMetricsQueue {
         return totalOutGoingMetric.count();
     }
 
+    long getTotalLost() {
+        return totalLostMetric.count();
+    }
+
     double getOneMinuteIncoming() {
         return totalIncomingMetric.oneMinuteRate();
     }
 
     double getOneMinuteOutgoing() {
         return totalOutGoingMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteLost() {
+        return totalLostMetric.oneMinuteRate();
     }
 
     MetricName incomingMetricName() {
@@ -195,6 +216,10 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     MetricName errorsMetricName() {
         return new MetricName(MetricsQueue.class, "totalErrors");
+    }
+
+    MetricName lostMetricName() {
+        return new MetricName(MetricsQueue.class, "totalLost");
     }
 
     private static final Logger log = LoggerFactory.getLogger(MetricsQueue.class);
@@ -235,4 +260,9 @@ class MetricsQueue implements TsdbMetricsQueue {
      * How many metrics were written (this # may reset)
      */
     private Meter totalOutGoingMetric;
+
+    /**
+     * How many metrics were lost (this # may reset)
+     */
+    private Meter totalLostMetric;
 }

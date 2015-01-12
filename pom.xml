@@ -14,7 +14,7 @@
         <version.dropwizard>0.6.2</version.dropwizard>
         <version.guava>14.0.1</version.guava>
         <version.yammermetrics>2.2.0</version.yammermetrics>
-        <version.metric.tsdb>0.0.7</version.metric.tsdb>
+        <version.metric.tsdb>0.0.8</version.metric.tsdb>
         <version.httpcomponents></version.httpcomponents>
         <version.jackson>2.1.4</version.jackson>
         <version.mockito>1.9.5</version.mockito>

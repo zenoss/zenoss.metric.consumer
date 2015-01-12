@@ -70,4 +70,10 @@ public interface TsdbMetricsQueue {
      * @param processed number of elements processed
      */
     void incrementProcessed(long processed);
+
+    /**
+     * Record a number of metrics were lost.
+     * @param size number of lost metrics.
+     */
+    void incrementLostMetrics(long size);
 }
