@@ -181,13 +181,25 @@ class OpenTsdbWriter implements TsdbWriter {
                         // ZEN-11665 - make copy of metric before messing with it. This prevents side-effect issues when exceptions occur.
                         Metric workingCopy = new Metric(m);
                         workingCopy.removeTag(TsdbMetricsQueue.CLIENT_TAG);
+                        String message = null;
                         try {
-                            final String message = convert(workingCopy);
-                            client.put(message);
+                            message = convert(workingCopy);
+                        } catch (RuntimeException e) {
+                            if (log.isDebugEnabled()) {
+                                log.warn(String.format("Dropping bad metric : %s : %s", e.getMessage(), workingCopy.toString()), e);
+                            } else {
+                                log.warn("Dropping bad metric : {} : {}", e.getMessage(), workingCopy);
+                            }
                             processed++;
-                        } catch (IOException e) {
-                            log.warn("Caught (and rethrowing) IOException while processing metric: {}", e.getMessage());
-                            throw e;
+                        }
+                        if (message != null) {
+                            try {
+                                client.put(message);
+                                processed++;
+                            } catch (IOException e) {
+                                log.warn("Caught (and rethrowing) IOException while processing metric: {}", e.getMessage());
+                                throw e;
+                            }
                         }
                     }
                     boolean anyErrors = false;
@@ -351,6 +363,9 @@ class OpenTsdbWriter implements TsdbWriter {
 
     static final String convert(Metric metric) {
         String name = metric.getMetric();
+        if (name == null) {
+            throw new IllegalArgumentException("missing name");
+        }
         long timestamp = metric.getTimestamp();
         double value = metric.getValue();
         Map<String, String> tags = Maps.newHashMap();
