@@ -76,4 +76,16 @@ public interface TsdbMetricsQueue {
      * @param size number of lost metrics.
      */
     void incrementLostMetrics(long size);
+
+    /**
+     * Record a number of metrics were received (but not necessarily accepted).
+     * @param received number of received metrics.
+     */
+    void incrementReceived(long received);
+
+    /**
+     * Record a number of metrics were rejected (after being received).
+     * @param rejected number of rejected metrics.
+     */
+    void incrementRejected(long rejected);
 }

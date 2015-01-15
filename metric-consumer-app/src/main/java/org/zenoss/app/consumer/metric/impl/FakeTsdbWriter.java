@@ -14,6 +14,7 @@ import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -40,7 +41,7 @@ class FakeTsdbWriter extends OpenTsdbWriter {
             TsdbWriterRegistry registry,
             OpenTsdbClientPool clientPool,
             TsdbMetricsQueue metricsQueue,
-            EventBus eventBus) {
+            @Qualifier("zapp::event-bus::async") EventBus eventBus) {
         super(config, registry, clientPool, metricsQueue, eventBus);
     }
 

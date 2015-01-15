@@ -47,6 +47,8 @@ class MetricsQueue implements TsdbMetricsQueue {
         this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
+        this.totalReceivedMetric = registerReceived();
+        this.totalRejectedMetric = registerRejected();
         this.totalLostMetric = registerLost();
     }
 
@@ -139,6 +141,17 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalLostMetric.mark(lost);
     }
 
+    @Override
+    public void incrementReceived(long received) {
+        totalReceivedMetric.mark(received);
+    }
+
+    @Override
+    public void incrementRejected(long rejected) {
+        totalRejectedMetric.mark(rejected);
+    }
+
+
     private Meter registerIncoming() {
         return Metrics.newMeter(incomingMetricName(), "metrics", TimeUnit.SECONDS);
     }
@@ -151,6 +164,14 @@ class MetricsQueue implements TsdbMetricsQueue {
         return Metrics.newMeter(lostMetricName(), "metrics", TimeUnit.SECONDS);
     }
 
+    private Meter registerReceived() {
+        return Metrics.newMeter(receivedMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
+    private Meter registerRejected() {
+        return Metrics.newMeter(rejectedMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
     // Used for testing
     void resetMetrics() {
         totalErrorsMetric.clear();
@@ -159,6 +180,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         registry.removeMetric(incomingMetricName());
         registry.removeMetric(outgoingMetricName());
         registry.removeMetric(lostMetricName());
+        registry.removeMetric(receivedMetricName());
         totalIncomingMetric = registerIncoming();
         totalOutGoingMetric = registerOutgoing();
         totalLostMetric = registerLost();
@@ -186,6 +208,14 @@ class MetricsQueue implements TsdbMetricsQueue {
         return totalOutGoingMetric.count();
     }
 
+    long getTotalReceived() {
+        return totalReceivedMetric.count();
+    }
+
+    long getTotalRejected() {
+        return totalRejectedMetric.count();
+    }
+
     long getTotalLost() {
         return totalLostMetric.count();
     }
@@ -196,6 +226,14 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     double getOneMinuteOutgoing() {
         return totalOutGoingMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteReceived() {
+        return totalReceivedMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteRejected() {
+        return totalRejectedMetric.oneMinuteRate();
     }
 
     double getOneMinuteLost() {
@@ -220,6 +258,14 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     MetricName lostMetricName() {
         return new MetricName(MetricsQueue.class, "totalLost");
+    }
+
+    MetricName receivedMetricName() {
+        return new MetricName(MetricsQueue.class, "totalReceived");
+    }
+
+    MetricName rejectedMetricName() {
+        return new MetricName(MetricsQueue.class, "totalRejected");
     }
 
     private static final Logger log = LoggerFactory.getLogger(MetricsQueue.class);
@@ -265,4 +311,14 @@ class MetricsQueue implements TsdbMetricsQueue {
      * How many metrics were lost (this # may reset)
      */
     private Meter totalLostMetric;
+
+    /**
+     * How many metrics were received (not necessarily accepted)
+     */
+    private Meter totalReceivedMetric;
+
+    /**
+     * How many metrics were received but rejected
+     */
+    private Meter totalRejectedMetric;
 }

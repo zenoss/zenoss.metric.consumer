@@ -68,6 +68,9 @@ public class MetricWebResource {
         List<Metric> metrics = metricCollection.getMetrics();
         log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
 
+        if (metrics != null) {
+            metricService.incrementReceived(metrics.size());
+        }
         //tag metrics with http parameters
         log.debug( "Tagging metrics with http parameter prefixes: {}", configuration.getHttpParameterTags());
         Utils.tagMetrics(request, metrics, configuration.getHttpParameterTags());
@@ -85,6 +88,6 @@ public class MetricWebResource {
         Utils.filterMetricTags( metrics, configuration.getTagWhiteList());
 
         String remoteIp = Utils.remoteAddress(request);
-        return metricService.push(metrics, remoteIp);
+        return metricService.push(metrics, remoteIp, null);
     }
 }
