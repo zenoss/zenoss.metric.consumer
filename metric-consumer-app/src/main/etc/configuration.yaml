@@ -21,7 +21,7 @@ metricService:
     lowCollisionMark: -1
     perClientMaxBacklogSize: -1
     perClientMaxPercentOfFairBacklogSize: 100
-    maxClientWaitTime: 10000
+    maxClientWaitTime: 60000
     minTimeBetweenBroadcast: 500
     minTimeBetweenNotification: 500
     tsdbWriterThreads: 1
