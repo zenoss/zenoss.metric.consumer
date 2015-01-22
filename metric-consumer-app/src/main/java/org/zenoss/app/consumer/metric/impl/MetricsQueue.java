@@ -67,7 +67,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         this.totalBroadcastHighCollisionMetric = registerBroadcastHighCollision();
         this.totalBroadcastLowCollisionMetric = registerBroadcastLowCollision();
         this.totalSentClientCollisionMetric = registerSentClientCollision();
-        this.recentClientIds = CacheBuilder.newBuilder().expireAfterAccess(600, TimeUnit.SECONDS).build(CacheLoader.from(YEPYEP));
+        this.recentClientIds = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build(CacheLoader.from(YEPYEP));
     }
 
     @Override

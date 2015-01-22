@@ -359,9 +359,12 @@ public class MetricServiceConfiguration {
      * connected websocket clients. This prevents sending the same message
      * before a client can process the first message.
      *
-     * @param minTimeBetweenBroadcast milliseconds
+     * @param minTimeBetweenBroadcast milliseconds, must be less than 1000.
+     * @throws IllegalArgumentException if minTimeBetweenBroadcast greater than or equal to 1000.
      */
     public void setMinTimeBetweenBroadcast(int minTimeBetweenBroadcast) {
+        if (minTimeBetweenBroadcast >= 1000)
+            throw new IllegalArgumentException("minTimeBetweenBroadcast must be < 1000");
         this.minTimeBetweenBroadcast = minTimeBetweenBroadcast;
     }
 
@@ -370,9 +373,12 @@ public class MetricServiceConfiguration {
      * a specific websocket client. This prevents sending the same message
      * before a client can process the first message.
      *
-     * @param minTimeBetweenNotification milliseconds
+     * @param minTimeBetweenNotification milliseconds, must be less than 1000
+     * @throws IllegalArgumentException if minTimeBetweenNotification greater than or equal to 1000.
      */
     public void setMinTimeBetweenNotification(int minTimeBetweenNotification) {
+        if (minTimeBetweenNotification >= 1000)
+            throw new IllegalArgumentException("minTimeBetweenNotification must be < 1000");
         this.minTimeBetweenNotification = minTimeBetweenNotification;
     }
 
