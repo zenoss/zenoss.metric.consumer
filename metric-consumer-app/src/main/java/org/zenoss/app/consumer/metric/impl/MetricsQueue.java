@@ -50,6 +50,12 @@ class MetricsQueue implements TsdbMetricsQueue {
         this.totalReceivedMetric = registerReceived();
         this.totalRejectedMetric = registerRejected();
         this.totalLostMetric = registerLost();
+        this.totalHighCollisionMetric = registerHighCollision();
+        this.totalLowCollisionMetric = registerLowCollision();
+        this.totalClientCollisionMetric = registerClientCollision();
+        this.totalBroadcastHighCollisionMetric = registerBroadcastHighCollision();
+        this.totalBroadcastLowCollisionMetric = registerBroadcastLowCollision();
+        this.totalSentClientCollisionMetric = registerSentClientCollision();
     }
 
     @Override
@@ -151,6 +157,36 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalRejectedMetric.mark(rejected);
     }
 
+    @Override
+    public void incrementHighCollision() {
+        totalHighCollisionMetric.mark();
+    }
+
+    @Override
+    public void incrementLowCollision() {
+        totalLowCollisionMetric.mark();
+    }
+
+    @Override
+    public void incrementClientCollision() {
+        totalClientCollisionMetric.mark();
+    }
+
+    @Override
+    public void incrementSentClientCollision() {
+        totalSentClientCollisionMetric.mark();
+    }
+
+    @Override
+    public void incrementBroadcastLowCollision() {
+        totalBroadcastLowCollisionMetric.mark();
+    }
+
+    @Override
+    public void incrementBroadcastHighCollision() {
+        totalBroadcastHighCollisionMetric.mark();
+    }
+
 
     private Meter registerIncoming() {
         return Metrics.newMeter(incomingMetricName(), "metrics", TimeUnit.SECONDS);
@@ -172,6 +208,30 @@ class MetricsQueue implements TsdbMetricsQueue {
         return Metrics.newMeter(rejectedMetricName(), "metrics", TimeUnit.SECONDS);
     }
 
+    private Meter registerHighCollision() {
+        return Metrics.newMeter(highCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
+    private Meter registerLowCollision() {
+        return Metrics.newMeter(lowCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
+    private Meter registerClientCollision() {
+        return Metrics.newMeter(clientCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
+    private Meter registerBroadcastHighCollision() {
+        return Metrics.newMeter(broadcastHighCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
+    private Meter registerBroadcastLowCollision() {
+        return Metrics.newMeter(broadcastLowCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
+    private Meter registerSentClientCollision() {
+        return Metrics.newMeter(sentClientCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+    }
+
     // Used for testing
     void resetMetrics() {
         totalErrorsMetric.clear();
@@ -181,9 +241,21 @@ class MetricsQueue implements TsdbMetricsQueue {
         registry.removeMetric(outgoingMetricName());
         registry.removeMetric(lostMetricName());
         registry.removeMetric(receivedMetricName());
+        registry.removeMetric(highCollisionMetricName());
+        registry.removeMetric(lowCollisionMetricName());
+        registry.removeMetric(clientCollisionMetricName());
+        registry.removeMetric(broadcastHighCollisionMetricName());
+        registry.removeMetric(broadcastLowCollisionMetricName());
+        registry.removeMetric(sentClientCollisionMetricName());
         totalIncomingMetric = registerIncoming();
         totalOutGoingMetric = registerOutgoing();
         totalLostMetric = registerLost();
+        totalHighCollisionMetric = registerHighCollision();
+        totalLowCollisionMetric = registerLowCollision();
+        totalClientCollisionMetric = registerClientCollision();
+        totalBroadcastHighCollisionMetric = registerBroadcastHighCollision();
+        totalBroadcastLowCollisionMetric = registerBroadcastLowCollision();
+        totalSentClientCollisionMetric = registerSentClientCollision();
     }
 
     @Override
@@ -240,6 +312,30 @@ class MetricsQueue implements TsdbMetricsQueue {
         return totalLostMetric.oneMinuteRate();
     }
 
+    double getOneMinuteHighCollision() {
+        return totalHighCollisionMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteLowCollision() {
+        return totalLowCollisionMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteClientCollision() {
+        return totalClientCollisionMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteBroadcastHighCollision() {
+        return totalBroadcastHighCollisionMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteBroadcastLowCollision() {
+        return totalBroadcastLowCollisionMetric.oneMinuteRate();
+    }
+
+    double getOneMinuteSentClientCollision() {
+        return totalSentClientCollisionMetric.oneMinuteRate();
+    }
+
     MetricName incomingMetricName() {
         return new MetricName(MetricsQueue.class, "totalIncoming");
     }
@@ -266,6 +362,30 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     MetricName rejectedMetricName() {
         return new MetricName(MetricsQueue.class, "totalRejected");
+    }
+
+    MetricName highCollisionMetricName() {
+        return new MetricName(MetricsQueue.class, "totalHighCollision");
+    }
+
+    MetricName lowCollisionMetricName() {
+        return new MetricName(MetricsQueue.class, "totalLowCollision");
+    }
+
+    MetricName clientCollisionMetricName() {
+        return new MetricName(MetricsQueue.class, "totalClientCollision");
+    }
+
+    MetricName broadcastHighCollisionMetricName() {
+        return new MetricName(MetricsQueue.class, "totalBroadcastHighCollision");
+    }
+
+    MetricName broadcastLowCollisionMetricName() {
+        return new MetricName(MetricsQueue.class, "totalBroadcastLowCollision");
+    }
+
+    MetricName sentClientCollisionMetricName() {
+        return new MetricName(MetricsQueue.class, "totalSentClientCollision");
     }
 
     private static final Logger log = LoggerFactory.getLogger(MetricsQueue.class);
@@ -321,4 +441,35 @@ class MetricsQueue implements TsdbMetricsQueue {
      * How many metrics were received but rejected
      */
     private Meter totalRejectedMetric;
+
+    /**
+     * How many high collision events?
+     */
+    private Meter totalHighCollisionMetric;
+
+    /**
+     * How many low collision events?
+     */
+    private Meter totalLowCollisionMetric;
+
+    /**
+     * How many client collision events?
+     */
+    private Meter totalClientCollisionMetric;
+
+    /**
+     * How many high collision events were broadcast?
+     */
+    private Meter totalBroadcastHighCollisionMetric;
+
+    /**
+     * How many low collision events were broadcast?
+     */
+    private Meter totalBroadcastLowCollisionMetric;
+
+    /**
+     * How many client collision events were sent via websocket?
+     */
+    private Meter totalSentClientCollisionMetric;
+
 }

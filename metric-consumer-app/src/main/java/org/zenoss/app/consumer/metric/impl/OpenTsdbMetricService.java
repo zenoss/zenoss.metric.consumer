@@ -59,6 +59,21 @@ class OpenTsdbMetricService implements MetricService {
     }
 
     @Override
+    public void incrementSentClientCollision() {
+        metricsQueue.incrementSentClientCollision();
+    }
+
+    @Override
+    public void incrementBroadcastLowCollision() {
+        metricsQueue.incrementBroadcastLowCollision();
+    }
+
+    @Override
+    public void incrementBroadcastHighCollision() {
+        metricsQueue.incrementBroadcastHighCollision();
+    }
+
+    @Override
     public Control push(final List<Metric> metrics, final String clientId, Runnable onCollision) {
         if (metrics == null) {
             return Control.malformedRequest("metrics not nullable");
@@ -114,6 +129,7 @@ class OpenTsdbMetricService implements MetricService {
         int collisions = 0;
         while (collides(incomingSize, clientId)) {
             if (onCollision != null) onCollision.run();
+            metricsQueue.incrementClientCollision();
             collisions++;
             if (backOffTracker == null) {
                 backOffTracker = buildExponentialBackOff();
@@ -156,6 +172,7 @@ class OpenTsdbMetricService implements MetricService {
         if (totalInFlight >= highCollisionMark) {
             eventBus.post(Control.highCollision());
             log.info("High collision: {}", totalInFlight);
+            metricsQueue.incrementHighCollision();
             return true;
         }
 
@@ -164,6 +181,7 @@ class OpenTsdbMetricService implements MetricService {
             if (totalInFlight > collisionCount) {
                 eventBus.post(Control.lowCollision());
                 log.debug("Low collision: {}", totalInFlight);
+                metricsQueue.incrementLowCollision();
             }
             if (clientBacklogSize > 0)
                 return true;

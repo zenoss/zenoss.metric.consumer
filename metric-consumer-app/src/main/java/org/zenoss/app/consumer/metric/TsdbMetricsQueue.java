@@ -88,4 +88,34 @@ public interface TsdbMetricsQueue {
      * @param rejected number of rejected metrics.
      */
     void incrementRejected(long rejected);
+
+    /**
+     * Record a high collision event.
+     */
+    void incrementHighCollision();
+
+    /**
+     * Record a low collision event.
+     */
+    void incrementLowCollision();
+
+    /**
+     * Record a client collision event.
+     */
+    void incrementClientCollision();
+
+    /**
+     *  Record a client collision notification was sent via websocket.
+     */
+    void incrementSentClientCollision();
+
+    /**
+     * Record a low collision event was broadcast via websocket.
+     */
+    void incrementBroadcastLowCollision();
+
+    /**
+     * Recored a high collision event was broadcast via websocket.
+     */
+    void incrementBroadcastHighCollision();
 }

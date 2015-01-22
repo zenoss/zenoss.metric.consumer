@@ -192,8 +192,9 @@ public class MetricWebSocket {
             try {
                 String message = WebSocketBroadcast.newMessage(getClass(), event).asString();
                 session.sendMessage(message);
+                service.incrementSentClientCollision();
             } catch (IOException e) {
-                log.warn("Failed to send dropped-message notification to client: {}", e.getMessage());
+                log.warn("Failed to send collision notification to client: {}", e.getMessage());
             }
         }
     }
@@ -207,6 +208,7 @@ public class MetricWebSocket {
             try {
                 WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
                 eventBus.post(message);
+                service.incrementBroadcastLowCollision();
                 log.info("Sent low collision broadcast");
             } catch (JsonProcessingException ex) {
                 log.error("Unable to convert control message", ex);
@@ -224,6 +226,7 @@ public class MetricWebSocket {
                 WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
                 eventBus.post(message);
                 log.warn("Sent high collision broadcast");
+                service.incrementBroadcastHighCollision();
             } catch (JsonProcessingException ex) {
                 log.error("Unable to convert control message", ex);
             }

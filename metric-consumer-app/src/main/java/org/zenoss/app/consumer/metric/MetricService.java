@@ -34,4 +34,19 @@ public interface MetricService {
      * @param received number of received metrics.
      */
     void incrementReceived(long received);
+
+    /**
+     *  Record a client collision notification was sent via websocket.
+     */
+    void incrementSentClientCollision();
+
+    /**
+     * Record a low collision event was broadcast via websocket.
+     */
+    void incrementBroadcastLowCollision();
+
+    /**
+     * Recored a high collision event was broadcast via websocket.
+     */
+    void incrementBroadcastHighCollision();
 }
