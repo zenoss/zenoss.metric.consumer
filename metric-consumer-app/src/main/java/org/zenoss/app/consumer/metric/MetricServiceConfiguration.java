@@ -47,7 +47,13 @@ public class MetricServiceConfiguration {
      * minimum time in milliseconds between broadcasting backoff messages
      */
     @JsonProperty
-    private int minTimeBetweenBroadcast = 500;
+    private int minTimeBetweenBroadcast = 50;
+
+    /**
+     * minimum time in milliseconds between sending client-specific backoff messages
+     */
+    @JsonProperty
+    private int minTimeBetweenNotification = 50;
 
     /**
      * Max time in milliseconds to have a throttled client wait to add some metrics to a backlogged queue
@@ -76,10 +82,23 @@ public class MetricServiceConfiguration {
 
     /**
      * How many queued messages per client, before throttling.
-     * Defaults to 80% of {@link #highCollisionMark}.
+     * Defaults to a dynamic threshold.
      */
     @JsonProperty
     private int perClientMaxBacklogSize = -1;
+
+    /**
+     * Each client should be allowed to backlog metrics, up to global max (lowCollisionMark),
+     * divided by the number of clients. To allow clients to go over that amount,
+     * bump this above 100.
+     *
+     * Beyond the threshold, no further metrics will be accepted from that client
+     * until some have been written to TSDB.
+     *
+     * Defaults to 100%
+     */
+    @JsonProperty
+    private int perClientMaxPercentOfFairBacklogSize = 100;
 
     /**
      * Ideal number of TSDB writer threads
@@ -204,19 +223,41 @@ public class MetricServiceConfiguration {
         return minTimeBetweenBroadcast;
     }
 
+    /**
+     * The minimum time to wait before sending the same notification to
+     * a specific websocket client. This prevents sending the same message
+     * before a client can process the first message.
+     *
+     * @return milliseconds
+     */
+    public int getMinTimeBetweenNotification() {
+        return minTimeBetweenNotification;
+    }
 
     /**
      * A threshold number of metrics in the backlog from a single client, after
      * which no further metrics will be accepted from that clients until some
      * have been written to TSDB.
-     *
-     * @return threshold
+     * @return threshold (zero or negative value indicates dynamic thresholding)
      */
     public int getPerClientMaxBacklogSize() {
-        if (perClientMaxBacklogSize <= 0)
-            return highCollisionMark * 8 / 10;
-        else
-            return perClientMaxBacklogSize;
+        return perClientMaxBacklogSize;
+    }
+
+    /**
+     * This property only takes effect when perClientMaxBacklogSize is unset (or negative).
+     *
+     * Each client should be allowed to backlog metrics, up to global max (lowCollisionMark),
+     * divided by the number of clients. To allow clients to go over that amount,
+     * bump this above 100.
+     *
+     * Beyond the threshold, no further metrics will be accepted from that client
+     * until some have been written to TSDB.
+     *
+     * @return a percentage (fair: 100; double the fair amount of backlog space: 200).
+     */
+    public int getPerClientMaxPercentOfFairBacklogSize() {
+        return perClientMaxPercentOfFairBacklogSize;
     }
 
 
@@ -325,14 +366,41 @@ public class MetricServiceConfiguration {
     }
 
     /**
+     * The minimum time to wait before sending the same notification to
+     * a specific websocket client. This prevents sending the same message
+     * before a client can process the first message.
+     *
+     * @param minTimeBetweenNotification milliseconds
+     */
+    public void setMinTimeBetweenNotification(int minTimeBetweenNotification) {
+        this.minTimeBetweenNotification = minTimeBetweenNotification;
+    }
+
+    /**
      * A threshold number of metrics in the backlog from a single client, after
      * which no further metrics will be accepted from that clients until some
      * have been written to TSDB.
      *
-     * @param perClientMaxBacklogSize threshold
+     * @param perClientMaxBacklogSize threshold (zero or negative indicates dynamic thresholding)
      */
     public void setPerClientMaxBacklogSize(int perClientMaxBacklogSize) {
         this.perClientMaxBacklogSize = perClientMaxBacklogSize;
+    }
+
+    /**
+     * This property only takes effect when perClientMaxBacklogSize is unset (or negative).
+     *
+     * Each client should be allowed to backlog metrics, up to global max (lowCollisionMark),
+     * divided by the number of clients. To allow clients to go over that amount,
+     * bump this above 100.
+     *
+     * Beyond the threshold, no further metrics will be accepted from that client
+     * until some have been written to TSDB.
+     *
+     * @param perClientMaxPercentOfFairBacklogSize a percentage (fair: 100; double the fair amount of backlog space: 200).
+     */
+    public void setPerClientMaxPercentOfFairBacklogSize(int perClientMaxPercentOfFairBacklogSize) {
+        this.perClientMaxPercentOfFairBacklogSize = perClientMaxPercentOfFairBacklogSize;
     }
 
     /**
@@ -364,6 +432,4 @@ public class MetricServiceConfiguration {
     public void setTsdbWriterThreads(int numberOfThreads) {
         this.tsdbWriterThreads = numberOfThreads;
     }
-
-
 }

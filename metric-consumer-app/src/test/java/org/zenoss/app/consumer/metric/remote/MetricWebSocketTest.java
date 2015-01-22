@@ -37,6 +37,7 @@ import static org.mockito.Mockito.*;
 public class MetricWebSocketTest {
 
     private static final int TIME_BETWEEN_BROADCAST = 1000;
+    private static final int TIME_BETWEEN_NOTIFICATION = 1000;
 
     Subject subject;
     EventBus eventBus;
@@ -62,7 +63,7 @@ public class MetricWebSocketTest {
         Control control = new Control();
         Message message = new Message(control, new Metric[]{metric});
         assertEquals(new Control(), socket.onMessage(message, new WebSocketSession(subject, request, connection)));
-        verify(service).push(eq(Collections.singletonList(metric)), eq("1"), any(Runnable.class));
+        verify(service).push(eq(Collections.singletonList(metric)), eq("websocket1"), any(Runnable.class));
     }
 
     @Test
@@ -94,7 +95,7 @@ public class MetricWebSocketTest {
         expected_metric.addTag("controlplane_tenant_id", "1");
         expected_metric.addTag("controlplane_service_id", "2");
         expected_metric.addTag("zenoss_tenant_id", "3");
-        verify(service).push(eq(Collections.singletonList(expected_metric)), eq("1"), any(Runnable.class));
+        verify(service).push(eq(Collections.singletonList(expected_metric)), eq("websocket1"), any(Runnable.class));
     }
 
     @Test
@@ -129,7 +130,7 @@ public class MetricWebSocketTest {
         Metric expected_metric = new Metric("name", 0, 0.0);
         expected_metric.addTag("controlplane_tenant_id", "1");
         expected_metric.addTag("controlplane_service_id", "2");
-        verify(service).push(eq(Collections.singletonList(expected_metric)), eq("1"), any(Runnable.class));
+        verify(service).push(eq(Collections.singletonList(expected_metric)), eq("websocket1"), any(Runnable.class));
     }
 
     @Test
@@ -180,6 +181,7 @@ public class MetricWebSocketTest {
     ConsumerAppConfiguration config(List<String> prefixes, List<String> whiteList, boolean authEnabled) {
         MetricServiceConfiguration config = new MetricServiceConfiguration();
         config.setMinTimeBetweenBroadcast(TIME_BETWEEN_BROADCAST);
+        config.setMinTimeBetweenNotification(TIME_BETWEEN_NOTIFICATION);
         ConsumerAppConfiguration appConfiguration = new ConsumerAppConfiguration();
         appConfiguration.setAuthEnabled(authEnabled);
         appConfiguration.setHttpParameterTags(prefixes);

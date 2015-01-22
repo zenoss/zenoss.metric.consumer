@@ -33,7 +33,12 @@ public interface TsdbMetricsQueue {
      * @return zero, or a positive number if the queue contains any metrics with a matching tag.
      */
      long clientBacklogSize(String clientId);
-    
+
+    /**
+     * Count how many unique clients have we seen recently and/or currently have metrics in the queue?
+     */
+    long clientCount();
+
     /**
      * Retrieves and removes a number of elements from the queue. If there are
      * not enough elements in the queue to satisfy the request, then the entire

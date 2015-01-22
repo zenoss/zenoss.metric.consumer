@@ -11,14 +11,15 @@
 package org.zenoss.app.consumer.metric.impl;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.util.concurrent.AtomicLongMap;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Meter;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -40,11 +41,21 @@ import java.util.concurrent.TimeUnit;
 @Component
 class MetricsQueue implements TsdbMetricsQueue {
 
+    private final static Supplier<Boolean> YEPYEP = new Supplier<Boolean>() {
+        @Override public Boolean get() {return true;}
+    };
+
     MetricsQueue() {
         this.queue = new LinkedBlockingQueue<>();
         this.perClientBacklog = AtomicLongMap.create();
         this.totalErrorsMetric = Metrics.newCounter(errorsMetricName());
         this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
+        this.totalClientCountMetric = Metrics.newGauge(clientCountMetricName(), new Gauge<Long>() {
+            @Override
+            public Long value() {
+                return clientCount();
+            }
+        });
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
         this.totalReceivedMetric = registerReceived();
@@ -56,6 +67,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         this.totalBroadcastHighCollisionMetric = registerBroadcastHighCollision();
         this.totalBroadcastLowCollisionMetric = registerBroadcastLowCollision();
         this.totalSentClientCollisionMetric = registerSentClientCollision();
+        this.recentClientIds = CacheBuilder.newBuilder().expireAfterAccess(600, TimeUnit.SECONDS).build(CacheLoader.from(YEPYEP));
     }
 
     @Override
@@ -88,6 +100,13 @@ class MetricsQueue implements TsdbMetricsQueue {
         return metrics;
     }
 
+    @Override
+    public long clientCount() {
+        perClientBacklog.removeAllZeros();
+        return Math.max(perClientBacklog.size(), recentClientIds.size());
+    }
+
+
     /** Iterate over all the metrics' {@link #CLIENT_TAG} tag values, counting how many of each. */
     private Multiset<String> clientCounts(Collection<Metric> metrics) {
         Multiset<String> counts = HashMultiset.create();
@@ -112,6 +131,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         Utils.injectTag(TsdbMetricsQueue.CLIENT_TAG, clientId, metrics);
         queue.addAll(metrics);
         perClientBacklog.addAndGet(clientId, metrics.size());
+        recentClientIds.getUnchecked(clientId);
         incrementIncoming(metrics.size());
         log.debug("AddAll exit. queue.size() = {}", queue.size());
     }
@@ -348,6 +368,10 @@ class MetricsQueue implements TsdbMetricsQueue {
         return new MetricName(MetricsQueue.class, "totalInFlight");
     }
 
+    MetricName clientCountMetricName() {
+        return new MetricName(MetricsQueue.class, "totalClientCount");
+    }
+
     MetricName errorsMetricName() {
         return new MetricName(MetricsQueue.class, "totalErrors");
     }
@@ -403,6 +427,11 @@ class MetricsQueue implements TsdbMetricsQueue {
     // due to thread interleaving, and we want to make sure that the increments and decrements balance out eventually.
     private final AtomicLongMap<String> perClientBacklog;
 
+    /**
+     * Client IDs that have been seen recently.
+     */
+    private final LoadingCache<String,Boolean> recentClientIds;
+
     /* ---------------------------------------------------------------------- *
      *  Yammer Metrics (internal to this process)                             *
      * ---------------------------------------------------------------------- */
@@ -416,6 +445,11 @@ class MetricsQueue implements TsdbMetricsQueue {
      * How many metrics are queued for processing
      */
     private final Counter totalInFlightMetric;
+
+    /**
+     * How many unique clients have we seen recently and/or currently have metrics in the queue?
+     */
+    private final Gauge totalClientCountMetric;
 
     /**
      * How many metrics were queued (this # may reset)

@@ -61,7 +61,7 @@ public class MetricWebSocket {
             .build(CacheLoader.from(new Supplier<String>() {
                 @Override
                 public String get() {
-                    return Long.toString(sequence.incrementAndGet(),10);
+                    return String.format("websocket%d",sequence.incrementAndGet());
                 }
             }));
 
@@ -74,6 +74,7 @@ public class MetricWebSocket {
         this.eventBus = eventBus;
         this.configuration = configuration;
         this.minTimeBetweenBroadcast = configuration.getMetricServiceConfiguration().getMinTimeBetweenBroadcast();
+        this.minTimeBetweenNotification = configuration.getMetricServiceConfiguration().getMinTimeBetweenNotification();
         this.lastHighCollisionBroadcast = new AtomicLong();
         this.lastLowCollisionBroadcast = new AtomicLong();
         this.lastDropNotification = new AtomicLong();
@@ -187,7 +188,7 @@ public class MetricWebSocket {
         // We send at most every X milliseconds. Check the LOW time.
         long now = System.currentTimeMillis();
         long lastCheckTimeExpected = lastDropNotification.get();
-        if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
+        if (now > lastCheckTimeExpected + minTimeBetweenNotification &&
                 lastDropNotification.compareAndSet(lastCheckTimeExpected, now)) {
             try {
                 String message = WebSocketBroadcast.newMessage(getClass(), event).asString();
@@ -240,6 +241,11 @@ public class MetricWebSocket {
      * How frequently should we broadcast collision messages?
      */
     private final int minTimeBetweenBroadcast;
+
+    /**
+     * How frequently should we send client-specific collision messages?
+     */
+    private final int minTimeBetweenNotification;
 
     /**
      * Last timestamp when we broadcast a low collision message
