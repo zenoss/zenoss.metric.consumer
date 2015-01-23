@@ -54,9 +54,9 @@ public class MetricWebSocket {
 
     private final WeakHashMap<WebSocket.Connection, BinaryDecoder> decoders = new WeakHashMap<>();
     private final AtomicLong sequence = new AtomicLong();
-    private final LoadingCache<WebSocket.Connection, String> connectionIds = CacheBuilder
+    private final LoadingCache<WebSocketSession, String> connectionIds = CacheBuilder
             .newBuilder()
-            .expireAfterAccess(1, TimeUnit.HOURS)
+            .expireAfterAccess(6, TimeUnit.MINUTES)
             .weakKeys()
             .build(CacheLoader.from(new Supplier<String>() {
                 @Override
@@ -111,7 +111,7 @@ public class MetricWebSocket {
     }
 
     private String getClientId(WebSocketSession session) {
-        return connectionIds.getUnchecked(session.getConnection());
+        return connectionIds.getUnchecked(session);
     }
 
     @OnMessage
