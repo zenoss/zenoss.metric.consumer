@@ -33,7 +33,12 @@ public interface TsdbMetricsQueue {
      * @return zero, or a positive number if the queue contains any metrics with a matching tag.
      */
      long clientBacklogSize(String clientId);
-    
+
+    /**
+     * Count how many unique clients have we seen recently and/or currently have metrics in the queue?
+     */
+    long clientCount();
+
     /**
      * Retrieves and removes a number of elements from the queue. If there are
      * not enough elements in the queue to satisfy the request, then the entire
@@ -76,4 +81,46 @@ public interface TsdbMetricsQueue {
      * @param size number of lost metrics.
      */
     void incrementLostMetrics(long size);
+
+    /**
+     * Record a number of metrics were received (but not necessarily accepted).
+     * @param received number of received metrics.
+     */
+    void incrementReceived(long received);
+
+    /**
+     * Record a number of metrics were rejected (after being received).
+     * @param rejected number of rejected metrics.
+     */
+    void incrementRejected(long rejected);
+
+    /**
+     * Record a high collision event.
+     */
+    void incrementHighCollision();
+
+    /**
+     * Record a low collision event.
+     */
+    void incrementLowCollision();
+
+    /**
+     * Record a client collision event.
+     */
+    void incrementClientCollision();
+
+    /**
+     *  Record a client collision notification was sent via websocket.
+     */
+    void incrementSentClientCollision();
+
+    /**
+     * Record a low collision event was broadcast via websocket.
+     */
+    void incrementBroadcastLowCollision();
+
+    /**
+     * Recored a high collision event was broadcast via websocket.
+     */
+    void incrementBroadcastHighCollision();
 }

@@ -101,7 +101,7 @@ public class MetricServicePosterTest {
         batch.addMetric(metric);
 
         poster.post(batch);
-        verify(service).push( batch.getMetrics(), MetricServicePoster.class.getCanonicalName());
+        verify(service).push( batch.getMetrics(), MetricServicePoster.class.getCanonicalName(), null);
         assertEquals( "a-value", poster.getTenantId());
     }
 }

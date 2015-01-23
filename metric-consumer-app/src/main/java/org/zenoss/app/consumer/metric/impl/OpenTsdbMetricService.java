@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
 
@@ -46,31 +47,58 @@ class OpenTsdbMetricService implements MetricService {
         this.highCollisionMark = config.getHighCollisionMark();
         this.lowCollisionMark = config.getLowCollisionMark();
         this.perClientMaxBacklogSize = config.getPerClientMaxBacklogSize();
+        this.perClientMaxPercentOfFairBacklogSize = config.getPerClientMaxPercentOfFairBacklogSize();
         this.maxClientWaitTime = config.getMaxClientWaitTime();
-        this.maxPushSize = Math.max(highCollisionMark - 1, perClientMaxBacklogSize);
 
         // State
         this.lastCollisionCount = new AtomicLong();
     }
 
     @Override
-    public Control push(final List<Metric> metrics, final String clientId) {
+    public void incrementReceived(long received) {
+        metricsQueue.incrementReceived(received);
+    }
+
+    @Override
+    public void incrementSentClientCollision() {
+        metricsQueue.incrementSentClientCollision();
+    }
+
+    @Override
+    public void incrementBroadcastLowCollision() {
+        metricsQueue.incrementBroadcastLowCollision();
+    }
+
+    @Override
+    public void incrementBroadcastHighCollision() {
+        metricsQueue.incrementBroadcastHighCollision();
+    }
+
+    @Override
+    public Control push(final List<Metric> metrics, final String clientId, Runnable onCollision) {
         if (metrics == null) {
             return Control.malformedRequest("metrics not nullable");
         }
         if (clientId == null) {
+            metricsQueue.incrementRejected(metrics.size());
+            log.info("Rejected: [{}] clientId not nullable", metrics.size());
             return Control.malformedRequest("clientId not nullable");
         }
+        long maxPushSize = Math.max(highCollisionMark - 1 , perClientMaxBacklogSize());
         if (metrics.size() > maxPushSize) {
             String reason = String.format("cannot push more than %d metrics at a time", maxPushSize);
+            metricsQueue.incrementRejected(metrics.size());
+            log.info("Rejected: [{}] {}", metrics.size(), reason);
             return Control.malformedRequest(reason);
         }
         final List<Metric> copy = Lists.newArrayList(metrics);
         if (!copy.isEmpty()) {
             long totalInFlight = metricsQueue.getTotalInFlight();
             log.debug("totalInFlight = {}", totalInFlight);
-            if (keepsColliding(copy.size(), clientId)) {
-                return Control.dropped("collision detected");
+            if (keepsColliding(copy.size(), clientId, onCollision)) {
+                log.info("Rejected: [{}] consumer is overwhelmed", metrics.size());
+                metricsQueue.incrementRejected(metrics.size());
+                return Control.dropped("consumer is overwhelmed");
             }
 
             metricsQueue.addAll(copy, clientId);
@@ -98,10 +126,12 @@ class OpenTsdbMetricService implements MetricService {
      * @param clientId an identifier for the source of the metrics
      * @return false if and only if {@link #collides(long, String)} returned false before we gave up.
      */
-    private boolean keepsColliding(final long incomingSize, final String clientId) {
+    private boolean keepsColliding(final long incomingSize, final String clientId, Runnable onCollision) {
         ExponentialBackOff backOffTracker = null;
         int collisions = 0;
         while (collides(incomingSize, clientId)) {
+            if (onCollision != null) onCollision.run();
+            metricsQueue.incrementClientCollision();
             collisions++;
             if (backOffTracker == null) {
                 backOffTracker = buildExponentialBackOff();
@@ -140,10 +170,11 @@ class OpenTsdbMetricService implements MetricService {
     private boolean collides(final long incomingSize, final String clientId) {
         long totalInFlight = metricsQueue.getTotalInFlight() + incomingSize;
         final long collisionCount = lastCollisionCount.getAndSet(totalInFlight);
-
+        long perClientMaxBacklogSize = perClientMaxBacklogSize();
         if (totalInFlight >= highCollisionMark) {
             eventBus.post(Control.highCollision());
             log.info("High collision: {}", totalInFlight);
+            metricsQueue.incrementHighCollision();
             return true;
         }
 
@@ -152,6 +183,7 @@ class OpenTsdbMetricService implements MetricService {
             if (totalInFlight > collisionCount) {
                 eventBus.post(Control.lowCollision());
                 log.debug("Low collision: {}", totalInFlight);
+                metricsQueue.incrementLowCollision();
             }
             if (clientBacklogSize > 0)
                 return true;
@@ -163,6 +195,18 @@ class OpenTsdbMetricService implements MetricService {
         return false;
     }
 
+    private long perClientMaxBacklogSize() {
+        if (this.perClientMaxBacklogSize > 0)
+            return this.perClientMaxBacklogSize;
+        long clientCount = Math.max(1, metricsQueue.clientCount());
+        long result = perClientMaxPercentOfFairBacklogSize * lowCollisionMark / clientCount / 100;
+        if (result > highCollisionMark - 1)
+            return highCollisionMark - 1;
+        if (result < 64)
+            return 64;
+        return result;
+    }
+
     /**
      * event bus for high/low collisions
      */
@@ -171,7 +215,7 @@ class OpenTsdbMetricService implements MetricService {
     /**
      * Shared data structure holding metrics to be pushed into TSDB
      */
-    private final MetricsQueue metricsQueue;
+    private final TsdbMetricsQueue metricsQueue;
 
     /**
      * high collision detection mark
@@ -184,6 +228,12 @@ class OpenTsdbMetricService implements MetricService {
     private final int lowCollisionMark;
 
     /**
+     * Each client should be allowed to backlog up to global max backlog (lowCollisionMark) divided by the number of clients.
+     * To allow them to go over that amount, bump this above 100.
+     */
+    private final int perClientMaxPercentOfFairBacklogSize;
+
+    /**
      * per-client maximum backlog size
      */
     private final int perClientMaxBacklogSize;
@@ -192,11 +242,6 @@ class OpenTsdbMetricService implements MetricService {
      * maximum time for a client to wait to add metrics to a backlogged queue before giving up.
      */
     private final int maxClientWaitTime;
-
-    /**
-     * maximum count of metrics that can be pushed per call to {@link #push(java.util.List, String)}
-     */
-    private final int maxPushSize;
 
     /**
      * Variable for tracking whether or not the number of collisions is

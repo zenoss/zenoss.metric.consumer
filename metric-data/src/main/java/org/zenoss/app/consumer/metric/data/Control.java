@@ -41,6 +41,10 @@ public final class Control {
         return new Control(Type.DATA_RECEIVED);
     }
 
+    public static Control clientCollision(String clientId) {
+        return new Control(Type.CLIENT_COLLISION, clientId);
+    }
+
 
     public enum Type {
         /** Successful processing */
@@ -60,9 +64,12 @@ public final class Control {
 
         /** Metric processing breached the high water mark, and, no metrics were processed */
         HIGH_COLLISION,
-        
+
         /** Some data has been received and processing should start */
-        DATA_RECEIVED
+        DATA_RECEIVED,
+
+        /** Metric processing breached the max backlog per client mark, however, metrics may still be processed */
+        CLIENT_COLLISION,
     }
 
     public Control() {
