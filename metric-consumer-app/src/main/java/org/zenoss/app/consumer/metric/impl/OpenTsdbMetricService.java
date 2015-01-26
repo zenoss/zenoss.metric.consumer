@@ -49,6 +49,7 @@ class OpenTsdbMetricService implements MetricService {
         this.perClientMaxBacklogSize = config.getPerClientMaxBacklogSize();
         this.perClientMaxPercentOfFairBacklogSize = config.getPerClientMaxPercentOfFairBacklogSize();
         this.maxClientWaitTime = config.getMaxClientWaitTime();
+        this.minTimeBetweenRetries = config.getMinTimeBetweenNotification();
 
         // State
         this.lastCollisionCount = new AtomicLong();
@@ -128,38 +129,47 @@ class OpenTsdbMetricService implements MetricService {
      */
     private boolean keepsColliding(final long incomingSize, final String clientId, Runnable onCollision) {
         ExponentialBackOff backOffTracker = null;
+        long retryAt = 0L;
+        long backOff;
         int collisions = 0;
-        while (collides(incomingSize, clientId)) {
-            if (onCollision != null) onCollision.run();
-            metricsQueue.incrementClientCollision();
-            collisions++;
-            if (backOffTracker == null) {
-                backOffTracker = buildExponentialBackOff();
+        while (true) {
+            if (collisions > 0 && onCollision != null) onCollision.run();
+            if (System.currentTimeMillis() > retryAt) {
+                if (collides(incomingSize, clientId)) {
+                    metricsQueue.incrementClientCollision();
+                    collisions++;
+                    if (backOffTracker == null) {
+                        backOffTracker = buildExponentialBackOff();
+                    }
+                    try {
+                        backOff = backOffTracker.nextBackOffMillis();
+                        retryAt = System.currentTimeMillis() + backOff;
+                    } catch (IOException e) {
+                        // should never happen
+                        log.error("Caught IOException backing off tracker.", e);
+                        throw new RuntimeException(e);
+                    }
+                    long elapsed = backOffTracker.getElapsedTimeMillis();
+                    if (ExponentialBackOff.STOP == backOff) {
+                        log.warn("Too many collisions ({}). Gave up after {}ms.", collisions, elapsed);
+                        return true;
+                    } else {
+                        log.debug("Collision detected ({} in {}ms). Backing off for {} ms", collisions, elapsed, backOff);
+                    }
+                } else {
+                    return false;
+                }
             }
-            long backOff;
             try {
-                backOff = backOffTracker.nextBackOffMillis();
-            } catch (IOException e) {
-                // should never happen
-                log.error("Caught IOException backing off tracker.", e);
-                throw new RuntimeException(e);
-            }
-            long elapsed = backOffTracker.getElapsedTimeMillis();
-            if (ExponentialBackOff.STOP == backOff) {
-                log.warn("Too many collisions ({}). Gave up after {}ms.", collisions, elapsed);
-                return true;
-            } else {
-                log.debug("Collision detected ({} in {}ms). Backing off for {} ms", collisions, elapsed, backOff);
-                try {
-                    Thread.sleep(backOff);
-                } catch (InterruptedException e) { /* no biggie */ }
-            }
+                Thread.sleep(10);
+            } catch (InterruptedException e) { /* no biggie */ }
         }
-        return false;
     }
 
     private ExponentialBackOff buildExponentialBackOff() {
         return new ExponentialBackOff.Builder().
+            setInitialIntervalMillis(1).
+            setMaxIntervalMillis(minTimeBetweenRetries).
             setMaxElapsedTimeMillis(maxClientWaitTime).
             build();
     }
@@ -242,6 +252,12 @@ class OpenTsdbMetricService implements MetricService {
      * maximum time for a client to wait to add metrics to a backlogged queue before giving up.
      */
     private final int maxClientWaitTime;
+
+
+    /**
+     * Maximum time between retries to accept metrics into a back-logged metric queue.
+     */
+    private final int minTimeBetweenRetries;
 
     /**
      * Variable for tracking whether or not the number of collisions is

@@ -77,7 +77,7 @@ public class MetricWebSocket {
         this.minTimeBetweenNotification = configuration.getMetricServiceConfiguration().getMinTimeBetweenNotification();
         this.lastHighCollisionBroadcast = new AtomicLong();
         this.lastLowCollisionBroadcast = new AtomicLong();
-        this.lastDropNotification = new AtomicLong();
+        this.lastClientCollisionSent = new AtomicLong();
     }
 
     @PostConstruct
@@ -187,9 +187,9 @@ public class MetricWebSocket {
     void clientCollisionNotification(Control event, WebSocketSession session) {
         // We send at most every X milliseconds. Check the LOW time.
         long now = System.currentTimeMillis();
-        long lastCheckTimeExpected = lastDropNotification.get();
+        long lastCheckTimeExpected = lastClientCollisionSent.get();
         if (now > lastCheckTimeExpected + minTimeBetweenNotification &&
-                lastDropNotification.compareAndSet(lastCheckTimeExpected, now)) {
+                lastClientCollisionSent.compareAndSet(lastCheckTimeExpected, now)) {
             try {
                 String message = WebSocketBroadcast.newMessage(getClass(), event).asString();
                 session.sendMessage(message);
@@ -258,7 +258,7 @@ public class MetricWebSocket {
     private final AtomicLong lastHighCollisionBroadcast;
 
     /**
-     * Last timestamp when we sent a dropped-metrics message
+     * Last timestamp when we sent a client-collision message
      */
-    private final AtomicLong lastDropNotification;
+    private final AtomicLong lastClientCollisionSent;
 }
