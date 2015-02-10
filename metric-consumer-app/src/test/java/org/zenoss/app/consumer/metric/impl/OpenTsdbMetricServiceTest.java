@@ -47,8 +47,8 @@ public class OpenTsdbMetricServiceTest {
     public void testPushHandlesNull() throws Exception {
         List<Metric> metrics  = Collections.singletonList(new Metric("name", 0, 0.0));
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.malformedRequest("metrics not nullable"), service.push(null, "test"));
-        assertEquals(Control.malformedRequest("clientId not nullable"), service.push(metrics, null));
+        assertEquals(Control.malformedRequest("metrics not nullable"), service.push(null, "test", null));
+        assertEquals(Control.malformedRequest("clientId not nullable"), service.push(metrics, null, null));
     }
 
     @Test
@@ -56,7 +56,7 @@ public class OpenTsdbMetricServiceTest {
         Metric metric = new Metric("name", 0, 0.0);
         List<Metric> metrics  = Collections.singletonList(metric);
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.ok(), service.push(metrics, "test"));
+        assertEquals(Control.ok(), service.push(metrics, "test", null));
         verify(metricsQueue, times(1)).addAll(metrics, "test");
     }
 
@@ -66,7 +66,7 @@ public class OpenTsdbMetricServiceTest {
         List<Metric> metrics  = Collections.singletonList(metric);
         config.setJobSize(Integer.MAX_VALUE);
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.ok(), service.push(metrics, "test"));
+        assertEquals(Control.ok(), service.push(metrics, "test", null));
         verify(metricsQueue, times(1)).addAll(metrics, "test");
     }
 
@@ -79,7 +79,7 @@ public class OpenTsdbMetricServiceTest {
         when(metricsQueue.getTotalInFlight()).thenReturn(2L);
         
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.ok(), service.push(metrics,"test"));
+        assertEquals(Control.ok(), service.push(metrics,"test", null));
         
         verify(metricsQueue, times(1)).addAll(metrics, "test");
         verify(eventBus, times(1)).post(Control.lowCollision());
@@ -95,7 +95,7 @@ public class OpenTsdbMetricServiceTest {
         when(metricsQueue.getTotalInFlight()).thenReturn(3L);
         
         OpenTsdbMetricService service = newService();
-        assertEquals(Control.dropped("collision detected"), service.push(metricList,"test"));
+        assertEquals(Control.dropped("consumer is overwhelmed"), service.push(metricList,"test", null));
         
         verify(metricsQueue, never()).addAll(metricList, "test");
         verify(eventBus, atLeastOnce()).post(Control.highCollision());

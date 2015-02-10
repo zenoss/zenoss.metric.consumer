@@ -77,6 +77,9 @@ class OpenTsdbWriter implements TsdbWriter {
         } catch (InterruptedException ie) {
             log.info("Exiting due to thread interrupt");
             Thread.currentThread().interrupt();
+        } catch (RuntimeException e) {
+            log.error("Thread exiting due to unexpected exception", e);
+            throw e;
         } finally {
             running = false;
             writerRegistry.unregister(this);
@@ -156,8 +159,9 @@ class OpenTsdbWriter implements TsdbWriter {
     void processBatch(Collection<Metric> metrics) throws InterruptedException {
         OpenTsdbClient client = null;
         boolean flushed = false;
+        boolean invalidateClient = false;
+        long processed = 0;
         try {
-            long processed = 0;
             client = getOpenTsdbClient();
             if (client != null) {
                 int errs = clientPool.clearErrorCount();
@@ -166,6 +170,8 @@ class OpenTsdbWriter implements TsdbWriter {
                 }
 
                 if ( clientPool.hasCollision()) {
+                    // Note: calling .hasCollision() also had the side-effect of clearing it.
+                    invalidateClient = true;
                     eventBus.post(Control.highCollision());
                     throw new NoSuchElementException("Collision detected");
                 }
@@ -175,38 +181,63 @@ class OpenTsdbWriter implements TsdbWriter {
                         // ZEN-11665 - make copy of metric before messing with it. This prevents side-effect issues when exceptions occur.
                         Metric workingCopy = new Metric(m);
                         workingCopy.removeTag(TsdbMetricsQueue.CLIENT_TAG);
+                        String message = null;
                         try {
-                            final String message = convert(workingCopy);
-                            client.put(message);
+                            message = convert(workingCopy);
+                        } catch (RuntimeException e) {
+                            if (log.isDebugEnabled()) {
+                                log.warn(String.format("Dropping bad metric : %s : %s", e.getMessage(), workingCopy.toString()), e);
+                            } else {
+                                log.warn("Dropping bad metric : {} : {}", e.getMessage(), workingCopy);
+                            }
                             processed++;
-                        } catch (IOException e) {
-                            log.warn("Caught (and rethrowing) IOException while processing metric: {}", e.getMessage());
-                            throw e;
+                        }
+                        if (message != null) {
+                            try {
+                                client.put(message);
+                                processed++;
+                            } catch (IOException e) {
+                                log.warn("Caught (and rethrowing) IOException while processing metric: {}", e.getMessage());
+                                throw e;
+                            }
                         }
                     }
-                    client.flush();
-                    flushed = true;
-                    metricsQueue.incrementProcessed(processed);
+                    boolean anyErrors = false;
+                    for (String error : client.checkForErrors()) {
+                        log.warn("OpenTSDB returned an error: {}", error);
+                        anyErrors = true;
+                    }
+                    if (anyErrors) {
+                        invalidateClient = true;
+                    } else {
+                        flushed = true;
+                    }
                 } catch (IOException e) {
                     log.warn("Caught exception while processing messages: {}", e.getMessage());
-                    client.close();
+                    invalidateClient = true;
                 }
             } else {
                 log.warn("Unable to get client to process metrics.");
             }
         } finally {
-            if (!flushed) {
+            if (flushed) {
+                metricsQueue.incrementProcessed(processed);
+            } else {
                 try {
                     metricsQueue.reAddAll(metrics);
-                } catch (IllegalStateException e) {
+                } catch (Exception e) {
                     log.error("We were unable to add metrics back to the queue. Eating exception to prevent thread death.", e);
+                    metricsQueue.incrementLostMetrics(metrics.size());
                 }
             }
             if (client != null) {
                 try {
-                    clientPool.returnObject(client);
-                } catch (Exception returnException) {
-                    log.warn("Failed to return TSDB client to connection pool", returnException);
+                    if (invalidateClient)
+                        clientPool.invalidateObject(client);
+                    else
+                        clientPool.returnObject(client);
+                } catch (Exception releaseException) {
+                    log.warn("Error while releasing TSDB client", releaseException);
                 }
             }
             lastWorkTime = System.currentTimeMillis();
@@ -214,7 +245,7 @@ class OpenTsdbWriter implements TsdbWriter {
     }
 
     private OpenTsdbClient getOpenTsdbClient() throws InterruptedException {
-        OpenTsdbClient client;
+        OpenTsdbClient client = null;
         try {
             client = (OpenTsdbClient) clientPool.borrowObject();
             if ( null == client) {
@@ -222,14 +253,29 @@ class OpenTsdbWriter implements TsdbWriter {
             } else {
                 log.debug(String.format("Got client from pool.  isAlive = %s. isClosed = %s", String.valueOf(client.isAlive()), String.valueOf(client.isClosed())));
             }
+            return client;
         } catch (InterruptedException | NoSuchElementException e) {
+            if (client != null) {
+                try {
+                    clientPool.invalidateObject(client);
+                } catch (Exception releaseException) {
+                    log.warn("Error while releasing TSDB client", releaseException);
+                }
+            }
             log.warn("Caught exception getting OpenTsdbClient - rethrowing.", e);
             // don't swallow These exceptions
             throw e;
         } catch (Exception e) { // Exception required due to GenericObjectPool.borrowObject
+            log.warn("Caught exception getting OpenTsdbClient - wrapping and rethrowing.", e);
+            if (client != null) {
+                try {
+                    clientPool.invalidateObject(client);
+                } catch (Exception releaseException) {
+                    log.warn("Error while releasing TSDB client", releaseException);
+                }
+            }
             throw new NoSuchElementException(e.toString());
         }
-        return client;
     }
 
 
@@ -309,6 +355,7 @@ class OpenTsdbWriter implements TsdbWriter {
     private static final Pattern INVALID_CHARS = Pattern.compile("[^\\w\\./_-]");
 
     static final String sanitize(String input) {
+        if (input == null) return null;
         return INVALID_CHARS.matcher(input).replaceAll("-");
     }
 
@@ -316,12 +363,24 @@ class OpenTsdbWriter implements TsdbWriter {
 
     static final String convert(Metric metric) {
         String name = metric.getMetric();
+        if (name == null) {
+            throw new IllegalArgumentException("missing name");
+        }
         long timestamp = metric.getTimestamp();
         double value = metric.getValue();
         Map<String, String> tags = Maps.newHashMap();
 
         for (Entry<String, String> entry : metric.getTags().entrySet()) {
-            tags.put(sanitize(entry.getKey()), sanitize(entry.getValue()));
+            String tagKey = sanitize(entry.getKey());
+            String tagValue = sanitize(entry.getValue());
+            if (tagKey == null) {
+                if (tagValue != null)
+                    log.warn("Dropping tag null:{} for metric {}", tagValue, name);
+                continue;
+            } else if (tagValue == null) {
+                tagValue = "";
+            }
+            tags.put(tagKey, tagValue);
         }
 
         // escape spaces from the metric name since space is an invalid OpenTSDB metric name

@@ -89,6 +89,8 @@ class MetricServicePoster implements MetricPoster {
         List<Metric> metrics = batch.getMetrics();
         log.debug("posting metric batch len(metrics): {}", metrics.size());
 
+        metricService.incrementReceived(metrics.size());
+
         if (configuration.isAuthEnabled()) {
             String tenantId = getTenantId();
             if (tenantId == null) {
@@ -98,7 +100,7 @@ class MetricServicePoster implements MetricPoster {
             Utils.injectTag("zenoss_tenant_id", tenantId, metrics);
         }
 
-        metricService.push(metrics, this.getClass().getCanonicalName());
+        metricService.push(metrics, this.getClass().getCanonicalName(), null);
     }
 
     @Override

@@ -11,6 +11,10 @@
 package org.zenoss.app.consumer.metric.remote;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Supplier;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.apache.shiro.subject.Subject;
@@ -21,7 +25,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.zenoss.app.consumer.metric.data.BinaryDecoder;
 import org.zenoss.app.security.ZenossTenant;
-import org.zenoss.app.security.ZenossToken;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
 import org.zenoss.app.consumer.metric.data.Control;
@@ -29,6 +32,7 @@ import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
 import org.zenoss.dropwizardspring.websockets.WebSocketSession;
+import org.zenoss.dropwizardspring.websockets.annotations.OnClose;
 import org.zenoss.dropwizardspring.websockets.annotations.OnMessage;
 import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 
@@ -37,6 +41,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 @WebSocketListener(name = "metrics/store")
@@ -48,6 +53,17 @@ public class MetricWebSocket {
     private ConsumerAppConfiguration configuration;
 
     private final WeakHashMap<WebSocket.Connection, BinaryDecoder> decoders = new WeakHashMap<>();
+    private final AtomicLong sequence = new AtomicLong();
+    private final LoadingCache<WebSocketSession, String> connectionIds = CacheBuilder
+            .newBuilder()
+            .expireAfterAccess(6, TimeUnit.MINUTES)
+            .weakKeys()
+            .build(CacheLoader.from(new Supplier<String>() {
+                @Override
+                public String get() {
+                    return String.format("websocket%d",sequence.incrementAndGet());
+                }
+            }));
 
     @Autowired
     public MetricWebSocket(
@@ -58,8 +74,10 @@ public class MetricWebSocket {
         this.eventBus = eventBus;
         this.configuration = configuration;
         this.minTimeBetweenBroadcast = configuration.getMetricServiceConfiguration().getMinTimeBetweenBroadcast();
+        this.minTimeBetweenNotification = configuration.getMetricServiceConfiguration().getMinTimeBetweenNotification();
         this.lastHighCollisionBroadcast = new AtomicLong();
         this.lastLowCollisionBroadcast = new AtomicLong();
+        this.lastClientCollisionSent = new AtomicLong();
     }
 
     @PostConstruct
@@ -67,55 +85,75 @@ public class MetricWebSocket {
         eventBus.register(this);
     }
 
-    @OnMessage
-    public Control onMessage(byte[] data, WebSocketSession session) {
-        BinaryDecoder decoder = decoders.get(session.getConnection());
-        if (decoder == null) {
-            decoder = new BinaryDecoder();
-            decoders.put(session.getConnection(), decoder);
-        }
-        try {
-            return onMessage(decoder.decode(data), session);
-        } catch (IOException e) {
-            log.error("Invalid message");
-            return null;
-        }
+    @OnClose
+    public void onClose(Integer closeCode, String message, WebSocketSession session) {
+        decoders.remove(session.getConnection());
     }
 
     @OnMessage
-    public Control onMessage(Message message, WebSocketSession session) {
-        Metric[] metrics = message.getMetrics();
-        int metricsLength = (metrics == null) ? -1 : metrics.length;
-        log.debug("Message(control={}, len(metrics)={}) - START", message.getControl(), metricsLength);
-
-        //process metrics
-        if (metrics != null) {
-            log.debug( "Tagging metrics with parameters: {}", configuration.getHttpParameterTags());
-            HttpServletRequest request = session.getHttpServletRequest();
-
-            //tag metrics using configured http parameters
-            List<Metric> metricList = Arrays.asList(metrics);
-            Utils.tagMetrics(request, metricList, configuration.getHttpParameterTags());
-
-            //tag metrics with tenant id (obviously, tenant-id's identified through authentication)
-            if (configuration.isAuthEnabled()) {
-                Subject subject = session.getSubject();
-                ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
-
-                log.debug("Tagging metrics with tenant_id: {}", tenant.id());
-                Utils.injectTag("zenoss_tenant_id", tenant.id(), metricList);
+    public Control onMessage(byte[] data, WebSocketSession session) {
+        try {
+            BinaryDecoder decoder = decoders.get(session.getConnection());
+            if (decoder == null) {
+                decoder = new BinaryDecoder();
+                decoders.put(session.getConnection(), decoder);
             }
+            try {
+                return onMessage(decoder.decode(data), session);
+            } catch (IOException e) {
+                log.error("Invalid message");
+                return Control.malformedRequest("Invalid message");
+            }
+        } catch (RuntimeException e) {
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            return Control.error(e.getMessage());
+        }
+    }
 
-            //filter tags using configuration white list
-            Utils.filterMetricTags( metricList, configuration.getTagWhiteList());
+    private String getClientId(WebSocketSession session) {
+        return connectionIds.getUnchecked(session);
+    }
 
-            //enqueue metrics for transfer
-            String remoteIp = Utils.remoteAddress(request);
-            Control control = service.push(metricList, remoteIp);
-            log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
-            return control;
-        } else {
-            return Control.malformedRequest("Null metrics not accepted");
+    @OnMessage
+    public Control onMessage(Message message, final WebSocketSession session) {
+        try {
+            Metric[] metrics = message.getMetrics();
+            int metricsLength = (metrics == null) ? -1 : metrics.length;
+            log.debug("Message(control={}, len(metrics)={}) - START", message.getControl(), metricsLength);
+
+            //process metrics
+            if (metrics != null) {
+                service.incrementReceived(metrics.length);
+                log.debug( "Tagging metrics with parameters: {}", configuration.getHttpParameterTags());
+                HttpServletRequest request = session.getHttpServletRequest();
+
+                //tag metrics using configured http parameters
+                List<Metric> metricList = Arrays.asList(metrics);
+                Utils.tagMetrics(request, metricList, configuration.getHttpParameterTags());
+
+                //tag metrics with tenant id (obviously, tenant-id's identified through authentication)
+                if (configuration.isAuthEnabled()) {
+                    Subject subject = session.getSubject();
+                    ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
+
+                    log.debug("Tagging metrics with tenant_id: {}", tenant.id());
+                    Utils.injectTag("zenoss_tenant_id", tenant.id(), metricList);
+                }
+
+                //filter tags using configuration white list
+                Utils.filterMetricTags( metricList, configuration.getTagWhiteList());
+
+                //enqueue metrics for transfer
+                final String clientId = getClientId(session);
+                Control control = service.push(metricList, clientId, onCollision(clientId, session));
+                log.debug("Message(control={}, len(metrics)={}) -> {}", message.getControl(), metricsLength, control);
+                return control;
+            } else {
+                return Control.malformedRequest("Null metrics not accepted");
+            }
+        } catch (RuntimeException e) {
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            return Control.error(e.getMessage());
         }
     }
 
@@ -137,6 +175,31 @@ public class MetricWebSocket {
         }
     }
 
+    Runnable onCollision(final String clientId, final WebSocketSession session) {
+        return new Runnable(){
+            @Override
+            public void run() {
+                clientCollisionNotification(Control.clientCollision(clientId), session);
+            }
+        };
+    }
+
+    void clientCollisionNotification(Control event, WebSocketSession session) {
+        // We send at most every X milliseconds. Check the LOW time.
+        long now = System.currentTimeMillis();
+        long lastCheckTimeExpected = lastClientCollisionSent.get();
+        if (now > lastCheckTimeExpected + minTimeBetweenNotification &&
+                lastClientCollisionSent.compareAndSet(lastCheckTimeExpected, now)) {
+            try {
+                String message = WebSocketBroadcast.newMessage(getClass(), event).asString();
+                session.sendMessage(message);
+                service.incrementSentClientCollision();
+            } catch (IOException e) {
+                log.warn("Failed to send collision notification to client: {}", e.getMessage());
+            }
+        }
+    }
+
     void lowCollisionBroadcast(Control event) {
         // We broadcast at most every X milliseconds. Check the LOW time.
         long now = System.currentTimeMillis();
@@ -146,6 +209,7 @@ public class MetricWebSocket {
             try {
                 WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
                 eventBus.post(message);
+                service.incrementBroadcastLowCollision();
                 log.info("Sent low collision broadcast");
             } catch (JsonProcessingException ex) {
                 log.error("Unable to convert control message", ex);
@@ -163,6 +227,7 @@ public class MetricWebSocket {
                 WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
                 eventBus.post(message);
                 log.warn("Sent high collision broadcast");
+                service.incrementBroadcastHighCollision();
             } catch (JsonProcessingException ex) {
                 log.error("Unable to convert control message", ex);
             }
@@ -178,6 +243,11 @@ public class MetricWebSocket {
     private final int minTimeBetweenBroadcast;
 
     /**
+     * How frequently should we send client-specific collision messages?
+     */
+    private final int minTimeBetweenNotification;
+
+    /**
      * Last timestamp when we broadcast a low collision message
      */
     private final AtomicLong lastLowCollisionBroadcast;
@@ -186,4 +256,9 @@ public class MetricWebSocket {
      * Last timestamp when we broadcast a high collision message
      */
     private final AtomicLong lastHighCollisionBroadcast;
+
+    /**
+     * Last timestamp when we sent a client-collision message
+     */
+    private final AtomicLong lastClientCollisionSent;
 }

@@ -159,10 +159,10 @@ public class OpenTsdbWriterTest {
 
         verify(badClient, times(1)).put(message);
         verify(goodClient, times(1)).put(message);
-        verify(goodClient, times(1)).flush();
+        verify(goodClient, times(1)).checkForErrors();
         verify(goodClient, never()).close();
+        verify(clientPool, times(1)).invalidateObject(badClient);
         verify(clientPool, times(1)).returnObject(goodClient);
-        verify(badClient, times(1)).close();
 
         assertEquals(0, metricsQueue.getTotalErrors());
         assertEquals(1, metricsQueue.getTotalIncoming());
@@ -183,7 +183,7 @@ public class OpenTsdbWriterTest {
 
         verify(client, times(1)).put(message);
         verify(client, never()).read();
-        verify(client, times(1)).flush();
+        verify(client, times(1)).checkForErrors();
         verify(client, never()).close();
         verify(clientPool, times(1)).returnObject(client);
 
@@ -207,10 +207,11 @@ public class OpenTsdbWriterTest {
 
         verify(client, times(1)).put(message);
         verify(client, never()).read();
-        verify(client, times(1)).flush();
+        verify(client, times(1)).checkForErrors();
         verify(client, never()).close();
-        //the object's returned twice
-        verify(clientPool, times(2)).returnObject(client);
+        //the object is released once as faulty, once as fine
+        verify(clientPool, times(1)).invalidateObject(client);
+        verify(clientPool, times(1)).returnObject(client);
 
         assertEquals(1, metricsQueue.getTotalErrors());
         assertEquals(1, metricsQueue.getTotalIncoming());

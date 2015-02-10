@@ -12,6 +12,8 @@ package org.zenoss.app.consumer.metric.remote;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
 
@@ -26,12 +28,23 @@ import java.util.Map;
  */
 public final class Utils {
 
+    private static final Logger log = LoggerFactory.getLogger(Utils.class);
+
     /**
      * Best guess at the IP address of the remote end of the request.
      */
     public static String remoteAddress(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
-        return (forwardedFor != null) ? forwardedFor : request.getRemoteAddr();
+        if (forwardedFor != null) {
+            log.debug("X-Forwarded-For: {}", forwardedFor);
+            return forwardedFor;
+        }
+        String xZAuthToken = request.getHeader("X-ZAuth-Token");
+        if (xZAuthToken != null) {
+            log.debug("X-ZAuth-Token: {}", xZAuthToken);
+            return xZAuthToken;
+        }
+        return request.getRemoteAddr();
     }
 
     /**

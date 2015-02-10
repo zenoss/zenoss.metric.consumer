@@ -48,7 +48,7 @@ public class MetricWebResourceTest {
     public void setUp() throws Exception {
         List<String> parameters = Lists.newArrayList();
         configuration.setHttpParameterTags(parameters);
-        when(service.push(anyListOf(Metric.class), anyString())).thenReturn(control);
+        when(service.push(anyListOf(Metric.class), anyString(), any(Runnable.class))).thenReturn(control);
 
         request = mock(HttpServletRequest.class);
         subject = mock(Subject.class);
@@ -68,7 +68,7 @@ public class MetricWebResourceTest {
         when(request.getHeader("X-Forwarded-For")).thenReturn("test");
 
         assertThat(resource.post(mc, request)).isEqualTo(control);
-        verify(service).push(mc.getMetrics(), "test");
+        verify(service).push(mc.getMetrics(), "test", null);
     }
 
     @Test
@@ -95,7 +95,7 @@ public class MetricWebResourceTest {
         tags.put("controlplane_tenant_id", "1");
         tags.put("controlplane_service_id", "2");
         Metric expected_metric = new Metric("name", 0, 1.0, tags);
-        verify(service).push(Lists.newArrayList(expected_metric), "test");
+        verify(service).push(Lists.newArrayList(expected_metric), "test", null);
     }
 
     @Test
@@ -116,7 +116,7 @@ public class MetricWebResourceTest {
         tags = Maps.newHashMap();
         tags.put("zenoss_tenant_id", "tenant");
         Metric expected_metric = new Metric("name", 0, 1.0, tags);
-        verify(service).push(Lists.newArrayList(expected_metric), "test");
+        verify(service).push(Lists.newArrayList(expected_metric), "test", null);
     }
 
     @Test
@@ -144,6 +144,6 @@ public class MetricWebResourceTest {
         tags = Maps.newHashMap();
         tags.put("zenoss_tenant_id", "tenant");
         Metric expected_metric = new Metric("name", 0, 1.0, tags);
-        verify(service).push(Lists.newArrayList(expected_metric), "test");
+        verify(service).push(Lists.newArrayList(expected_metric), "test", null);
     }
 }
