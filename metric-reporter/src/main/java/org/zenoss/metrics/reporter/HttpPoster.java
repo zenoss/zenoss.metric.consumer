@@ -90,6 +90,8 @@ public class HttpPoster implements MetricPoster {
                     LOG.warn("Error posting metrics {}", ex.getMessage());
                     throw ex;
                 }
+            } else {
+                LOG.warn("Error posting metrics {}", e.getMessage());
             }
         }
     }

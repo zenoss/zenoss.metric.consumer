@@ -235,7 +235,8 @@ public class ZenossMetricsReporter extends ScheduledReporter {
             Number value = (Number) gaugeValue;
             addMetric(name, "value", value.doubleValue(), context);
         } else {
-            LOG.debug("Un-reportable gauge %s; type: %s", name, gaugeValue.getClass());
+            LOG.debug("Un-reportable gauge %s; type: %s", name,
+                    (gaugeValue==null) ? "null" : gaugeValue.getClass());
         }
     }
 
