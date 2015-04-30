@@ -234,29 +234,6 @@ public class ManagedReporterTest {
         verify(zmr).stop();
     }
 
-    @Test
-    public void testUnknownHost() throws Exception {
-        ManagedReporter managed = spy(new ManagedReporter(appContext, appConfig, env));
-        when(managed.getLocalHostName()).thenReturn(null);
-        String tag = managed.getHostTag();
-        Assert.assertNotNull(tag);
-        verify(managed).exectHostname();
-        when(managed.exectHostname()).thenReturn(null);
-        tag = managed.getHostTag();
-        Assert.assertEquals("UNKNOWN", tag);
-    }
-
-    @Test
-    public void testBadHostNameCmd() throws Exception {
-        ManagedReporter managed = spy(new ManagedReporter(appContext, appConfig, env));
-        when(managed.getLocalHostName()).thenReturn(null);
-        when(managed.getProcBuilder()).thenReturn(new ProcessBuilder("blamo"));
-        String tag = managed.getHostTag();
-        Assert.assertNotNull(tag);
-        verify(managed).exectHostname();
-        Assert.assertEquals("UNKNOWN", tag);
-    }
-
     abstract static class TestAppConfiguration extends AppConfiguration {
         abstract public ManagedReporterConfig getManagedReporterConfig();
     }

@@ -80,10 +80,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     @PostConstruct
     public void init() throws Exception {
         Map<String, String> tags = Maps.newHashMap();
-        tags.put("zapp", environment.getName());
         tags.put("daemon", environment.getName());
-        tags.put("host", getHostTag());
-        tags.put("instance", ManagementFactory.getRuntimeMXBean().getName());
         tags.put("internal", "true");
 
         MetricPredicate predicate = filter;
@@ -189,33 +186,6 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         return new URL(protocol, host, port, api);
     }
 
-    String getLocalHostName() {
-        String host = null;
-        try {
-            host = InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            LOG.info("Could not get localhost inetaddress: {}", e.toString());
-            LOG.debug("error getting localhost", e);
-        }
-        return host;
-    }
-
-    String getHostTag() throws InterruptedException {
-        String host = getLocalHostName();
-        if (host == null) {
-            host = exectHostname();
-        }
-
-        if (host == null) {
-            host = "UNKNOWN";
-        }
-        return host;
-    }
-
-    ProcessBuilder getProcBuilder() {
-        return new ProcessBuilder("hostname", "-s");
-    }
-
     String getUsername(MetricReporterConfig config) {
         String username = Strings.nullToEmpty( config.getUsername()).trim();
         if (username.matches( "\\$env\\[[^\\[]*\\]")) {
@@ -242,25 +212,6 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         }
 
         return password;
-    }
-
-    String exectHostname() throws InterruptedException {
-        int exit;
-        String host = null;
-        try {
-            Process p = getProcBuilder().start();
-            exit = p.waitFor();
-            if (exit == 0) {
-                host = new BufferedReader(new InputStreamReader(p.getInputStream())).readLine();
-            } else {
-                String error = new BufferedReader(new InputStreamReader(p.getErrorStream())).readLine();
-                LOG.info("Could not get exec hostname -s: exit {} {}", exit, Strings.nullToEmpty(error));
-            }
-        } catch (IOException e) {
-            LOG.info("Error getting hostname {}", e.toString());
-            LOG.debug("IO error getting localhost", e);
-        }
-        return host;
     }
 
     List<ZenossMetricsReporter> getMetricReporters() {
