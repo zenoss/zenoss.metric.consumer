@@ -12,6 +12,7 @@ package org.zenoss.app.metric.zapp;
 
 
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yammer.dropwizard.config.Environment;
@@ -54,6 +55,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     private final AppConfiguration appConfiguration;
     private final List<ZenossMetricsReporter> metricReporters = Lists.newArrayList();
     private final Map<String, String> systemEnvironment;
+    private final Map<String, String> defaultTags = Maps.newHashMap();
     private final ApplicationContext appContext;
     private MetricPredicate filter = MetricPredicate.ALL;
 
@@ -79,12 +81,22 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
 
     @PostConstruct
     public void init() throws Exception {
-        Map<String, String> tags = Maps.newHashMap();
-        tags.put("zapp", environment.getName());
-        tags.put("daemon", environment.getName());
-        tags.put("host", getHostTag());
-        tags.put("instance", ManagementFactory.getRuntimeMXBean().getName());
-        tags.put("internal", "true");
+        this.defaultTags.put("daemon", environment.getName());
+        this.defaultTags.put("internal", "true");
+        for (Map.Entry<String, String> entry : getManagedReporterConfig().getDefaultMetricTags().entrySet()) {
+            String tagValue = getTagValue(entry.getValue());
+            if (tagValue.isEmpty()) {
+                LOG.warn("default tag '{}' is empty", entry.getKey());
+            }
+            else {
+                this.defaultTags.put(entry.getKey(), tagValue);
+            }
+        }
+
+        LOG.debug("Number of default tags={}", this.getDefaultTags().size());
+        for (Map.Entry<String, String> entry : this.getDefaultTags().entrySet()) {
+            LOG.debug("tag '{}'='{}'", entry.getKey(), entry.getValue());
+        }
 
         MetricPredicate predicate = filter;
         if ( predicate == null) {
@@ -95,7 +107,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         for (MetricReporterConfig config : getManagedReporterConfig().getMetricReporters()) {
             MetricPoster poster = getPoster( config);
             if ( poster != null) {
-                ZenossMetricsReporter reporter = buildMetricReporter(config, poster, predicate, tags);
+                ZenossMetricsReporter reporter = buildMetricReporter(config, poster, predicate, this.getDefaultTags());
                 metricReporters.add(reporter);
             } else {
                 LOG.info( "Unable to build reporter");
@@ -189,31 +201,13 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         return new URL(protocol, host, port, api);
     }
 
-    String getLocalHostName() {
-        String host = null;
-        try {
-            host = InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            LOG.info("Could not get localhost inetaddress: {}", e.toString());
-            LOG.debug("error getting localhost", e);
+    String getTagValue(String rawValue) {
+        String value = Strings.nullToEmpty(rawValue).trim();
+        if (value.matches( "\\$env\\[[^\\[]*\\]")) {
+            String var = value.substring(5, value.length()-1);
+            value = Strings.nullToEmpty(systemEnvironment.get(var));
         }
-        return host;
-    }
-
-    String getHostTag() throws InterruptedException {
-        String host = getLocalHostName();
-        if (host == null) {
-            host = exectHostname();
-        }
-
-        if (host == null) {
-            host = "UNKNOWN";
-        }
-        return host;
-    }
-
-    ProcessBuilder getProcBuilder() {
-        return new ProcessBuilder("hostname", "-s");
+        return value;
     }
 
     String getUsername(MetricReporterConfig config) {
@@ -244,25 +238,6 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         return password;
     }
 
-    String exectHostname() throws InterruptedException {
-        int exit;
-        String host = null;
-        try {
-            Process p = getProcBuilder().start();
-            exit = p.waitFor();
-            if (exit == 0) {
-                host = new BufferedReader(new InputStreamReader(p.getInputStream())).readLine();
-            } else {
-                String error = new BufferedReader(new InputStreamReader(p.getErrorStream())).readLine();
-                LOG.info("Could not get exec hostname -s: exit {} {}", exit, Strings.nullToEmpty(error));
-            }
-        } catch (IOException e) {
-            LOG.info("Error getting hostname {}", e.toString());
-            LOG.debug("IO error getting localhost", e);
-        }
-        return host;
-    }
-
     List<ZenossMetricsReporter> getMetricReporters() {
         return this.metricReporters;
     }
@@ -286,5 +261,13 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 .setFrequency(config.getReportFrequencySeconds(), TimeUnit.SECONDS)
                 .setShutdownTimeout(config.getShutdownWaitSeconds(), TimeUnit.SECONDS)
                 .build();
+    }
+
+    Map<String, String> getDefaultTags() {
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+        for (Map.Entry<String, String> entry : defaultTags.entrySet()) {
+            builder.put(entry.getKey(), entry.getValue());
+        }
+        return builder.build();
     }
 }
