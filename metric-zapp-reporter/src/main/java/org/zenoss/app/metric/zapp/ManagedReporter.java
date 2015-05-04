@@ -12,6 +12,7 @@ package org.zenoss.app.metric.zapp;
 
 
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yammer.dropwizard.config.Environment;
@@ -54,6 +55,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
     private final AppConfiguration appConfiguration;
     private final List<ZenossMetricsReporter> metricReporters = Lists.newArrayList();
     private final Map<String, String> systemEnvironment;
+    private final Map<String, String> defaultTags = Maps.newHashMap();
     private final ApplicationContext appContext;
     private MetricPredicate filter = MetricPredicate.ALL;
 
@@ -79,9 +81,22 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
 
     @PostConstruct
     public void init() throws Exception {
-        Map<String, String> tags = Maps.newHashMap();
-        tags.put("daemon", environment.getName());
-        tags.put("internal", "true");
+        this.defaultTags.put("daemon", environment.getName());
+        this.defaultTags.put("internal", "true");
+        for (Map.Entry<String, String> entry : getManagedReporterConfig().getDefaultMetricTags().entrySet()) {
+            String tagValue = getTagValue(entry.getValue());
+            if (tagValue.isEmpty()) {
+                LOG.warn("default tag '{}' is empty", entry.getKey());
+            }
+            else {
+                this.defaultTags.put(entry.getKey(), tagValue);
+            }
+        }
+
+        LOG.debug("Number of default tags={}", this.getDefaultTags().size());
+        for (Map.Entry<String, String> entry : this.getDefaultTags().entrySet()) {
+            LOG.debug("tag '{}'='{}'", entry.getKey(), entry.getValue());
+        }
 
         MetricPredicate predicate = filter;
         if ( predicate == null) {
@@ -92,7 +107,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         for (MetricReporterConfig config : getManagedReporterConfig().getMetricReporters()) {
             MetricPoster poster = getPoster( config);
             if ( poster != null) {
-                ZenossMetricsReporter reporter = buildMetricReporter(config, poster, predicate, tags);
+                ZenossMetricsReporter reporter = buildMetricReporter(config, poster, predicate, this.getDefaultTags());
                 metricReporters.add(reporter);
             } else {
                 LOG.info( "Unable to build reporter");
@@ -186,6 +201,15 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         return new URL(protocol, host, port, api);
     }
 
+    String getTagValue(String rawValue) {
+        String value = Strings.nullToEmpty(rawValue).trim();
+        if (value.matches( "\\$env\\[[^\\[]*\\]")) {
+            String var = value.substring(5, value.length()-1);
+            value = Strings.nullToEmpty(systemEnvironment.get(var));
+        }
+        return value;
+    }
+
     String getUsername(MetricReporterConfig config) {
         String username = Strings.nullToEmpty( config.getUsername()).trim();
         if (username.matches( "\\$env\\[[^\\[]*\\]")) {
@@ -237,5 +261,13 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
                 .setFrequency(config.getReportFrequencySeconds(), TimeUnit.SECONDS)
                 .setShutdownTimeout(config.getShutdownWaitSeconds(), TimeUnit.SECONDS)
                 .build();
+    }
+
+    Map<String, String> getDefaultTags() {
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+        for (Map.Entry<String, String> entry : defaultTags.entrySet()) {
+            builder.put(entry.getKey(), entry.getValue());
+        }
+        return builder.build();
     }
 }

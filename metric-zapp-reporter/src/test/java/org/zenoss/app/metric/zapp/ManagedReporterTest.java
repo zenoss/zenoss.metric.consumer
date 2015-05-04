@@ -64,6 +64,7 @@ public class ManagedReporterTest {
     private HttpPoster poster;
 
 
+    private static final String ZAPP_NAME = "TEST_NAME";
     private static final String HOST = "testHost";
     private static final String PROTOCOL = "http";
     private static final int PORT = 8888;
@@ -71,7 +72,7 @@ public class ManagedReporterTest {
 
     @Before
     public void setup() throws Exception {
-        when(env.getName()).thenReturn("TEST_NAME");
+        when(env.getName()).thenReturn(ZAPP_NAME);
         ObjectMapperFactory omf = mock(ObjectMapperFactory.class);
         when(env.getObjectMapperFactory()).thenReturn(omf);
 
@@ -89,7 +90,6 @@ public class ManagedReporterTest {
         configs.add(config);
         when(manageConfig.getMetricReporters()).thenReturn(configs);
     }
-
 
     @Test
     public void testGetUrl() throws Exception {
@@ -232,6 +232,78 @@ public class ManagedReporterTest {
         verify(zmr).start();
         mr.stop();
         verify(zmr).stop();
+    }
+
+    @Test
+    public void testDefaultTagsWithoutConfiguration() throws Exception {
+        when(config.getPosterType()).thenReturn("http");
+        ManagedReporter managed = spy(new ManagedReporter(appContext, appConfig, env));
+
+        managed.init();
+
+        Map<String, String> defaultTags = managed.getDefaultTags();
+        Assert.assertEquals("incorrect number of default tags", 2, defaultTags.size());
+        assertHardCodedTags(defaultTags);
+    }
+
+    @Test
+    public void testDefaultTagsWithConfiguration() throws Exception {
+        Map<String, String> configedTags = Maps.newHashMap();
+        configedTags.put("thing1", "blue");
+        configedTags.put("thing2", "red");
+        when(manageConfig.getDefaultMetricTags()).thenReturn(configedTags);
+        when(config.getPosterType()).thenReturn("http");
+        ManagedReporter managed = spy(new ManagedReporter(appContext, appConfig, env));
+
+        managed.init();
+
+        Map<String, String> defaultTags = managed.getDefaultTags();
+        Assert.assertEquals("incorrect number of default tags", 4, defaultTags.size());
+        assertHardCodedTags(defaultTags);
+        assertTagAndValue("thing1", "blue", defaultTags);
+        assertTagAndValue("thing2", "red", defaultTags);
+    }
+
+    @Test
+    public void testGetTagValue() throws Exception {
+        String rawValue = "something";
+        String expected = rawValue;
+        Assert.assertEquals(expected, new ManagedReporter(appContext, appConfig, env).getTagValue(rawValue));
+    }
+
+    @Test
+    public void testGetTagValueReturnsFromEnvironment() throws Exception {
+        String rawValue = "$env[CONTROLPLANE_VAR_NAME]";
+        String expected = "some expected value";
+        Map<String, String> sysEnv = Maps.newHashMap();
+        sysEnv.put("CONTROLPLANE_VAR_NAME", expected);
+        Assert.assertEquals(expected, new ManagedReporter(appContext, appConfig, env, sysEnv).getTagValue(rawValue));
+    }
+
+    @Test
+    public void testGetTagValueForNull() throws Exception {
+        String rawValue = null;
+        String expected = "";
+        Assert.assertEquals(expected, new ManagedReporter(appContext, appConfig, env).getTagValue(rawValue));
+    }
+
+    @Test
+    public void testGetTagValueForUndefinedEnvironment() throws Exception {
+        String rawValue = "$env[SOME_UNDEFINED_VAR]";
+        String expected = "";
+        Map<String, String> sysEnv = Maps.newHashMap();
+        Assert.assertEquals(expected, new ManagedReporter(appContext, appConfig, env, sysEnv).getTagValue(rawValue));
+    }
+
+    private void assertHardCodedTags(Map<String, String> tags) {
+        assertTagAndValue("daemon", ZAPP_NAME, tags);
+        assertTagAndValue("internal", "true", tags);
+    }
+
+    private void assertTagAndValue(String name, String expectedValue, Map<String, String> tags) {
+        String actualValue = tags.get(name);
+        Assert.assertNotNull("tag name '" + name + "' exists", actualValue);
+        Assert.assertEquals("tag name '" + name + "' is correct", expectedValue, actualValue);
     }
 
     abstract static class TestAppConfiguration extends AppConfiguration {
