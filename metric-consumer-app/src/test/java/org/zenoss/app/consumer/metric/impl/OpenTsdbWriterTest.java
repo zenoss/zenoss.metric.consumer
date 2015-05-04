@@ -255,6 +255,36 @@ public class OpenTsdbWriterTest {
         assertEquals(expected, put);
     }
 
+    @Test(expected=IllegalArgumentException.class)
+    public void testConvertRejectsNullName() {
+        long timestamp = 1000;
+        double value = 1.2;
+        HashMap<String, String> tags = new HashMap<>();
+        Metric m = new Metric(null, timestamp, value, tags);
+        OpenTsdbWriter.convert(m);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testConvertRejectsNaNValue() {
+        long timestamp = 1000;
+        double value = Double.NaN;
+        HashMap<String, String> tags = new HashMap<>();
+        Metric m = new Metric("testName", timestamp, value, tags);
+        OpenTsdbWriter.convert(m);
+    }
+
+    @Test
+    public void testConvertIgnoresNullTagName() {
+        long timestamp = 1000;
+        double value = 1.2;
+        HashMap<String, String> tags = new HashMap<>();
+        tags.put(null, "some value");
+        Metric m = new Metric("testName", timestamp, value, tags);
+        String put = OpenTsdbWriter.convert(m);
+        String expected = "put testName 1000 1.2\n";
+        assertEquals(expected, put);
+    }
+
     @Test
     public void testSanitize() {
         String input = "hello_ [{]]THERE-=)(*&^%$#@!.";

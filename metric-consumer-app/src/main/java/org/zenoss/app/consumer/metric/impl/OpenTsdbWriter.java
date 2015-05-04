@@ -368,8 +368,11 @@ class OpenTsdbWriter implements TsdbWriter {
         }
         long timestamp = metric.getTimestamp();
         double value = metric.getValue();
-        Map<String, String> tags = Maps.newHashMap();
+        if (Double.isNaN(value)) {
+            throw new IllegalArgumentException("Value is NaN: %s" + metric.toString());
+        }
 
+        Map<String, String> tags = Maps.newHashMap();
         for (Entry<String, String> entry : metric.getTags().entrySet()) {
             String tagKey = sanitize(entry.getKey());
             String tagValue = sanitize(entry.getValue());
