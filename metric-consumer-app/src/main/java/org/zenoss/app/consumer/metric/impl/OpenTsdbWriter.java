@@ -193,6 +193,7 @@ class OpenTsdbWriter implements TsdbWriter {
                             processed++;
                         }
                         if (message != null) {
+                            log.trace("Publishing metric: {}", m.toString());
                             try {
                                 client.put(message);
                                 processed++;
