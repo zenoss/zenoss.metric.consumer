@@ -161,7 +161,7 @@ public class MetricWebSocketTest {
         socket.handle(highCollision);
         socket.handle(highCollision); // This should be ignored
 
-        Thread.sleep(TIME_BETWEEN_BROADCAST + 1);
+        Thread.sleep(TIME_BETWEEN_BROADCAST + 50);
 
         socket.handle(ok);
         socket.handle(lowCollision);
