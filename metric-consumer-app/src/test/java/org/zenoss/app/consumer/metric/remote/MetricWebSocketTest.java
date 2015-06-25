@@ -44,7 +44,6 @@ public class MetricWebSocketTest {
     MetricService service;
     HttpServletRequest request;
     WebSocket.Connection connection;
-    ConsumerAppConfiguration configuration;
 
     @Before
     public void setUp() throws Exception {
@@ -161,7 +160,7 @@ public class MetricWebSocketTest {
         socket.handle(highCollision);
         socket.handle(highCollision); // This should be ignored
 
-        Thread.sleep(TIME_BETWEEN_BROADCAST + 50);
+        Thread.sleep(TIME_BETWEEN_BROADCAST + 1);
 
         socket.handle(ok);
         socket.handle(lowCollision);
@@ -169,8 +168,8 @@ public class MetricWebSocketTest {
         socket.handle(highCollision);
         socket.handle(highCollision); // This should be ignored
 
-        verify(eventBus, times(2)).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, lowCollision));
-        verify(eventBus, times(2)).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, highCollision));
+        verify(eventBus, times(2)).post(MetricWebSocket.LOW_COLLISION_MESSAGE);
+        verify(eventBus, times(2)).post(MetricWebSocket.HIGH_COLLISION_MESSAGE);
         verify(eventBus, never()).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, ok));
     }
 

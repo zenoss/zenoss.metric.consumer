@@ -164,11 +164,11 @@ public class MetricWebSocket {
         //broadcast low and high collisions      
         switch (event.getType()) {
             case LOW_COLLISION:
-                lowCollisionBroadcast(event);
+                lowCollisionBroadcast();
                 break;
 
             case HIGH_COLLISION:
-                highCollisionBroadcast(event);
+                highCollisionBroadcast();
                 break;
 
             default:
@@ -199,38 +199,45 @@ public class MetricWebSocket {
             }
         }
     }
+    static final WebSocketBroadcast.Message LOW_COLLISION_MESSAGE;
+    static final WebSocketBroadcast.Message HIGH_COLLISION_MESSAGE;
+    static {
+        WebSocketBroadcast.Message msg = null;
+        try {
+            msg = WebSocketBroadcast.newMessage(MetricWebSocket.class, Control.lowCollision());
+        } catch (JsonProcessingException e) {
+            log.error("Unable to convert control message", e);
+        }
+        LOW_COLLISION_MESSAGE = msg;
+        try {
+            msg = WebSocketBroadcast.newMessage(MetricWebSocket.class, Control.highCollision());
+        } catch (JsonProcessingException e) {
+            log.error("Unable to convert control message", e);
+        }
+        HIGH_COLLISION_MESSAGE = msg;
 
-    void lowCollisionBroadcast(Control event) {
+    }
+    void lowCollisionBroadcast() {
         // We broadcast at most every X milliseconds. Check the LOW time.
         long now = System.currentTimeMillis();
         long lastCheckTimeExpected = lastLowCollisionBroadcast.get();
         if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
                 lastLowCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
-            try {
-                WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
-                eventBus.post(message);
-                service.incrementBroadcastLowCollision();
-                log.info("Sent low collision broadcast");
-            } catch (JsonProcessingException ex) {
-                log.error("Unable to convert control message", ex);
-            }
+            eventBus.post(LOW_COLLISION_MESSAGE);
+            service.incrementBroadcastLowCollision();
+            log.info("Sent low collision broadcast");
         }
     }
 
-    void highCollisionBroadcast(Control event) {
+    void highCollisionBroadcast() {
         // We broadcast at most every X milliseconds. Check the HIGH time.
         long now = System.currentTimeMillis();
         long lastCheckTimeExpected = lastHighCollisionBroadcast.get();
         if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
                 lastHighCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
-            try {
-                WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
-                eventBus.post(message);
-                log.warn("Sent high collision broadcast");
-                service.incrementBroadcastHighCollision();
-            } catch (JsonProcessingException ex) {
-                log.error("Unable to convert control message", ex);
-            }
+            eventBus.post(HIGH_COLLISION_MESSAGE);
+            log.warn("Sent high collision broadcast");
+            service.incrementBroadcastHighCollision();
         }
     }
 
