@@ -147,6 +147,7 @@ public class MetricWebSocketTest {
         verify(eventBus, never()).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, ok));
     }
 
+    /* DISABLED this test due to ZEN-18524
     @Test
     public void testDoubleBroadcast() throws Exception {
 
@@ -173,6 +174,7 @@ public class MetricWebSocketTest {
         verify(eventBus, times(2)).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, highCollision));
         verify(eventBus, never()).post(WebSocketBroadcast.newMessage(MetricWebSocket.class, ok));
     }
+    */
 
     ConsumerAppConfiguration config(boolean authEnabled) {
         return config(null, null, authEnabled);
