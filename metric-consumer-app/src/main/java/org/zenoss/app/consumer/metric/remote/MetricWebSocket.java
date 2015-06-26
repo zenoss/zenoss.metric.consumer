@@ -223,9 +223,13 @@ public class MetricWebSocket {
         long lastCheckTimeExpected = lastLowCollisionBroadcast.get();
         if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
                 lastLowCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
-            eventBus.post(LOW_COLLISION_MESSAGE);
-            service.incrementBroadcastLowCollision();
-            log.info("Sent low collision broadcast");
+            if (LOW_COLLISION_MESSAGE == null) {
+                log.error("Unable to send low collision broadcast due to exception during initialization");
+            } else {
+                eventBus.post(LOW_COLLISION_MESSAGE);
+                service.incrementBroadcastLowCollision();
+                log.info("Sent low collision broadcast");
+            }
         }
     }
 
@@ -235,9 +239,13 @@ public class MetricWebSocket {
         long lastCheckTimeExpected = lastHighCollisionBroadcast.get();
         if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
                 lastHighCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
-            eventBus.post(HIGH_COLLISION_MESSAGE);
-            log.warn("Sent high collision broadcast");
-            service.incrementBroadcastHighCollision();
+            if (HIGH_COLLISION_MESSAGE == null) {
+                log.error("Unable to send high collision broadcast due to exception during initialization");
+            } else {
+                eventBus.post(HIGH_COLLISION_MESSAGE);
+                log.warn("Sent high collision broadcast");
+                service.incrementBroadcastHighCollision();
+            }
         }
     }
 
