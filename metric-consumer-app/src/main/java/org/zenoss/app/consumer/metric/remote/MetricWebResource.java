@@ -65,29 +65,35 @@ public class MetricWebResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Control post(@Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
-        List<Metric> metrics = metricCollection.getMetrics();
-        log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
+        try {
+            List<Metric> metrics = metricCollection.getMetrics();
+            log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
 
-        if (metrics != null) {
-            metricService.incrementReceived(metrics.size());
+            if (metrics != null) {
+                metricService.incrementReceived(metrics.size());
+            }
+            //tag metrics with http parameters
+            log.debug("Tagging metrics with http parameter prefixes: {}", configuration.getHttpParameterTags());
+            Utils.tagMetrics(request, metrics, configuration.getHttpParameterTags());
+
+            //tag metrics with tenant id
+            if (configuration.isAuthEnabled()) {
+                Subject subject = security.getSubject();
+                ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
+
+                log.debug("Tagging metrics with tenant-id: {}", tenant.id());
+                Utils.injectTag("zenoss_tenant_id", tenant.id(), metrics);
+            }
+
+            //filter tags using configuration white list
+            Utils.filterMetricTags(metrics, configuration.getTagWhiteList());
+
+            String remoteIp = Utils.remoteAddress(request);
+            return metricService.push(metrics, remoteIp, null);
+        } catch (Exception e) {
+            log.info("post(metricCollection={}, request={}", metricCollection, request);
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            return Control.error(e.getMessage());
         }
-        //tag metrics with http parameters
-        log.debug( "Tagging metrics with http parameter prefixes: {}", configuration.getHttpParameterTags());
-        Utils.tagMetrics(request, metrics, configuration.getHttpParameterTags());
-
-        //tag metrics with tenant id
-        if ( configuration.isAuthEnabled()) {
-            Subject subject = security.getSubject();
-            ZenossTenant tenant= subject.getPrincipals().oneByType(ZenossTenant.class);
-
-            log.debug( "Tagging metrics with tenant-id: {}", tenant.id());
-            Utils.injectTag("zenoss_tenant_id", tenant.id(), metrics);
-        }
-
-        //filter tags using configuration white list
-        Utils.filterMetricTags( metrics, configuration.getTagWhiteList());
-
-        String remoteIp = Utils.remoteAddress(request);
-        return metricService.push(metrics, remoteIp, null);
     }
 }
