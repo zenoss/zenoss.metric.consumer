@@ -64,7 +64,7 @@ public class MetricWebResource {
     @Timed
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Control post(@Valid MetricCollection metricCollection, @Context HttpServletRequest request) {
+    public Control post(@Valid MetricCollection metricCollection, @Context HttpServletRequest request) throws Exception {
         try {
             List<Metric> metrics = metricCollection.getMetrics();
             log.debug("POST: metrics/store:  len(metrics)={}", (metrics == null) ? -1 : metrics.size());
@@ -93,7 +93,7 @@ public class MetricWebResource {
         } catch (Exception e) {
             log.info("post(metricCollection={}, request={}", metricCollection, request);
             log.error("Unexpected exception: " + e.getMessage(), e);
-            return Control.error(e.getMessage());
+            throw(e);
         }
     }
 }

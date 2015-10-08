@@ -97,7 +97,7 @@ public class MetricWebSocket {
     }
 
     @OnMessage
-    public Control onMessage(byte[] data, WebSocketSession session) {
+    public Control onMessage(byte[] data, WebSocketSession session) throws Exception {
         try {
             BinaryDecoder decoder = decoders.get(session.getConnection());
             if (decoder == null) {
@@ -110,10 +110,14 @@ public class MetricWebSocket {
                 log.error("Invalid message");
                 return Control.malformedRequest("Invalid message");
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.info("onMessage(data={}, session={}", data, session);
             log.error("Unexpected exception: " + e.getMessage(), e);
             return Control.error(e.getMessage());
+        } catch (Exception e) {
+            log.info("onMessage(data={}, session={}", data, session);
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            throw(e);
         }
     }
 
