@@ -81,17 +81,23 @@ public class MetricWebSocket {
     }
 
     @PostConstruct
-    public void registerSelf() {
-        eventBus.register(this);
+    public void registerSelf() throws Exception {
+        try {
+            eventBus.register(this);
+        }catch (Exception e) {
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            throw(e);
+        }
     }
 
     @OnClose
     public void onClose(Integer closeCode, String message, WebSocketSession session) {
+        log.info("onClose( closeCode={}, message={})", closeCode, message);
         decoders.remove(session.getConnection());
     }
 
     @OnMessage
-    public Control onMessage(byte[] data, WebSocketSession session) {
+    public Control onMessage(byte[] data, WebSocketSession session) throws Exception {
         try {
             BinaryDecoder decoder = decoders.get(session.getConnection());
             if (decoder == null) {
@@ -105,8 +111,13 @@ public class MetricWebSocket {
                 return Control.malformedRequest("Invalid message");
             }
         } catch (RuntimeException e) {
+            log.info("onMessage(data={}, session={}", data, session);
             log.error("Unexpected exception: " + e.getMessage(), e);
             return Control.error(e.getMessage());
+        } catch (Exception e) {
+            log.info("onMessage(data={}, session={}", data, session);
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            throw(e);
         }
     }
 
@@ -151,27 +162,33 @@ public class MetricWebSocket {
             } else {
                 return Control.malformedRequest("Null metrics not accepted");
             }
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
+            log.info("onMessage(message={}, session={}", message, session);
             log.error("Unexpected exception: " + e.getMessage(), e);
             return Control.error(e.getMessage());
         }
     }
 
     @Subscribe
-    public void handle(Control event) {
+    public void handle(Control event) throws Exception {
         log.debug("Handle control event: {}", event);
+        try {
+            //broadcast low and high collisions
+            switch (event.getType()) {
+                case LOW_COLLISION:
+                    lowCollisionBroadcast();
+                    break;
 
-        //broadcast low and high collisions      
-        switch (event.getType()) {
-            case LOW_COLLISION:
-                lowCollisionBroadcast();
-                break;
+                case HIGH_COLLISION:
+                    highCollisionBroadcast();
+                    break;
 
-            case HIGH_COLLISION:
-                highCollisionBroadcast();
-                break;
-
-            default:
+                default:
+            }
+        }catch (Exception e){
+            log.info("Handle control event: {}", event);
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            throw(e);
         }
     }
 
