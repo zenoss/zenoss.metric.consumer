@@ -151,8 +151,8 @@ public class MetricWebSocket {
                     Utils.injectTag("zenoss_tenant_id", tenant.id(), metricList);
                 }
 
-                //filter tags using configuration white list
-                Utils.filterMetricTags( metricList, configuration.getTagWhiteList());
+                //filter tags using configuration white lists
+                Utils.filterMetricTags( metricList, configuration.getTagWhiteList(), configuration.getTagWhiteListPrefixes());
 
                 //enqueue metrics for transfer
                 final String clientId = getClientId(session);
