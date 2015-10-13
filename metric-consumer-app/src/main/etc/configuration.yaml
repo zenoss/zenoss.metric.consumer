@@ -47,3 +47,11 @@ managedReporter:
     metricReporters:
       - {posterType: http, username: "$env[CONTROLPLANE_CONSUMER_USERNAME]", password: "$env[CONTROLPLANE_CONSUMER_PASSWORD]", urlEnvironment: "CONTROLPLANE_CONSUMER_URL"}
       - {posterType: bean, beanName: metric-service-poster}
+
+# tagWhiteList:
+#   - my_allowed_tag
+#   - my_other_allowed_tag
+#
+# tagWhiteListPrefixes:
+#   - my_allowed_tag_prefix
+#   - my_other_allowed_tag_prefix

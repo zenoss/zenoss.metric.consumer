@@ -112,36 +112,40 @@ public final class Utils {
      * @param whiteListPrefixes tag prefixes to white list
      */
     public static Map<String, String> filterTags(Map<String, String> tags, List<String> whiteList, List<String> whiteListPrefixes) {
-        if (!(whiteList == null && whiteListPrefixes == null)) {
-            final Map<String, String> tagsCopy = Maps.newHashMap(tags);
-            final Map<String, String> newTags = Maps.newLinkedHashMap();
-            String key;
-            // First add explicitly white listed tags
-            if (whiteList != null) {
-                for (Map.Entry<String, String> entry : tags.entrySet()) {
-                    key = entry.getKey();
-                    if (whiteList.contains(key)) {
-                        newTags.put(key, entry.getValue());
-                        tagsCopy.remove(key);
-                    }
-                }
-            }
-            // Now loop through again and check remaining tags against the prefix white list.  Only look @ the copy
-            // of the tags at this point, in case any were removed by the explicit white list.
-            if (whiteListPrefixes != null) {
-                for (Map.Entry<String, String> entry : tagsCopy.entrySet()) {
-                    key = entry.getKey();
-                    for (String prefix : whiteListPrefixes) {
-                        if (key.startsWith(prefix)) {
-                            newTags.put(key, entry.getValue());
-                            break;
-                        }
-                    }
-                }
-
-            }
-            return newTags;
+        // return original tags if white lists are null
+        if (whiteList == null && whiteListPrefixes == null) {
+            return tags;
         }
-        return tags;
+
+        final Map<String, String> tagsCopy = Maps.newHashMap(tags);
+        final Map<String, String> newTags = Maps.newLinkedHashMap();
+        String key;
+
+        // First add explicitly white listed tags
+        if (whiteList != null) {
+            for (Map.Entry<String, String> entry : tags.entrySet()) {
+                key = entry.getKey();
+                if (whiteList.contains(key)) {
+                    newTags.put(key, entry.getValue());
+                    tagsCopy.remove(key);
+                }
+            }
+        }
+        // Now loop through again and check remaining tags against the prefix white list.  Only look @ the copy
+        // of the tags at this point, in case any were removed by the explicit white list.
+        if (whiteListPrefixes != null) {
+            for (Map.Entry<String, String> entry : tagsCopy.entrySet()) {
+                key = entry.getKey();
+                for (String prefix : whiteListPrefixes) {
+                    if (key.startsWith(prefix)) {
+                        newTags.put(key, entry.getValue());
+                        break;
+                    }
+                }
+            }
+
+        }
+        return newTags;
     }
+
 }
