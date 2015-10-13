@@ -98,38 +98,75 @@ public class UtilsTest {
     @Test
     public void testFilterMetricTags() throws Exception {
         Map<String, String> tags = Maps.newHashMap();
-        tags.put( "tag-1", "value-1");
-        tags.put( "tag-2", "value-2");
+        tags.put("tag-1", "value-1");
+        tags.put("tag-2", "value-2");
 
-        Metric metric = new Metric( "metric", 0, 0, tags);
+        Metric metric = new Metric("metric", 0, 0, tags);
         List<Metric> input_metrics = Lists.newArrayList();
-        input_metrics.add( metric);
+        input_metrics.add(metric);
 
         List<Metric> expected_metrics = Lists.newArrayList( input_metrics);
-        Utils.filterMetricTags( input_metrics, null);
-        assertEquals( expected_metrics, input_metrics);
+        Utils.filterMetricTags(input_metrics, null, null);
+        assertEquals(expected_metrics, input_metrics);
 
-        metric = new Metric( "metric", 0, 0);
-        metric.setTags( tags);
-        metric.removeTag( "tag-2");
+        metric = new Metric("metric", 0, 0);
+        metric.setTags(tags);
+        metric.removeTag("tag-2");
         expected_metrics = Lists.newArrayList( metric);
-        Utils.filterMetricTags( input_metrics, Lists.newArrayList( "tag-1"));
-        assertEquals( expected_metrics, input_metrics);
+        Utils.filterMetricTags(input_metrics, Lists.newArrayList("tag-1"), null);
+        assertEquals(expected_metrics, input_metrics);
+
+        metric = new Metric("metric", 0, 0);
+        metric.setTags(tags);
+        input_metrics = Lists.newArrayList(metric);
+        expected_metrics = Lists.newArrayList(input_metrics);
+        Utils.filterMetricTags(input_metrics, null, Lists.newArrayList("tag"));
+        assertEquals(expected_metrics, input_metrics);
+
+        Metric expected_metric = new Metric("metric", 0, 0);
+        expected_metric.addTag("tag-1", "value-1");
+        expected_metrics = Lists.newArrayList();
+        expected_metrics.add(expected_metric);
+        Utils.filterMetricTags(input_metrics, null, Lists.newArrayList("tag-1"));
+        assertEquals(expected_metrics, input_metrics);
+
+        metric = new Metric("metric", 0, 0);
+        metric.addTag("tag-1", "val-1");
+        metric.addTag("tag-2", "val-2");
+        metric.addTag("aaa-1", "aaa-1");
+        metric.addTag("aaa-2", "aaa-3");
+        metric.addTag("bbb-1", "bbb-1");
+        input_metrics = Lists.newArrayList(metric);
+        Utils.filterMetricTags(input_metrics, Lists.newArrayList("tag-1"), Lists.newArrayList("aaa"));
+        expected_metric = new Metric("metric", 0, 0);
+        expected_metric.addTag("tag-1", "val-1");
+        expected_metric.addTag("aaa-1", "aaa-1");
+        expected_metric.addTag("aaa-2", "aaa-3");
+        expected_metrics = Lists.newArrayList(metric);
+        assertEquals(expected_metrics, input_metrics);
     }
 
     @Test
     public void testFilterTags() throws Exception {
+        /**
+         * This is pretty heavily tested via testFilterMetricTags
+         */
         Map<String, String> tags = Maps.newHashMap();
-        tags.put( "tag-1", "value-1");
-        tags.put( "tag-2", "value-2");
+        tags.put("tag-1", "value-1");
+        tags.put("tag-2", "value-2");
 
-        Map<String, String> expected_tags = Maps.newHashMap( tags);
-        assertEquals( expected_tags, Utils.filterTags(tags, null));
+        Map<String, String> expected_tags = Maps.newHashMap(tags);
+        assertEquals(expected_tags, Utils.filterTags(tags, null, null));
 
         List<String> whiteList = Lists.newArrayList();
-        whiteList.add( "tag-1");
-        expected_tags = Maps.newHashMap( );
-        expected_tags.put( "tag-1", "value-1");
-        assertEquals( expected_tags, Utils.filterTags(tags, whiteList));
+        whiteList.add("tag-1");
+        expected_tags = Maps.newHashMap();
+        expected_tags.put("tag-1", "value-1");
+        assertEquals(expected_tags, Utils.filterTags(tags, whiteList, null));
+
+        tags.put("aaa-1", "val-1");
+        expected_tags = Maps.newHashMap();
+        expected_tags.put("aaa-1", "val-1");
+        assertEquals(expected_tags, Utils.filterTags(tags, null, Lists.newArrayList("aaa")));
     }
 }

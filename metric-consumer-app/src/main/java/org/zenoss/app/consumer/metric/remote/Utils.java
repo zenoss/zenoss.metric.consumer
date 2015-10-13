@@ -18,10 +18,7 @@ import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Shared utilities for Metric WebSockets and WebResources.
@@ -50,8 +47,8 @@ public final class Utils {
     /**
      * Find and inject all parameters in the servlet request matching the provided prefix into each metric.
      *
-     * @param request      The http servlet request
-     * @param metrics      The metrics to tag
+     * @param request     The http servlet request
+     * @param metrics     The metrics to tag
      * @param tagPrefixes The prefixes to find int he servlet request
      */
     public static void tagMetrics(HttpServletRequest request, List<Metric> metrics, List<String> tagPrefixes) {
@@ -86,39 +83,69 @@ public final class Utils {
     }
 
     /**
-     * Filter tags in each metric using a white list. No white listing performed when
-     * the list's null.  An empty white list removes all tags.
+     * Filter tags in each metric using a white list of specific tags, and a white list of tag prefixes.  Tags matching
+     * the explicit whitelist have priority, and are placed in the resulting map first.
      *
-     * @param metrics the metrics to tag
-     * @param whiteList tags to white list
+     * If both white lists are null, all tags are preserved.  If one white list is null, then it is ignored.
+     *
+     * @param metrics           the metrics to tag
+     * @param whiteList         tags to white list
+     * @param whiteListPrefixes tag prefixes to white list
      */
-    public static void filterMetricTags(List<Metric> metrics, List<String> whiteList) {
-        if (whiteList != null) {
-            for ( Metric m : metrics) {
-                Map<String, String> tags = filterTags( m.getTags(), whiteList);
-                m.setTags( tags);
+    public static void filterMetricTags(List<Metric> metrics, List<String> whiteList, List<String> whiteListPrefixes) {
+        if (!(whiteList == null && whiteListPrefixes == null)) {
+            for (Metric m : metrics) {
+                Map<String, String> tags = filterTags(m.getTags(), whiteList, whiteListPrefixes);
+                m.setTags(tags);
             }
         }
     }
 
     /**
-     * Create a new tag map from an existing tag map using a white list to filter tags.  When
-     * white list is null the old tags are the new tags.
+     * Create a new tag map from an existing tag map using an explicit white list, and a white list prefix list.
+     * If both white lists are null, the old tags are the new tags.  If one white list is null, then it is ignored.
      *
-     * @param tags the tags to filter
-     * @param whiteList tags to white list
+     * The current implementation returns an ordered Map with the explicit white list matches appearing first in the map.
+     *
+     * @param tags              the tags to filter
+     * @param whiteList         tags to white list
+     * @param whiteListPrefixes tag prefixes to white list
      */
-    public static Map<String, String> filterTags(  Map<String,String> tags, List<String> whiteList) {
+    public static Map<String, String> filterTags(Map<String, String> tags, List<String> whiteList, List<String> whiteListPrefixes) {
+        // return original tags if white lists are null
+        if (whiteList == null && whiteListPrefixes == null) {
+            return tags;
+        }
+
+        final Map<String, String> tagsCopy = Maps.newHashMap(tags);
+        final Map<String, String> newTags = Maps.newLinkedHashMap();
+        String key;
+
+        // First add explicitly white listed tags
         if (whiteList != null) {
-            final Map<String, String> newTags = Maps.newHashMap();
-            for( Map.Entry<String, String> entry : tags.entrySet()) {
-                final String key = entry.getKey();
-                if (whiteList.contains( key)) {
-                    newTags.put( key, entry.getValue());
+            for (Map.Entry<String, String> entry : tags.entrySet()) {
+                key = entry.getKey();
+                if (whiteList.contains(key)) {
+                    newTags.put(key, entry.getValue());
+                    tagsCopy.remove(key);
                 }
             }
-            return newTags;
         }
-        return tags;
+        // Now loop through again and check remaining tags against the prefix white list.  Only look @ the copy
+        // of the tags at this point, in case any were removed by the explicit white list.
+        if (whiteListPrefixes != null) {
+            for (Map.Entry<String, String> entry : tagsCopy.entrySet()) {
+                key = entry.getKey();
+                for (String prefix : whiteListPrefixes) {
+                    if (key.startsWith(prefix)) {
+                        newTags.put(key, entry.getValue());
+                        break;
+                    }
+                }
+            }
+
+        }
+        return newTags;
     }
+
 }

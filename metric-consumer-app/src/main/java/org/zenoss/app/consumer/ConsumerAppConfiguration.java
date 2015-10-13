@@ -16,10 +16,8 @@ import com.google.api.client.util.Lists;
 import org.zenoss.app.AppConfiguration;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.metric.zapp.ManagedReporterConfig;
-import org.zenoss.app.metric.zapp.MetricReporterConfig;
 
 import javax.validation.Valid;
-import java.util.ArrayList;
 import java.util.List;
 
 public class ConsumerAppConfiguration extends AppConfiguration {
@@ -39,6 +37,10 @@ public class ConsumerAppConfiguration extends AppConfiguration {
     @Valid
     @JsonProperty("tagWhiteList")
     private List<String> tagWhiteList = null;
+
+    @Valid
+    @JsonProperty("tagWhiteListPrefixes")
+    private List<String> tagWhiteListPrefixes = null;
 
     /**
      * Configuration details for the metric service
@@ -72,6 +74,12 @@ public class ConsumerAppConfiguration extends AppConfiguration {
         this.httpParameterTags = httpParameterTags;
     }
 
+    /**
+     * White list tags.  This includes both a white list of full tag names, and a list of prefixes to support.
+     *
+     * @TODO: Refactor these top level whitelists under a common white/black list registry config
+     */
+
     public List<String> getTagWhiteList() {
         return tagWhiteList;
     }
@@ -80,7 +88,14 @@ public class ConsumerAppConfiguration extends AppConfiguration {
         tagWhiteList = list;
     }
 
+    public List<String> getTagWhiteListPrefixes() { return tagWhiteListPrefixes; }
+
+    public void setTagWhiteListPrefixes(List<String> list) {
+        tagWhiteListPrefixes = list;
+    }
+
     public void setMetricServiceConfiguration(MetricServiceConfiguration metricServiceConfiguration) {
         this.metricServiceConfiguration = metricServiceConfiguration;
     }
 }
+
