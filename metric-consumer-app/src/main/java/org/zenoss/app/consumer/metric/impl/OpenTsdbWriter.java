@@ -11,6 +11,7 @@
 package org.zenoss.app.consumer.metric.impl;
 
 import com.google.api.client.util.ExponentialBackOff;
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
@@ -364,7 +365,7 @@ class OpenTsdbWriter implements TsdbWriter {
 
     static final String convert(Metric metric) {
         String name = metric.getMetric();
-        if (name == null) {
+        if (Strings.isNullOrEmpty(name)) {
             throw new IllegalArgumentException("missing name");
         }
         long timestamp = metric.getTimestamp();
@@ -379,16 +380,18 @@ class OpenTsdbWriter implements TsdbWriter {
             String tagValue = sanitize(entry.getValue());
             if (tagKey == null) {
                 if (tagValue != null)
-                    log.warn("Dropping tag null:{} for metric {}", tagValue, name);
+                    log.warn("empty tag key, dropping tag null:{} for metric {}", tagValue, metric);
                 continue;
             } else if (tagValue == null) {
-                tagValue = "";
+                log.warn("empty tag value, dropping tag: {}:null for metric {}", tagKey, metric);
+                continue;
             }
             tags.put(tagKey, tagValue);
         }
 
         // escape spaces from the metric name since space is an invalid OpenTSDB metric name
         name = name.replace(" ", SPACE_REPLACEMENT);
+        name = sanitize(name);
 
         return OpenTsdbClient.toPutMessage(name, timestamp, value, tags);
     }

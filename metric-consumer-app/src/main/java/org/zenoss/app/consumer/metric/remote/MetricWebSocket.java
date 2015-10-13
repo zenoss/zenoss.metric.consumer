@@ -81,17 +81,23 @@ public class MetricWebSocket {
     }
 
     @PostConstruct
-    public void registerSelf() {
-        eventBus.register(this);
+    public void registerSelf() throws Exception {
+        try {
+            eventBus.register(this);
+        }catch (Exception e) {
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            throw(e);
+        }
     }
 
     @OnClose
     public void onClose(Integer closeCode, String message, WebSocketSession session) {
+        log.info("onClose( closeCode={}, message={})", closeCode, message);
         decoders.remove(session.getConnection());
     }
 
     @OnMessage
-    public Control onMessage(byte[] data, WebSocketSession session) {
+    public Control onMessage(byte[] data, WebSocketSession session) throws Exception {
         try {
             BinaryDecoder decoder = decoders.get(session.getConnection());
             if (decoder == null) {
@@ -105,8 +111,13 @@ public class MetricWebSocket {
                 return Control.malformedRequest("Invalid message");
             }
         } catch (RuntimeException e) {
+            log.info("onMessage(data={}, session={}", data, session);
             log.error("Unexpected exception: " + e.getMessage(), e);
             return Control.error(e.getMessage());
+        } catch (Exception e) {
+            log.info("onMessage(data={}, session={}", data, session);
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            throw(e);
         }
     }
 
@@ -140,8 +151,8 @@ public class MetricWebSocket {
                     Utils.injectTag("zenoss_tenant_id", tenant.id(), metricList);
                 }
 
-                //filter tags using configuration white list
-                Utils.filterMetricTags( metricList, configuration.getTagWhiteList());
+                //filter tags using configuration white lists
+                Utils.filterMetricTags( metricList, configuration.getTagWhiteList(), configuration.getTagWhiteListPrefixes());
 
                 //enqueue metrics for transfer
                 final String clientId = getClientId(session);
@@ -151,27 +162,33 @@ public class MetricWebSocket {
             } else {
                 return Control.malformedRequest("Null metrics not accepted");
             }
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
+            log.info("onMessage(message={}, session={}", message, session);
             log.error("Unexpected exception: " + e.getMessage(), e);
             return Control.error(e.getMessage());
         }
     }
 
     @Subscribe
-    public void handle(Control event) {
+    public void handle(Control event) throws Exception {
         log.debug("Handle control event: {}", event);
+        try {
+            //broadcast low and high collisions
+            switch (event.getType()) {
+                case LOW_COLLISION:
+                    lowCollisionBroadcast();
+                    break;
 
-        //broadcast low and high collisions      
-        switch (event.getType()) {
-            case LOW_COLLISION:
-                lowCollisionBroadcast(event);
-                break;
+                case HIGH_COLLISION:
+                    highCollisionBroadcast();
+                    break;
 
-            case HIGH_COLLISION:
-                highCollisionBroadcast(event);
-                break;
-
-            default:
+                default:
+            }
+        }catch (Exception e){
+            log.info("Handle control event: {}", event);
+            log.error("Unexpected exception: " + e.getMessage(), e);
+            throw(e);
         }
     }
 
@@ -199,37 +216,52 @@ public class MetricWebSocket {
             }
         }
     }
+    static final WebSocketBroadcast.Message LOW_COLLISION_MESSAGE;
+    static final WebSocketBroadcast.Message HIGH_COLLISION_MESSAGE;
+    static {
+        WebSocketBroadcast.Message msg = null;
+        try {
+            msg = WebSocketBroadcast.newMessage(MetricWebSocket.class, Control.lowCollision());
+        } catch (JsonProcessingException e) {
+            log.error("Unable to convert control message", e);
+        }
+        LOW_COLLISION_MESSAGE = msg;
+        try {
+            msg = WebSocketBroadcast.newMessage(MetricWebSocket.class, Control.highCollision());
+        } catch (JsonProcessingException e) {
+            log.error("Unable to convert control message", e);
+        }
+        HIGH_COLLISION_MESSAGE = msg;
 
-    void lowCollisionBroadcast(Control event) {
+    }
+    void lowCollisionBroadcast() {
         // We broadcast at most every X milliseconds. Check the LOW time.
         long now = System.currentTimeMillis();
         long lastCheckTimeExpected = lastLowCollisionBroadcast.get();
         if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
                 lastLowCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
-            try {
-                WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
-                eventBus.post(message);
+            if (LOW_COLLISION_MESSAGE == null) {
+                log.error("Unable to send low collision broadcast due to exception during initialization");
+            } else {
+                eventBus.post(LOW_COLLISION_MESSAGE);
                 service.incrementBroadcastLowCollision();
                 log.info("Sent low collision broadcast");
-            } catch (JsonProcessingException ex) {
-                log.error("Unable to convert control message", ex);
             }
         }
     }
 
-    void highCollisionBroadcast(Control event) {
+    void highCollisionBroadcast() {
         // We broadcast at most every X milliseconds. Check the HIGH time.
         long now = System.currentTimeMillis();
         long lastCheckTimeExpected = lastHighCollisionBroadcast.get();
         if (now > lastCheckTimeExpected + minTimeBetweenBroadcast &&
                 lastHighCollisionBroadcast.compareAndSet(lastCheckTimeExpected, now)) {
-            try {
-                WebSocketBroadcast.Message message = WebSocketBroadcast.newMessage(getClass(), event);
-                eventBus.post(message);
+            if (HIGH_COLLISION_MESSAGE == null) {
+                log.error("Unable to send high collision broadcast due to exception during initialization");
+            } else {
+                eventBus.post(HIGH_COLLISION_MESSAGE);
                 log.warn("Sent high collision broadcast");
                 service.incrementBroadcastHighCollision();
-            } catch (JsonProcessingException ex) {
-                log.error("Unable to convert control message", ex);
             }
         }
     }
