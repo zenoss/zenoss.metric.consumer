@@ -17,6 +17,7 @@ import org.zenoss.lib.tsdb.OpenTsdbClientPoolConfiguration;
 import javax.validation.Valid;
 
 import org.zenoss.app.consumer.metric.data.Control.Type;
+import org.zenoss.databus.producer.DatabusProducerConfig;
 
 public class MetricServiceConfiguration {
 
@@ -24,6 +25,9 @@ public class MetricServiceConfiguration {
     @JsonProperty("openTsdbClientPool")
     private OpenTsdbClientPoolConfiguration openTsdbClientPoolConfiguration = new OpenTsdbClientPoolConfiguration();
 
+    @JsonProperty("databusPublish")
+    private DatabusPublishConfig  databusPublishConfig = new DatabusPublishConfig();
+    
     /**
      * how many metrics per thread
      */
@@ -127,7 +131,15 @@ public class MetricServiceConfiguration {
         return openTsdbClientPoolConfiguration;
     }
 
-    /**
+    public DatabusPublishConfig getDatabusPublishConfig() {
+		return databusPublishConfig;
+	}
+
+	public void setDatabusPublishConfig(DatabusPublishConfig databusPublishConfig) {
+		this.databusPublishConfig = databusPublishConfig;
+	}
+
+	/**
      * The name of this consumer. This should be unique per JVM.
      *
      * @return consumerName
