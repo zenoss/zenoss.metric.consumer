@@ -2,6 +2,9 @@ authEnabled: true
 
 logging:
     level: INFO
+    loggers:
+      "org.zenoss.databus": DEBUG
+      "org.zenoss.app.consumer": DEBUG
 
 http:
   port: 8443
@@ -42,7 +45,13 @@ metricService:
         keepAlive:          true
         connectTimeout:     1000
         soTimeout:          1000
-
+    databusPublish:
+      configFile: /opt/zenoss/etc/metric-consumer-app/DatabusProducer.properties
+      minThreadPoolSize: 5
+      maxThreadPoolSize: 10
+      maxIdleTime: 30000
+      databusWriterThreads: 1
+      batchSize: 50
 managedReporter:
     metricReporters:
       - {posterType: http, username: "$env[CONTROLPLANE_CONSUMER_USERNAME]", password: "$env[CONTROLPLANE_CONSUMER_PASSWORD]", urlEnvironment: "CONTROLPLANE_CONSUMER_URL"}

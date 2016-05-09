@@ -31,16 +31,18 @@ public class OpenTsdbMetricServiceTest {
     MetricServiceConfiguration config;
     EventBus eventBus;
     MetricsQueue metricsQueue;
+    DatabusMetricsQueue databusMetricsQueue;
 
     @Before
     public void setUp() {
         eventBus = mock(EventBus.class);
         config = new MetricServiceConfiguration();
         metricsQueue = mock(MetricsQueue.class);
+        databusMetricsQueue = mock(DatabusMetricsQueue.class);
     }
     
     OpenTsdbMetricService newService() {
-        return new OpenTsdbMetricService(config, eventBus, metricsQueue);
+        return new OpenTsdbMetricService(config, eventBus, metricsQueue, databusMetricsQueue);
     }
 
     @Test

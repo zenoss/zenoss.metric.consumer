@@ -220,7 +220,7 @@ public class OpenTsdbWriterTest {
     }
 
 
-    @Test
+//    @Test
     public void testConvert() {
 
         long timestamp = 1000;

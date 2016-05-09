@@ -38,11 +38,12 @@ class OpenTsdbMetricService implements MetricService {
     OpenTsdbMetricService(
             MetricServiceConfiguration config,
             @Qualifier("zapp::event-bus::async") EventBus eventBus,
-            MetricsQueue metricsQueue) {
+            MetricsQueue metricsQueue,
+            DatabusMetricsQueue databusMetricsQueue) {
         // Dependencies
         this.eventBus = eventBus;
         this.metricsQueue = metricsQueue;
-
+        this.databusMetricsQueue = databusMetricsQueue;
         // Configuration
         this.highCollisionMark = config.getHighCollisionMark();
         this.lowCollisionMark = config.getLowCollisionMark();
@@ -93,6 +94,8 @@ class OpenTsdbMetricService implements MetricService {
             return Control.malformedRequest(reason);
         }
         final List<Metric> copy = Lists.newArrayList(metrics);
+        
+
         if (!copy.isEmpty()) {
             long totalInFlight = metricsQueue.getTotalInFlight();
             log.debug("totalInFlight = {}", totalInFlight);
@@ -103,7 +106,9 @@ class OpenTsdbMetricService implements MetricService {
             }
 
             metricsQueue.addAll(copy, clientId);
-
+            final List<Metric> copy2 = Lists.newArrayList(metrics);
+            databusMetricsQueue.addAll(copy2);
+            
             // Notify the bus that we are going from no data to some data.
             if (totalInFlight == 0) {
                 eventBus.post(Control.dataReceived());
@@ -227,6 +232,7 @@ class OpenTsdbMetricService implements MetricService {
      */
     private final TsdbMetricsQueue metricsQueue;
 
+    private final DatabusMetricsQueue databusMetricsQueue;
     /**
      * high collision detection mark
      */

@@ -10,9 +10,9 @@
     <properties>
         <version.zapp>0.0.22</version.zapp>
         <version.junit>4.11</version.junit>
-        <version.jersey>1.15</version.jersey>
+        <version.jersey>1.17.1</version.jersey>
         <version.dropwizard>0.6.2</version.dropwizard>
-        <version.guava>14.0.1</version.guava>
+        <version.guava>18.0</version.guava>
         <version.yammermetrics>2.2.0</version.yammermetrics>
         <version.metric.tsdb>0.0.12</version.metric.tsdb>
         <version.httpcomponents></version.httpcomponents>
@@ -77,10 +77,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
+                <version>3.3</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
