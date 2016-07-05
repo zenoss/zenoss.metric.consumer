@@ -82,7 +82,7 @@ public class MetricWebSocketTest {
 
         PrincipalCollection principles = mock(PrincipalCollection.class);
         when(subject.getPrincipals()).thenReturn(principles);
-        ZenossTenant tenant = new ZenossTenant( "3");
+        ZenossTenant tenant = ZenossTenant.get( "3");
         when(principles.oneByType(ZenossTenant.class)).thenReturn( tenant);
 
         Control control = new Control();
@@ -118,7 +118,7 @@ public class MetricWebSocketTest {
 
         PrincipalCollection principles = mock(PrincipalCollection.class);
         when(subject.getPrincipals()).thenReturn(principles);
-        ZenossTenant tenant = new ZenossTenant( "3");
+        ZenossTenant tenant = ZenossTenant.get( "3");
         when(principles.oneByType(ZenossTenant.class)).thenReturn( tenant);
 
         Control control = new Control();
