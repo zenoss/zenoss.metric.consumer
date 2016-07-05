@@ -109,7 +109,7 @@ public class MetricWebResourceTest {
 
         PrincipalCollection collection = mock(PrincipalCollection.class);
         when(subject.getPrincipals()).thenReturn(collection);
-        ZenossTenant tenant = new ZenossTenant("tenant");
+        ZenossTenant tenant = ZenossTenant.get("tenant");
         when(collection.oneByType(ZenossTenant.class)).thenReturn(tenant);
         assertThat(resource.post(mc, request)).isEqualTo(control);
 
@@ -137,7 +137,7 @@ public class MetricWebResourceTest {
 
         PrincipalCollection collection = mock(PrincipalCollection.class);
         when(subject.getPrincipals()).thenReturn(collection);
-        ZenossTenant tenant = new ZenossTenant("tenant");
+        ZenossTenant tenant = ZenossTenant.get("tenant");
         when(collection.oneByType(ZenossTenant.class)).thenReturn(tenant);
         assertThat(resource.post(mc, request)).isEqualTo(control);
 
