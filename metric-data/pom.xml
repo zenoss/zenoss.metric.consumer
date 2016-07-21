@@ -5,7 +5,7 @@
     <parent>
         <artifactId>metric-consumer-parent</artifactId>
         <groupId>org.zenoss</groupId>
-        <version>0.1.3</version>
+        <version>0.1.4</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -48,7 +48,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>findbugs-maven-plugin</artifactId>
-                <version>2.5.2</version>
+                <version>3.0.1</version>
                 <configuration>
                     <excludeFilterFile>src/test/resources/findbugs-exclude.xml</excludeFilterFile>
                 </configuration>
