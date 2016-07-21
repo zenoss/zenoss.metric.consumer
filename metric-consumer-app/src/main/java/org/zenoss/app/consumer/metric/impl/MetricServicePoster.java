@@ -44,6 +44,7 @@ import org.zenoss.metrics.reporter.MetricBatch;
 import org.zenoss.metrics.reporter.MetricPoster;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.util.List;
 
 import static org.apache.http.HttpHeaders.ACCEPT;
@@ -172,6 +173,8 @@ class MetricServicePoster implements MetricPoster {
                 }
             } catch (NullPointerException ex) {
                 log.warn( "npe retrieving tenantId: {}", ex);
+            } catch (ConnectException ex) {
+                log.warn(String.format("Connection to %s failed: %s", host.getHostName(), ex));
             } finally {
                 try {
                     if ( response != null) {
