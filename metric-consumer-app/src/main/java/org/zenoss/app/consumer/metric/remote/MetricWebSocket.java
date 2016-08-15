@@ -64,6 +64,7 @@ public class MetricWebSocket {
                     return String.format("websocket%d",sequence.incrementAndGet());
                 }
             }));
+    private final WeakHashMap<WebSocketSession, String> tenantIds = new WeakHashMap<>();
 
     @Autowired
     public MetricWebSocket(
@@ -144,11 +145,14 @@ public class MetricWebSocket {
 
                 //tag metrics with tenant id (obviously, tenant-id's identified through authentication)
                 if (configuration.isAuthEnabled()) {
-                    Subject subject = session.getSubject();
-                    ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
-
-                    log.debug("Tagging metrics with tenant_id: {}", tenant.id());
-                    Utils.injectTag("zenoss_tenant_id", tenant.id(), metricList);
+                    if (!tenantIds.containsKey(session)) {
+                        Subject subject = session.getSubject();
+                        ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
+                        tenantIds.put(session, tenant.id());
+                    }
+                    String tenantId = tenantIds.get(session);
+                    log.debug("Tagging metrics with tenant_id: {}", tenantId);
+                    Utils.injectTag("zenoss_tenant_id", tenantId, metricList);
                 }
 
                 //filter tags using configuration white lists
