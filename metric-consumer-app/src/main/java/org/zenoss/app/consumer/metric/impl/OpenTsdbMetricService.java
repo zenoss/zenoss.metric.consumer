@@ -32,243 +32,252 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 class OpenTsdbMetricService implements MetricService {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
+	private static final Logger log = LoggerFactory.getLogger(OpenTsdbMetricService.class);
 
-    @Autowired
-    OpenTsdbMetricService(
-            MetricServiceConfiguration config,
-            @Qualifier("zapp::event-bus::async") EventBus eventBus,
-            MetricsQueue metricsQueue,
-            DatabusMetricsQueue databusMetricsQueue) {
-        // Dependencies
-        this.eventBus = eventBus;
-        this.metricsQueue = metricsQueue;
-        this.databusMetricsQueue = databusMetricsQueue;
-        // Configuration
-        this.highCollisionMark = config.getHighCollisionMark();
-        this.lowCollisionMark = config.getLowCollisionMark();
-        this.perClientMaxBacklogSize = config.getPerClientMaxBacklogSize();
-        this.perClientMaxPercentOfFairBacklogSize = config.getPerClientMaxPercentOfFairBacklogSize();
-        this.maxClientWaitTime = config.getMaxClientWaitTime();
-        this.minTimeBetweenRetries = config.getMinTimeBetweenNotification();
+	@Autowired
+	OpenTsdbMetricService(MetricServiceConfiguration config, @Qualifier("zapp::event-bus::async") EventBus eventBus,
+			MetricsQueue metricsQueue, DatabusMetricsQueue databusMetricsQueue) {
+		// Dependencies
+		this.eventBus = eventBus;
+		this.metricsQueue = metricsQueue;
+		this.databusMetricsQueue = databusMetricsQueue;
+		this.enableDatabusPublish = config.getDatabusPublishConfig().isEnablePublish();
+		// Configuration
+		this.highCollisionMark = config.getHighCollisionMark();
+		this.lowCollisionMark = config.getLowCollisionMark();
+		this.perClientMaxBacklogSize = config.getPerClientMaxBacklogSize();
+		this.perClientMaxPercentOfFairBacklogSize = config.getPerClientMaxPercentOfFairBacklogSize();
+		this.maxClientWaitTime = config.getMaxClientWaitTime();
+		this.minTimeBetweenRetries = config.getMinTimeBetweenNotification();
 
-        // State
-        this.lastCollisionCount = new AtomicLong();
-    }
+		// State
+		this.lastCollisionCount = new AtomicLong();
+	}
 
-    @Override
-    public void incrementReceived(long received) {
-        metricsQueue.incrementReceived(received);
-    }
+	@Override
+	public void incrementReceived(long received) {
+		metricsQueue.incrementReceived(received);
+	}
 
-    @Override
-    public void incrementSentClientCollision() {
-        metricsQueue.incrementSentClientCollision();
-    }
+	@Override
+	public void incrementSentClientCollision() {
+		metricsQueue.incrementSentClientCollision();
+	}
 
-    @Override
-    public void incrementBroadcastLowCollision() {
-        metricsQueue.incrementBroadcastLowCollision();
-    }
+	@Override
+	public void incrementBroadcastLowCollision() {
+		metricsQueue.incrementBroadcastLowCollision();
+	}
 
-    @Override
-    public void incrementBroadcastHighCollision() {
-        metricsQueue.incrementBroadcastHighCollision();
-    }
+	@Override
+	public void incrementBroadcastHighCollision() {
+		metricsQueue.incrementBroadcastHighCollision();
+	}
 
-    @Override
-    public Control push(final List<Metric> metrics, final String clientId, Runnable onCollision) {
-        if (metrics == null) {
-            return Control.malformedRequest("metrics not nullable");
-        }
-        if (clientId == null) {
-            metricsQueue.incrementRejected(metrics.size());
-            log.info("Rejected: [{}] clientId not nullable", metrics.size());
-            return Control.malformedRequest("clientId not nullable");
-        }
-        long maxPushSize = Math.max(highCollisionMark - 1 , perClientMaxBacklogSize());
-        if (metrics.size() > maxPushSize) {
-            String reason = String.format("cannot push more than %d metrics at a time", maxPushSize);
-            metricsQueue.incrementRejected(metrics.size());
-            log.info("Rejected: [{}] {}", metrics.size(), reason);
-            return Control.malformedRequest(reason);
-        }
-        final List<Metric> copy = Lists.newArrayList(metrics);
-        
+	@Override
+	public Control push(final List<Metric> metrics, final String clientId, Runnable onCollision) {
+		if (metrics == null) {
+			return Control.malformedRequest("metrics not nullable");
+		}
+		if (clientId == null) {
+			metricsQueue.incrementRejected(metrics.size());
+			log.info("Rejected: [{}] clientId not nullable", metrics.size());
+			return Control.malformedRequest("clientId not nullable");
+		}
+		long maxPushSize = Math.max(highCollisionMark - 1, perClientMaxBacklogSize());
+		if (metrics.size() > maxPushSize) {
+			String reason = String.format("cannot push more than %d metrics at a time", maxPushSize);
+			metricsQueue.incrementRejected(metrics.size());
+			log.info("Rejected: [{}] {}", metrics.size(), reason);
+			return Control.malformedRequest(reason);
+		}
+		final List<Metric> copy = Lists.newArrayList(metrics);
 
-        if (!copy.isEmpty()) {
-            long totalInFlight = metricsQueue.getTotalInFlight();
-            log.debug("totalInFlight = {}", totalInFlight);
-            if (keepsColliding(copy.size(), clientId, onCollision)) {
-                log.info("Rejected: [{}] consumer is overwhelmed", metrics.size());
-                metricsQueue.incrementRejected(metrics.size());
-                return Control.dropped("consumer is overwhelmed");
-            }
+		if (!copy.isEmpty()) {
+			long totalInFlight = metricsQueue.getTotalInFlight();
+			log.debug("totalInFlight = {}", totalInFlight);
+			if (keepsColliding(copy.size(), clientId, onCollision)) {
+				log.info("Rejected: [{}] consumer is overwhelmed", metrics.size());
+				metricsQueue.incrementRejected(metrics.size());
+				return Control.dropped("consumer is overwhelmed");
+			}
 
-            metricsQueue.addAll(copy, clientId);
-            final List<Metric> copy2 = Lists.newArrayList(metrics);
-            databusMetricsQueue.addAll(copy2);
-            
-            // Notify the bus that we are going from no data to some data.
-            if (totalInFlight == 0) {
-                eventBus.post(Control.dataReceived());
-                log.debug("Data received with zero metrics in flight");
-            } else {
-                log.debug("totalInFlight is nonzero. Sending dataReceived event anyway.");
-                // ZEN-11665: In the event of an openTSDB shutdown, we could be left with inFlight metrics, but not have an event triggered.
-                //            Post event for nonzero inFlight so queue doesn't stop polling.
-                eventBus.post(Control.dataReceived());
-            }
-        }
+			metricsQueue.addAll(copy, clientId);
 
-        return Control.ok();
+			if (this.enableDatabusPublish) {
+				final List<Metric> copy2 = Lists.newArrayList(metrics);
+				databusMetricsQueue.addAll(copy2);
+			}
+			// Notify the bus that we are going from no data to some data.
+			if (totalInFlight == 0) {
+				eventBus.post(Control.dataReceived());
+				log.debug("Data received with zero metrics in flight");
+			} else {
+				log.debug("totalInFlight is nonzero. Sending dataReceived event anyway.");
+				// ZEN-11665: In the event of an openTSDB shutdown, we could be
+				// left with inFlight metrics, but not have an event triggered.
+				// Post event for nonzero inFlight so queue doesn't stop
+				// polling.
+				eventBus.post(Control.dataReceived());
+			}
+		}
 
-    }
+		return Control.ok();
 
-    /**
-     * Checks {@link #collides(long, String)} until it returns false, or we give up.
-     * Periodic checks are spaced out using an exponential back off.
-     * @param incomingSize the number of metrics being added
-     * @param clientId an identifier for the source of the metrics
-     * @return false if and only if {@link #collides(long, String)} returned false before we gave up.
-     */
-    private boolean keepsColliding(final long incomingSize, final String clientId, Runnable onCollision) {
-        ExponentialBackOff backOffTracker = null;
-        long retryAt = 0L;
-        long backOff;
-        int collisions = 0;
-        while (true) {
-            if (collisions > 0 && onCollision != null) onCollision.run();
-            if (System.currentTimeMillis() > retryAt) {
-                if (collides(incomingSize, clientId)) {
-                    metricsQueue.incrementClientCollision();
-                    collisions++;
-                    if (backOffTracker == null) {
-                        backOffTracker = buildExponentialBackOff();
-                    }
-                    try {
-                        backOff = backOffTracker.nextBackOffMillis();
-                        retryAt = System.currentTimeMillis() + backOff;
-                    } catch (IOException e) {
-                        // should never happen
-                        log.error("Caught IOException backing off tracker.", e);
-                        throw new RuntimeException(e);
-                    }
-                    long elapsed = backOffTracker.getElapsedTimeMillis();
-                    if (ExponentialBackOff.STOP == backOff) {
-                        log.warn("Too many collisions ({}). Gave up after {}ms.", collisions, elapsed);
-                        return true;
-                    } else {
-                        log.debug("Collision detected ({} in {}ms). Backing off for {} ms", collisions, elapsed, backOff);
-                    }
-                } else {
-                    return false;
-                }
-            }
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) { /* no biggie */ }
-        }
-    }
+	}
 
-    private ExponentialBackOff buildExponentialBackOff() {
-        return new ExponentialBackOff.Builder().
-            setInitialIntervalMillis(1).
-            setMaxIntervalMillis(minTimeBetweenRetries).
-            setMaxElapsedTimeMillis(maxClientWaitTime).
-            build();
-    }
+	/**
+	 * Checks {@link #collides(long, String)} until it returns false, or we give
+	 * up. Periodic checks are spaced out using an exponential back off.
+	 * 
+	 * @param incomingSize
+	 *            the number of metrics being added
+	 * @param clientId
+	 *            an identifier for the source of the metrics
+	 * @return false if and only if {@link #collides(long, String)} returned
+	 *         false before we gave up.
+	 */
+	private boolean keepsColliding(final long incomingSize, final String clientId, Runnable onCollision) {
+		ExponentialBackOff backOffTracker = null;
+		long retryAt = 0L;
+		long backOff;
+		int collisions = 0;
+		while (true) {
+			if (collisions > 0 && onCollision != null)
+				onCollision.run();
+			if (System.currentTimeMillis() > retryAt) {
+				if (collides(incomingSize, clientId)) {
+					metricsQueue.incrementClientCollision();
+					collisions++;
+					if (backOffTracker == null) {
+						backOffTracker = buildExponentialBackOff();
+					}
+					try {
+						backOff = backOffTracker.nextBackOffMillis();
+						retryAt = System.currentTimeMillis() + backOff;
+					} catch (IOException e) {
+						// should never happen
+						log.error("Caught IOException backing off tracker.", e);
+						throw new RuntimeException(e);
+					}
+					long elapsed = backOffTracker.getElapsedTimeMillis();
+					if (ExponentialBackOff.STOP == backOff) {
+						log.warn("Too many collisions ({}). Gave up after {}ms.", collisions, elapsed);
+						return true;
+					} else {
+						log.debug("Collision detected ({} in {}ms). Backing off for {} ms", collisions, elapsed,
+								backOff);
+					}
+				} else {
+					return false;
+				}
+			}
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				/* no biggie */ }
+		}
+	}
 
-    /**
-     * high/low collision test and increment, broad cast control messages
-     */
-    private boolean collides(final long incomingSize, final String clientId) {
-        long totalInFlight = metricsQueue.getTotalInFlight() + incomingSize;
-        final long collisionCount = lastCollisionCount.getAndSet(totalInFlight);
-        long perClientMaxBacklogSize = perClientMaxBacklogSize();
-        if (totalInFlight >= highCollisionMark) {
-            eventBus.post(Control.highCollision());
-            log.info("High collision: {}", totalInFlight);
-            metricsQueue.incrementHighCollision();
-            return true;
-        }
+	private ExponentialBackOff buildExponentialBackOff() {
+		return new ExponentialBackOff.Builder().setInitialIntervalMillis(1).setMaxIntervalMillis(minTimeBetweenRetries)
+				.setMaxElapsedTimeMillis(maxClientWaitTime).build();
+	}
 
-        long clientBacklogSize = metricsQueue.clientBacklogSize(clientId);
-        if (totalInFlight >= lowCollisionMark) {
-            if (totalInFlight > collisionCount) {
-                eventBus.post(Control.lowCollision());
-                log.debug("Low collision: {}", totalInFlight);
-                metricsQueue.incrementLowCollision();
-            }
-            if (clientBacklogSize > 0)
-                return true;
-        } else if (clientBacklogSize + incomingSize > perClientMaxBacklogSize) {
-            log.debug("Client's max backlog size ({}) exceeded.", perClientMaxBacklogSize);
-            return true;
-        }
+	/**
+	 * high/low collision test and increment, broad cast control messages
+	 */
+	private boolean collides(final long incomingSize, final String clientId) {
+		long totalInFlight = metricsQueue.getTotalInFlight() + incomingSize;
+		final long collisionCount = lastCollisionCount.getAndSet(totalInFlight);
+		long perClientMaxBacklogSize = perClientMaxBacklogSize();
+		if (totalInFlight >= highCollisionMark) {
+			eventBus.post(Control.highCollision());
+			log.info("High collision: {}", totalInFlight);
+			metricsQueue.incrementHighCollision();
+			return true;
+		}
 
-        return false;
-    }
+		long clientBacklogSize = metricsQueue.clientBacklogSize(clientId);
+		if (totalInFlight >= lowCollisionMark) {
+			if (totalInFlight > collisionCount) {
+				eventBus.post(Control.lowCollision());
+				log.debug("Low collision: {}", totalInFlight);
+				metricsQueue.incrementLowCollision();
+			}
+			if (clientBacklogSize > 0)
+				return true;
+		} else if (clientBacklogSize + incomingSize > perClientMaxBacklogSize) {
+			log.debug("Client's max backlog size ({}) exceeded.", perClientMaxBacklogSize);
+			return true;
+		}
 
-    private long perClientMaxBacklogSize() {
-        if (this.perClientMaxBacklogSize > 0)
-            return this.perClientMaxBacklogSize;
-        long clientCount = Math.max(1, metricsQueue.clientCount());
-        long result = perClientMaxPercentOfFairBacklogSize * lowCollisionMark / clientCount / 100;
-        if (result > highCollisionMark - 1)
-            return highCollisionMark - 1;
-        if (result < 64)
-            return 64;
-        return result;
-    }
+		return false;
+	}
 
-    /**
-     * event bus for high/low collisions
-     */
-    private final EventBus eventBus;
+	private long perClientMaxBacklogSize() {
+		if (this.perClientMaxBacklogSize > 0)
+			return this.perClientMaxBacklogSize;
+		long clientCount = Math.max(1, metricsQueue.clientCount());
+		long result = perClientMaxPercentOfFairBacklogSize * lowCollisionMark / clientCount / 100;
+		if (result > highCollisionMark - 1)
+			return highCollisionMark - 1;
+		if (result < 64)
+			return 64;
+		return result;
+	}
 
-    /**
-     * Shared data structure holding metrics to be pushed into TSDB
-     */
-    private final TsdbMetricsQueue metricsQueue;
+	/**
+	 * event bus for high/low collisions
+	 */
+	private final EventBus eventBus;
 
-    private final DatabusMetricsQueue databusMetricsQueue;
-    /**
-     * high collision detection mark
-     */
-    private final int highCollisionMark;
+	/**
+	 * Shared data structure holding metrics to be pushed into TSDB
+	 */
+	private final TsdbMetricsQueue metricsQueue;
 
-    /**
-     * low collision detection mark
-     */
-    private final int lowCollisionMark;
+	private final DatabusMetricsQueue databusMetricsQueue;
 
-    /**
-     * Each client should be allowed to backlog up to global max backlog (lowCollisionMark) divided by the number of clients.
-     * To allow them to go over that amount, bump this above 100.
-     */
-    private final int perClientMaxPercentOfFairBacklogSize;
+	private final boolean enableDatabusPublish;
+	/**
+	 * high collision detection mark
+	 */
+	private final int highCollisionMark;
 
-    /**
-     * per-client maximum backlog size
-     */
-    private final int perClientMaxBacklogSize;
+	/**
+	 * low collision detection mark
+	 */
+	private final int lowCollisionMark;
 
-    /**
-     * maximum time for a client to wait to add metrics to a backlogged queue before giving up.
-     */
-    private final int maxClientWaitTime;
+	/**
+	 * Each client should be allowed to backlog up to global max backlog
+	 * (lowCollisionMark) divided by the number of clients. To allow them to go
+	 * over that amount, bump this above 100.
+	 */
+	private final int perClientMaxPercentOfFairBacklogSize;
 
+	/**
+	 * per-client maximum backlog size
+	 */
+	private final int perClientMaxBacklogSize;
 
-    /**
-     * Maximum time between retries to accept metrics into a back-logged metric queue.
-     */
-    private final int minTimeBetweenRetries;
+	/**
+	 * maximum time for a client to wait to add metrics to a backlogged queue
+	 * before giving up.
+	 */
+	private final int maxClientWaitTime;
 
-    /**
-     * Variable for tracking whether or not the number of collisions is
-     * still going up or if it is going down
-     */
-    private final AtomicLong lastCollisionCount;
+	/**
+	 * Maximum time between retries to accept metrics into a back-logged metric
+	 * queue.
+	 */
+	private final int minTimeBetweenRetries;
+
+	/**
+	 * Variable for tracking whether or not the number of collisions is still
+	 * going up or if it is going down
+	 */
+	private final AtomicLong lastCollisionCount;
 
 }
