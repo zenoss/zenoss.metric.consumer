@@ -47,6 +47,8 @@ private int maxIdleTime = 30000;
 private int databusWriterThreads = 1;
 @JsonProperty
 private int batchSize = 5;
+@JsonProperty
+private boolean enablePublish = true;
 
 public DatabusPublishConfig() {
     this.directoryList = new ArrayList<>();
@@ -139,6 +141,16 @@ public int getBatchSize() {
 
 public void setBatchSize(int batchSize) {
 	this.batchSize = batchSize;
+}
+
+
+public boolean isEnablePublish() {
+	return enablePublish;
+}
+
+
+public void setEnablePublish(boolean enablePublish) {
+	this.enablePublish = enablePublish;
 }
 
 
