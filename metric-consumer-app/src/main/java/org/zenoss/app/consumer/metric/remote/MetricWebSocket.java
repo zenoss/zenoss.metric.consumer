@@ -18,11 +18,11 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.apache.shiro.subject.Subject;
-import org.eclipse.jetty.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 import org.zenoss.app.consumer.metric.data.BinaryDecoder;
 import org.zenoss.app.security.ZenossTenant;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
@@ -31,30 +31,27 @@ import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
-import org.zenoss.dropwizardspring.websockets.WebSocketSession;
-import org.zenoss.dropwizardspring.websockets.annotations.OnClose;
-import org.zenoss.dropwizardspring.websockets.annotations.OnMessage;
-import org.zenoss.dropwizardspring.websockets.annotations.WebSocketListener;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Path;
+import javax.websocket.*;
+import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-@WebSocketListener(name = "metrics/store")
-@Path("/ws/metrics/store")
+@Component("metrics/store")
+@ServerEndpoint("ws/metrics/store")
 public class MetricWebSocket {
 
     private static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);
 
     private ConsumerAppConfiguration configuration;
 
-    private final WeakHashMap<WebSocket.Connection, BinaryDecoder> decoders = new WeakHashMap<>();
+    private final WeakHashMap<Session, BinaryDecoder> decoders = new WeakHashMap<>();
     private final AtomicLong sequence = new AtomicLong();
-    private final LoadingCache<WebSocketSession, String> connectionIds = CacheBuilder
+    private final LoadingCache<Session, String> connectionIds = CacheBuilder
             .newBuilder()
             .expireAfterAccess(6, TimeUnit.MINUTES)
             .weakKeys()
@@ -64,7 +61,7 @@ public class MetricWebSocket {
                     return String.format("websocket%d",sequence.incrementAndGet());
                 }
             }));
-    private final WeakHashMap<WebSocketSession, String> tenantIds = new WeakHashMap<>();
+    private final WeakHashMap<Session, String> tenantIds = new WeakHashMap<>();
 
     @Autowired
     public MetricWebSocket(
@@ -92,18 +89,18 @@ public class MetricWebSocket {
     }
 
     @OnClose
-    public void onClose(Integer closeCode, String message, WebSocketSession session) {
+    public void onClose(Integer closeCode, String message, Session session) {
         log.info("onClose( closeCode={}, message={})", closeCode, message);
-        decoders.remove(session.getConnection());
+        decoders.remove(session);
     }
 
     @OnMessage
-    public Control onMessage(byte[] data, WebSocketSession session) throws Exception {
+    public Control onMessage(byte[] data, Session session) throws Exception {
         try {
-            BinaryDecoder decoder = decoders.get(session.getConnection());
+            BinaryDecoder decoder = decoders.get(session);
             if (decoder == null) {
                 decoder = new BinaryDecoder();
-                decoders.put(session.getConnection(), decoder);
+                decoders.put(session, decoder);
             }
             try {
                 return onMessage(decoder.decode(data), session);
@@ -122,12 +119,12 @@ public class MetricWebSocket {
         }
     }
 
-    private String getClientId(WebSocketSession session) {
+    private String getClientId(Session session) {
         return connectionIds.getUnchecked(session);
     }
 
     @OnMessage
-    public Control onMessage(Message message, final WebSocketSession session) {
+    public Control onMessage(Message message, final Session session) {
         try {
             Metric[] metrics = message.getMetrics();
             int metricsLength = (metrics == null) ? -1 : metrics.length;
@@ -136,23 +133,22 @@ public class MetricWebSocket {
             //process metrics
             if (metrics != null) {
                 service.incrementReceived(metrics.length);
-                log.debug( "Tagging metrics with parameters: {}", configuration.getHttpParameterTags());
-                HttpServletRequest request = session.getHttpServletRequest();
 
                 //tag metrics using configured http parameters
+                log.debug( "Tagging metrics with parameters: {}", configuration.getHttpParameterTags());
                 List<Metric> metricList = Arrays.asList(metrics);
-                Utils.tagMetrics(request, metricList, configuration.getHttpParameterTags());
+                Utils.tagMetrics(session.getRequestParameterMap(), metricList, configuration.getHttpParameterTags());
 
                 //tag metrics with tenant id (obviously, tenant-id's identified through authentication)
                 if (configuration.isAuthEnabled()) {
-                    if (!tenantIds.containsKey(session)) {
-                        Subject subject = session.getSubject();
-                        ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
-                        tenantIds.put(session, tenant.id());
+                    // TODO: We need to set the zenoss tenant-id.  Previously this was set from the request attribute at OnOpen:
+                    // https://github.com/zenoss/zenoss-zapp/blob/0.0.23/java/dw-spring-bundle/src/main/java/org/zenoss/dropwizardspring/websockets/SpringWebSocketServlet.java#L116-L117
+                    // For now, this value remains unset.
+                    String tenantId = (String)session.getUserProperties().get("zenoss_tenant_id");
+                    if (tenantId != null) {
+                        log.debug("Tagging metrics with tenant_id: {}", tenantId);
+                        Utils.injectTag("zenoss_tenant_id", tenantId, metricList);
                     }
-                    String tenantId = tenantIds.get(session);
-                    log.debug("Tagging metrics with tenant_id: {}", tenantId);
-                    Utils.injectTag("zenoss_tenant_id", tenantId, metricList);
                 }
 
                 //filter tags using configuration white lists
@@ -196,7 +192,7 @@ public class MetricWebSocket {
         }
     }
 
-    Runnable onCollision(final String clientId, final WebSocketSession session) {
+    Runnable onCollision(final String clientId, final Session session) {
         return new Runnable(){
             @Override
             public void run() {
@@ -205,7 +201,7 @@ public class MetricWebSocket {
         };
     }
 
-    void clientCollisionNotification(Control event, WebSocketSession session) {
+    void clientCollisionNotification(Control event, Session session) {
         // We send at most every X milliseconds. Check the LOW time.
         long now = System.currentTimeMillis();
         long lastCheckTimeExpected = lastClientCollisionSent.get();
@@ -213,7 +209,7 @@ public class MetricWebSocket {
                 lastClientCollisionSent.compareAndSet(lastCheckTimeExpected, now)) {
             try {
                 String message = WebSocketBroadcast.newMessage(getClass(), event).asString();
-                session.sendMessage(message);
+                session.getBasicRemote().sendText(message);
                 service.incrementSentClientCollision();
             } catch (IOException e) {
                 log.warn("Failed to send collision notification to client: {}", e.getMessage());

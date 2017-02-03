@@ -15,13 +15,13 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.fromJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.jsonFixture;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static io.dropwizard.testing.FixtureHelpers.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import io.dropwizard.jackson.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class MessageTest {
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
 
     @Test
     public void serializesToJSON() throws Exception {
@@ -30,7 +30,8 @@ public class MessageTest {
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
         Message message = new Message( control, new Metric[]{ metric});
-        assertThat(asJson(message), is(jsonFixture("fixtures/message.json")));
+        assertThat(MAPPER.writeValueAsString(message))
+                .isEqualTo(fixture("fixtures/message.json"));
     }
 
 
@@ -41,6 +42,7 @@ public class MessageTest {
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
         Message message = new Message( control, new Metric[]{ metric});
-        assertThat(fromJson(jsonFixture("fixtures/message.json"), Message.class), is(message));
+        assertThat(MAPPER.readValue(fixture("fixtures/message.json"), Message.class))
+                .isEqualTo(message);
     }
 }

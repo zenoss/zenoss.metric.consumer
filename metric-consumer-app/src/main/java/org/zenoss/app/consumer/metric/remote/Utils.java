@@ -68,6 +68,32 @@ public final class Utils {
     }
 
     /**
+     * Find and inject all parameters matching the provided prefix into each metric.
+     *
+     * @param parameterMap The parameters from the request
+     * @param metrics      The metrics to tag
+     * @param tagPrefixes  The prefixes to find int he servlet request
+     */
+    public static void tagMetrics(Map<String, List<String>> parameterMap, List<Metric> metrics, List<String> tagPrefixes) {
+        if (tagPrefixes == null || tagPrefixes.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, List<String>> entry : parameterMap.entrySet()) {
+            String key = entry.getKey();
+            List<String> val = entry.getValue();
+            if (val == null || val.size() == 0) {
+                continue;
+            }
+            for (String prefix : tagPrefixes) {
+                if (key.startsWith(prefix)) {
+                    injectTag(key, val.get(0), metrics);
+                }
+            }
+        }
+    }
+
+    /**
      * Add tag into each metric.  No tag's added if the value's empty.
      *
      * @param name    tag name
