@@ -23,13 +23,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-import org.zenoss.app.consumer.metric.data.BinaryDecoder;
+import org.zenoss.app.consumer.metric.data.*;
 import org.zenoss.app.security.ZenossTenant;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
 import org.zenoss.app.consumer.metric.MetricService;
-import org.zenoss.app.consumer.metric.data.Control;
-import org.zenoss.app.consumer.metric.data.Message;
-import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
 
 import javax.annotation.PostConstruct;
@@ -37,12 +34,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
+import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component("metrics/store")
-@ServerEndpoint("ws/metrics/store")
+@ServerEndpoint(
+        value = "/ws/metrics/store",
+        encoders = { ControlTextEncoder.class}
+)
 public class MetricWebSocket {
 
     private static final Logger log = LoggerFactory.getLogger(MetricWebSocket.class);
@@ -89,8 +90,8 @@ public class MetricWebSocket {
     }
 
     @OnClose
-    public void onClose(Integer closeCode, String message, Session session) {
-        log.info("onClose( closeCode={}, message={})", closeCode, message);
+    public void onClose(Session session, CloseReason reason) {
+        log.info("onClose( closeCode={}, message={})", reason.getCloseCode(), reason.getReasonPhrase());
         decoders.remove(session);
     }
 
@@ -123,7 +124,20 @@ public class MetricWebSocket {
         return connectionIds.getUnchecked(session);
     }
 
-    @OnMessage
+    @OnOpen
+    public void onOpen(Session session) {
+        if (configuration.isAuthEnabled()) {
+            Principal principal = session.getUserPrincipal();
+            if (principal != null) {
+                String name = principal.getName();
+                if (name != null && !name.isEmpty()) {
+                    session.getUserProperties().put("zenoss_tenant_id", name);
+                }
+            }
+        }
+    }
+
+    //@OnMessage
     public Control onMessage(Message message, final Session session) {
         try {
             Metric[] metrics = message.getMetrics();
@@ -141,9 +155,6 @@ public class MetricWebSocket {
 
                 //tag metrics with tenant id (obviously, tenant-id's identified through authentication)
                 if (configuration.isAuthEnabled()) {
-                    // TODO: We need to set the zenoss tenant-id.  Previously this was set from the request attribute at OnOpen:
-                    // https://github.com/zenoss/zenoss-zapp/blob/0.0.23/java/dw-spring-bundle/src/main/java/org/zenoss/dropwizardspring/websockets/SpringWebSocketServlet.java#L116-L117
-                    // For now, this value remains unset.
                     String tenantId = (String)session.getUserProperties().get("zenoss_tenant_id");
                     if (tenantId != null) {
                         log.debug("Tagging metrics with tenant_id: {}", tenantId);

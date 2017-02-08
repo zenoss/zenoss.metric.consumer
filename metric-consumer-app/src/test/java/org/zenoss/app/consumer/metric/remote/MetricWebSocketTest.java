@@ -15,8 +15,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
-import org.apache.shiro.subject.PrincipalCollection;
-import org.apache.shiro.subject.Subject;
 import org.junit.Before;
 import org.junit.Test;
 import org.zenoss.app.consumer.ConsumerAppConfiguration;
@@ -25,17 +23,15 @@ import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Message;
 import org.zenoss.app.consumer.metric.data.Metric;
-import org.zenoss.app.security.ZenossTenant;
 import org.zenoss.dropwizardspring.websockets.WebSocketBroadcast;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.Session;
 
-import java.net.URI;
+import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -45,7 +41,6 @@ public class MetricWebSocketTest {
     private static final int TIME_BETWEEN_BROADCAST = 500;
     private static final int TIME_BETWEEN_NOTIFICATION = 500;
 
-    Subject subject;
     EventBus eventBus;
     MetricService service;
     HttpServletRequest request;
@@ -55,7 +50,6 @@ public class MetricWebSocketTest {
         eventBus = mock(EventBus.class);
         service = mock(MetricService.class);
         request = mock(HttpServletRequest.class);
-        subject = mock(Subject.class);
     }
 
     @Test
@@ -85,11 +79,6 @@ public class MetricWebSocketTest {
         when(request.getParameter("controlplane_tenant_id")).thenReturn("1");
         when(request.getParameter("controlplane_service_id")).thenReturn("2");
 
-        PrincipalCollection principles = mock(PrincipalCollection.class);
-        when(subject.getPrincipals()).thenReturn(principles);
-        ZenossTenant tenant = ZenossTenant.get( "3");
-        when(principles.oneByType(ZenossTenant.class)).thenReturn( tenant);
-
         Control control = new Control();
         Metric metric = new Metric("name", 0, 0.0);
         Message message = new Message(control, new Metric[]{metric});
@@ -98,8 +87,13 @@ public class MetricWebSocketTest {
                 "controlplane_tenant_id", ImmutableList.of("1"),
                 "controlplane_service_id", ImmutableList.of("2")
         );
+        Principal principal = mock(Principal.class);
+        when (principal.getName()).thenReturn("3");
+        Map<String, Object> userProperties = Maps.newHashMap();
         when (session.getRequestParameterMap()).thenReturn(parameterMap);
-        when (session.getUserProperties()).thenReturn(ImmutableMap.of("zenoss_tenant_id", "3"));
+        when (session.getUserProperties()).thenReturn(userProperties);
+        when (session.getUserPrincipal()).thenReturn(principal);
+        socket.onOpen(session);
         assertEquals(new Control(), socket.onMessage(message, session));
 
         Metric expected_metric = new Metric("name", 0, 0.0);
@@ -127,11 +121,6 @@ public class MetricWebSocketTest {
         when(request.getParameterNames()).thenReturn(Collections.enumeration(parameters));
         when(request.getParameter("controlplane_tenant_id")).thenReturn("1");
         when(request.getParameter("controlplane_service_id")).thenReturn("2");
-
-        PrincipalCollection principles = mock(PrincipalCollection.class);
-        when(subject.getPrincipals()).thenReturn(principles);
-        ZenossTenant tenant = ZenossTenant.get( "3");
-        when(principles.oneByType(ZenossTenant.class)).thenReturn( tenant);
 
         Control control = new Control();
         Metric metric = new Metric("name", 0, 0.0);
