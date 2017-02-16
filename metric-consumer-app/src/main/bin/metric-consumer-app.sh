@@ -1,5 +1,4 @@
 #!/bin/sh
-
 JVM_ARGS="$JVM_ARGS"
 JVM_XMX="-Xmx1024m"
 
@@ -10,5 +9,9 @@ if [ -f ${ZAPP_JAR} ]; then
     exec java -server -XX:+HeapDumpOnOutOfMemoryError ${JVM_XMX} ${JVM_ARGS}  -jar ${ZAPP_JAR} server etc/${project.artifactId}/configuration.yaml
 else
     # compile and install projects before running
-    cd ${LIBDIR} && mvn -DskipTests=true compile install && mvn -DskipTests=true exec:java -pl ${project.artifactId}
+    cd ${LIBDIR} && \
+        mvn -DskipTests=true compile install && \
+        exec java -server -XX:+HeapDumpOnOutOfMemoryError ${JVM_XMX} ${JVM_ARGS} \
+            -jar ${project.artifactId}/target/${project.artifactId}-${project.version}.jar \
+            server ${project.artifactId}/src/main/etc/configuration.yaml
 fi
