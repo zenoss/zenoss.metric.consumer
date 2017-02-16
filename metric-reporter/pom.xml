@@ -18,7 +18,7 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
+            <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-core</artifactId>
             <version>${version.dropwizard}</version>
 	    <scope>provided</scope>
@@ -33,9 +33,24 @@
             <artifactId>guava</artifactId>
             <version>${version.guava}</version>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${version.jackson}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${version.jackson}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${version.jackson}</version>
+        </dependency>
         <!--test-->
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
+            <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-testing</artifactId>
         </dependency>
         <dependency>

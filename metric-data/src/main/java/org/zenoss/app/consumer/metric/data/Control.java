@@ -11,6 +11,8 @@
 
 package org.zenoss.app.consumer.metric.data;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public final class Control {
 
     public static Control ok() {
@@ -128,6 +130,9 @@ public final class Control {
                 '}';
     }
 
+    @JsonProperty("type")
     private Type type;
+
+    @JsonProperty("value")
     private String value;
 }

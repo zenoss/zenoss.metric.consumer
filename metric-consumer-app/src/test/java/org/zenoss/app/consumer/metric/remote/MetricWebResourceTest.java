@@ -30,7 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static org.fest.assertions.api.Assertions.assertThat;
+import static junit.framework.TestCase.assertEquals;
 import static org.mockito.Mockito.*;
 
 public class MetricWebResourceTest {
@@ -67,7 +67,7 @@ public class MetricWebResourceTest {
         mc.setMetrics(Lists.newArrayList(metric));
         when(request.getHeader("X-Forwarded-For")).thenReturn("test");
 
-        assertThat(resource.post(mc, request)).isEqualTo(control);
+        assertEquals(resource.post(mc, request), control);
         verify(service).push(mc.getMetrics(), "test", null);
     }
 
@@ -88,7 +88,7 @@ public class MetricWebResourceTest {
         when(request.getParameter("controlplane_tenant_id")).thenReturn("1");
         when(request.getParameter("controlplane_service_id")).thenReturn("2");
         when(request.getHeader("X-Forwarded-For")).thenReturn("test");
-        assertThat(resource.post(mc, request)).isEqualTo(control);
+        assertEquals(resource.post(mc, request), control);
 
         tags = Maps.newHashMap();
         tags.put("blam", "blamo");
@@ -111,7 +111,7 @@ public class MetricWebResourceTest {
         when(subject.getPrincipals()).thenReturn(collection);
         ZenossTenant tenant = ZenossTenant.get("tenant");
         when(collection.oneByType(ZenossTenant.class)).thenReturn(tenant);
-        assertThat(resource.post(mc, request)).isEqualTo(control);
+        assertEquals(resource.post(mc, request), control);
 
         tags = Maps.newHashMap();
         tags.put("zenoss_tenant_id", "tenant");
@@ -139,7 +139,7 @@ public class MetricWebResourceTest {
         when(subject.getPrincipals()).thenReturn(collection);
         ZenossTenant tenant = ZenossTenant.get("tenant");
         when(collection.oneByType(ZenossTenant.class)).thenReturn(tenant);
-        assertThat(resource.post(mc, request)).isEqualTo(control);
+        assertEquals(resource.post(mc, request), control);
 
         tags = Maps.newHashMap();
         tags.put("zenoss_tenant_id", "tenant");

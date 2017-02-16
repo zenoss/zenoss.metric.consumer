@@ -3,20 +3,16 @@ authEnabled: true
 logging:
     level: INFO
 
-http:
-  port: 8443
-  adminPort: 58443
-  connectorType: nonblocking
-  ssl:
-      keyStore: ${ssl.cert.dir}/ssl.pfx
-      keyStorePassword: zapp_pass
-      keyStoreType:     pkcs12
+server:
+  applicationConnectors:
+  - type: http
+    port: 8443
+  adminConnectors:
+  - type: http
+    port: 58443
   requestLog:
-    console:
-      enabled: false
-
-webSocketConfiguration:
-    maxTextMessageSize: 10485760
+    appenders:
+    - type: console
 
 metricService:
     jobSize: 1000

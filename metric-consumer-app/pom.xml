@@ -13,6 +13,7 @@
     <properties>
         <ssl.cert.dir>target/cert</ssl.cert.dir>
         <assembly.skipAssembly>true</assembly.skipAssembly>
+        <slf4j.version>1.7.10</slf4j.version>
     </properties>
     <dependencies>
         <dependency>
@@ -63,15 +64,15 @@
             <artifactId>mockito-all</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
+            <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-testing</artifactId>
         </dependency>
         <!--runtime-->
         <dependency>
-            <groupId>com.sun.jersey</groupId>
-            <artifactId>jersey-server</artifactId>
-            <version>${version.jersey}</version>
-            <scope>runtime</scope>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <optional>true</optional>
         </dependency>
     </dependencies>
     <build>
@@ -97,8 +98,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.1</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
                 </configuration>
             </plugin>
             <plugin>

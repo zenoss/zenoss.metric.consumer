@@ -34,7 +34,13 @@
             <artifactId>validation-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
+            <groupId>javax.websocket</groupId>
+            <artifactId>javax.websocket-api</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-testing</artifactId>
         </dependency>
         <dependency>

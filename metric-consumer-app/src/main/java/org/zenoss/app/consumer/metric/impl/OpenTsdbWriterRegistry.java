@@ -25,7 +25,7 @@ import java.util.Collection;
  * when the dropwizard container is shutting down.
  */
 @Managed
-class OpenTsdbWriterRegistry implements TsdbWriterRegistry, com.yammer.dropwizard.lifecycle.Managed {
+class OpenTsdbWriterRegistry implements TsdbWriterRegistry, io.dropwizard.lifecycle.Managed {
     
     private static final Logger log = LoggerFactory.getLogger(OpenTsdbWriterRegistry.class);
 

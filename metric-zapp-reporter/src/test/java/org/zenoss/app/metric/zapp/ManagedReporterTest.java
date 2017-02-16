@@ -10,10 +10,11 @@
  */
 package org.zenoss.app.metric.zapp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.yammer.dropwizard.config.Environment;
-import com.yammer.dropwizard.json.ObjectMapperFactory;
+import io.dropwizard.jackson.Jackson;
+import io.dropwizard.setup.Environment;
 import com.yammer.metrics.core.MetricPredicate;
 import org.junit.Assert;
 import org.junit.Before;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class ManagedReporterTest {
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
 
     @Mock
     private TestAppConfiguration appConfig;
@@ -73,8 +75,7 @@ public class ManagedReporterTest {
     @Before
     public void setup() throws Exception {
         when(env.getName()).thenReturn(ZAPP_NAME);
-        ObjectMapperFactory omf = mock(ObjectMapperFactory.class);
-        when(env.getObjectMapperFactory()).thenReturn(omf);
+        when(env.getObjectMapper()).thenReturn(MAPPER);
 
         when(config.getHost()).thenReturn(HOST);
         when(config.getPort()).thenReturn(PORT);

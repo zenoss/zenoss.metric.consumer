@@ -15,7 +15,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.yammer.dropwizard.config.Environment;
+import io.dropwizard.setup.Environment;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricPredicate;
 import org.slf4j.Logger;
@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 
 @Managed
 @Profile("runtime") //Don't run this profile during tests
-public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed {
+public class ManagedReporter implements io.dropwizard.lifecycle.Managed {
     private static final Logger LOG = LoggerFactory.getLogger(ManagedReporter.class);
 
     private final Environment environment;
@@ -246,7 +246,7 @@ public class ManagedReporter implements com.yammer.dropwizard.lifecycle.Managed 
         return new HttpPoster.Builder(url)
                 .setUsername(username)
                 .setPassword(password)
-                .setMapper(environment.getObjectMapperFactory().build())
+                .setMapper(environment.getObjectMapper())
                 .build();
     }
 

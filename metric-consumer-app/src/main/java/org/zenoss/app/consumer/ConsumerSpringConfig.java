@@ -10,7 +10,8 @@
  */
 package org.zenoss.app.consumer;
 
-import com.yammer.dropwizard.config.Environment;
+import io.dropwizard.setup.Environment;
+import io.dropwizard.util.Duration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -38,12 +39,11 @@ class ConsumerSpringConfig {
     @Bean
     @Qualifier("zapp::executor::metrics")
     ExecutorService metricsExecutorService() {
-        return dropwizardEnvironment.managedExecutorService(
-                "Consumer Executor %d", 
-                metricsServiceConfiguration().getThreadPoolSize(), 
-                metricsServiceConfiguration().getThreadPoolSize(), 
-                5, TimeUnit.SECONDS);
-        
+        return dropwizardEnvironment.lifecycle().executorService("Consumer Executor %d")
+                .minThreads(metricsServiceConfiguration().getThreadPoolSize())
+                .maxThreads(metricsServiceConfiguration().getThreadPoolSize())
+                .keepAliveTime(Duration.minutes(5))
+                .build();
     }
     
     @Bean
