@@ -10,8 +10,8 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
-import com.yammer.metrics.core.MetricName;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -306,23 +306,21 @@ public class OpenTsdbWriterTest {
     private static class WriterTestQueue extends MetricsQueue {
 
         @Override
-        MetricName incomingMetricName() {
-            return new MetricName(MetricsQueue.class, "totalIncomingTsdbWriter");
+        String incomingMetricName() {return MetricRegistry.name(MetricsQueue.class, "totalIncomingTsdbWriter"); }
+
+        @Override
+        String outgoingMetricName() {
+            return MetricRegistry.name(MetricsQueue.class, "totalOutgoingTsdbWriter");
         }
 
         @Override
-        MetricName outgoingMetricName() {
-            return new MetricName(MetricsQueue.class, "totalOutgoingTsdbWriter");
+        String inFlightMetricName() {
+            return MetricRegistry.name(MetricsQueue.class, "totalInFlightTsdbWriter");
         }
 
         @Override
-        MetricName inFlightMetricName() {
-            return new MetricName(MetricsQueue.class, "totalInFlightTsdbWriter");
-        }
-
-        @Override
-        MetricName errorsMetricName() {
-            return new MetricName(MetricsQueue.class, "totalErrorsTsdbWriter");
+        String errorsMetricName() {
+            return MetricRegistry.name(MetricsQueue.class, "totalErrorsTsdbWriter");
         }
 
     }

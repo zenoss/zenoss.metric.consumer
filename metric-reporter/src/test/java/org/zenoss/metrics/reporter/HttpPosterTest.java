@@ -10,6 +10,7 @@
  */
 package org.zenoss.metrics.reporter;
 
+import com.codahale.metrics.MetricRegistry;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;

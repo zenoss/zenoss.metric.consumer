@@ -10,10 +10,13 @@
  */
 package org.zenoss.metrics.reporter;
 
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.yammer.metrics.httpclient.InstrumentedHttpClient;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.*;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -27,9 +30,6 @@ import org.apache.http.client.params.CookiePolicy;
 import org.apache.http.client.protocol.ClientContext;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.BasicAuthCache;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.protocol.BasicHttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,24 +54,33 @@ public class HttpPoster implements MetricPoster {
     private boolean authenticated = false;
     private URL url;
     private final ObjectMapper mapper;
-    private final InstrumentedHttpClient httpClient = new InstrumentedHttpClient();
+    private final CloseableHttpClient httpClient;
     private HttpPost post;
     private BasicResponseHandler responseHandler;
     BasicCookieStore cookieJar;
 
-
-    private HttpPoster(final URL url, final String user, final String password, ObjectMapper mapper) {
+    private HttpPoster(final URL url, final String user, final String password,
+                       ObjectMapper mapper) {
         this.url = url;
         this.mapper = mapper;
+
+        RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
+        requestConfigBuilder.setCookieSpec("compatibility");
+
+        HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+        clientBuilder.setDefaultRequestConfig(requestConfigBuilder.build());
         if (!Strings.nullToEmpty(user).trim().isEmpty()) {
-            httpClient.getCredentialsProvider().setCredentials(
+            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+            credentialsProvider.setCredentials(
                     new AuthScope(url.getHost(), url.getPort()),
-                    new UsernamePasswordCredentials(user, password)
-            );
+                    new UsernamePasswordCredentials(user, password));
+            clientBuilder.setDefaultCredentialsProvider(credentialsProvider);
             this.needsAuth = true;
         } else {
             this.needsAuth = false;
         }
+
+        this.httpClient = clientBuilder.build();
     }
 
     private String asJson(Object obj) throws JsonProcessingException {
@@ -131,8 +140,6 @@ public class HttpPoster implements MetricPoster {
 
     @Override
     public void start() {
-        this.httpClient.getParams().setParameter(
-                ClientPNames.COOKIE_POLICY, CookiePolicy.BROWSER_COMPATIBILITY);
         cookieJar = new BasicCookieStore();
         post = new HttpPost(url.toString());
         post.addHeader(ACCEPT, APPLICATION_JSON.toString());
@@ -221,7 +228,8 @@ public class HttpPoster implements MetricPoster {
          * @return Configured HttpPoster
          */
         public HttpPoster build() {
-            return new HttpPoster(url, username, password, mapper != null ? mapper : new ObjectMapper());
+            return new HttpPoster(url, username, password,
+                    mapper != null ? mapper : new ObjectMapper());
         }
     }
 }

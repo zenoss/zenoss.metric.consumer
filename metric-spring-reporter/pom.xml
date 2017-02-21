@@ -8,12 +8,7 @@
         <version>0.1.7-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-
     <artifactId>metric-spring-reporter</artifactId>
-    <properties>
-        <metrics.version>3.0.1</metrics.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.zenoss</groupId>
@@ -23,13 +18,12 @@
         <dependency>
             <groupId>com.ryantenney.metrics</groupId>
             <artifactId>metrics-spring</artifactId>
-            <version>3.0.1</version>
+            <version>3.1.1</version>
         </dependency>
         <dependency>
-            <groupId>com.codahale.metrics</groupId>
+            <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-core</artifactId>
-            <version>${metrics.version}</version>
+            <version>${version.metrics}</version>
         </dependency>
-
     </dependencies>
 </project>

@@ -11,13 +11,13 @@
 package org.zenoss.app.metric.zapp;
 
 
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.dropwizard.setup.Environment;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.MetricPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +57,7 @@ public class ManagedReporter implements io.dropwizard.lifecycle.Managed {
     private final Map<String, String> systemEnvironment;
     private final Map<String, String> defaultTags = Maps.newHashMap();
     private final ApplicationContext appContext;
-    private MetricPredicate filter = MetricPredicate.ALL;
+    private MetricFilter filter = MetricFilter.ALL;
 
     private ManagedReporterConfig managedReporterConfig;
 
@@ -75,7 +75,7 @@ public class ManagedReporter implements io.dropwizard.lifecycle.Managed {
     }
 
     @Autowired(required = false)
-    void setFilter(MetricPredicate filter) {
+    void setFilter(MetricFilter filter) {
         this.filter = filter;
     }
 
@@ -98,9 +98,9 @@ public class ManagedReporter implements io.dropwizard.lifecycle.Managed {
             LOG.debug("tag '{}'='{}'", entry.getKey(), entry.getValue());
         }
 
-        MetricPredicate predicate = filter;
+        MetricFilter predicate = filter;
         if ( predicate == null) {
-            predicate = MetricPredicate.ALL;
+            predicate = MetricFilter.ALL;
         }
 
         // include all posters defined in configuration
@@ -124,17 +124,8 @@ public class ManagedReporter implements io.dropwizard.lifecycle.Managed {
 
     @Override
     public void stop() {
-        boolean interrupted = false;
         for (ZenossMetricsReporter reporter : getMetricReporters()) {
-            try {
-                reporter.stop();
-            } catch (InterruptedException ex) {
-                interrupted = true;
-            }
-        }
-
-        if (interrupted) {
-            Thread.currentThread().interrupt();
+            reporter.stop();
         }
     }
 
@@ -250,10 +241,10 @@ public class ManagedReporter implements io.dropwizard.lifecycle.Managed {
                 .build();
     }
 
-    ZenossMetricsReporter buildMetricReporter(MetricReporterConfig config, MetricPoster poster, MetricPredicate filter, Map<String, String> tags) {
+    ZenossMetricsReporter buildMetricReporter(MetricReporterConfig config, MetricPoster poster, MetricFilter filter, Map<String, String> tags) {
         return new ZenossMetricsReporter.Builder(poster)
                 .setPredicate(filter)
-                .setRegistry(Metrics.defaultRegistry())
+                .setRegistry(environment.metrics())
                 .setName(config.getReporterName())
                 .setTags(tags)
                 .setMetricPrefix(config.getMetricPrefix())

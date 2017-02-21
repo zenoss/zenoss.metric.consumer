@@ -10,7 +10,7 @@
  */
 package org.zenoss.app.consumer.metric.remote;
 
-import com.yammer.metrics.core.HealthCheck;
+import com.codahale.metrics.health.HealthCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.zenoss.app.consumer.metric.TsdbMetricsQueue;
@@ -28,7 +28,7 @@ class TsdbWriterHealthCheck extends HealthCheck {
 
     @Autowired
     TsdbWriterHealthCheck(TsdbWriterRegistry factory, TsdbMetricsQueue metricsQueue) {
-        super("TSDB Writer");
+        super();
         this.registry = factory;
         this.queue = metricsQueue;
     }

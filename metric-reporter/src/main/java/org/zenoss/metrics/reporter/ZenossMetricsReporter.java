@@ -10,26 +10,12 @@
  */
 package org.zenoss.metrics.reporter;
 
+import com.codahale.metrics.*;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Clock;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Metered;
-import com.yammer.metrics.core.Metric;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricPredicate;
-import com.yammer.metrics.core.MetricProcessor;
-import com.yammer.metrics.core.MetricsRegistry;
-import com.yammer.metrics.core.Sampling;
-import com.yammer.metrics.core.Summarizable;
-import com.yammer.metrics.core.Timer;
-import com.yammer.metrics.core.VirtualMachineMetrics;
-import com.yammer.metrics.reporting.AbstractPollingReporter;
-import com.yammer.metrics.stats.Snapshot;
+
 import org.apache.http.HttpStatus;
 import org.apache.http.client.HttpResponseException;
 import org.slf4j.Logger;
@@ -37,12 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.Thread.State;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -51,34 +33,32 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Report metrics to Zenoss using the configure MetricPoster method
  */
-public class ZenossMetricsReporter extends AbstractPollingReporter implements MetricProcessor<MetricBatch> {
+public class ZenossMetricsReporter extends ScheduledReporter {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZenossMetricsReporter.class);
     public static final Joiner DOT_JOINER = Joiner.on(".").skipNulls();
 
-    private final MetricPredicate filter;
+    private final MetricFilter filter;
     private final Clock clock;
     private final boolean reportJvmMetrics;
     private final String metricPrefix;
     private final MetricPoster poster;
     private final Map<String, String> tags;
-    private final VirtualMachineMetrics vm;
     private final long period;
     private final TimeUnit periodUnit;
     private final long shutdownTimeout;
     private final TimeUnit shutdownTimeoutUnit;
 
-    private ZenossMetricsReporter(MetricsRegistry registry, String name, MetricPoster poster, MetricPredicate filter,
-                                  String metricPrefix, Map<String, String> tags, Clock clock, VirtualMachineMetrics vm,
-                                  boolean reportJvmMetrics, long period, TimeUnit periodUnit, long shutdownTimeout, TimeUnit shutdownTimeoutUnit) {
-        super(registry, name);
+    private ZenossMetricsReporter(MetricRegistry registry, String name, MetricPoster poster, MetricFilter filter,
+                                  String metricPrefix, Map<String, String> tags, Clock clock, boolean reportJvmMetrics,
+                                  long period, TimeUnit periodUnit, long shutdownTimeout, TimeUnit shutdownTimeoutUnit) {
+        super(registry, name, filter, periodUnit, periodUnit);
         this.poster = poster;
         this.filter = filter;
         this.clock = clock;
         this.reportJvmMetrics = reportJvmMetrics;
         this.metricPrefix = Strings.nullToEmpty(metricPrefix).trim();
         this.tags = Maps.newHashMap(tags);
-        this.vm = vm;
         this.period = period;
         this.periodUnit = periodUnit;
         this.shutdownTimeout = shutdownTimeout;
@@ -97,23 +77,40 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
     }
 
     @Override
-    public void shutdown(long timeout, TimeUnit unit) throws InterruptedException {
-        super.shutdown(timeout, unit);
+    public void stop() {
+        super.stop();
         this.poster.shutdown();
     }
 
-    public void stop() throws InterruptedException {
-        this.shutdown(shutdownTimeout, shutdownTimeoutUnit);
-    }
-
     @Override
-    public void run() {
-        final long timestamp = clock.time() / 1000;
+    public void report(SortedMap<String,Gauge> gauges,
+                       SortedMap<String,Counter> counters,
+                       SortedMap<String,Histogram> histograms,
+                       SortedMap<String,Meter> meters,
+                       SortedMap<String,Timer> timers) {
+        final long timestamp = clock.getTime() / 1000;
         final MetricBatch batchContext = new MetricBatch(timestamp);
         if (reportJvmMetrics) {
             collectVmMetrics(batchContext);
         }
-        collectMetrics(batchContext);
+
+        for (Entry entry: gauges.entrySet()) {
+            processGauge((String)entry.getKey(), (Gauge)entry.getValue(), batchContext);
+        }
+        for (Entry entry: counters.entrySet()) {
+            processCounter((String)entry.getKey(), (Counter)entry.getValue(), batchContext);
+        }
+        for (Entry entry: histograms.entrySet()) {
+            processHistogram((String)entry.getKey(), (Histogram)entry.getValue(), batchContext);
+        }
+        for (Entry entry: meters.entrySet()) {
+            processMeter((String)entry.getKey(), (Meter)entry.getValue(), batchContext);
+        }
+        for (Entry entry: timers.entrySet()) {
+            processTimer((String)entry.getKey(), (Timer)entry.getValue(), batchContext);
+        }
+
+
         try {
 
             LOG.debug("Posting {} metrics", batchContext.getMetrics().size());
@@ -144,7 +141,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
 
 
     void collectVmMetrics(MetricBatch batchContext) {
-
+        /* TODO: collect vm metrics
         addMetric("jvm.memory", "heap_usage", vm.heapUsage(), batchContext);
         addMetric("jvm.memory", "non_heap_usage", vm.nonHeapUsage(), batchContext);
         for (Entry<String, Double> pool : vm.memoryPoolUsage().entrySet()) {
@@ -160,70 +157,49 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
             addMetric("jvm.thread-states", entry.getKey().toString().toLowerCase(), entry.getValue(), batchContext);
         }
 
+        for (Entry<String, Metric> entry: new ThreadStatesGaugeSet().getMetrics().entrySet()) {
+            addMetric("jvm.thread-states", entry.getKey(), );
+        }
+
         for (Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors().entrySet()) {
             final String name = "jvm.gc." + safeString(entry.getKey());
             addMetric(name, "time", entry.getValue().getTime(TimeUnit.MILLISECONDS), batchContext);
             addMetric(name, "runs", entry.getValue().getRuns(), batchContext);
         }
+        */
     }
 
     private String safeString(String key) {
         return key.replace(" ", "_");  //To change body of created methods use File | Settings | File Templates.
     }
 
-    private void collectMetrics(MetricBatch batchContext) {
-        final Collection<SortedMap<MetricName, Metric>> values = getMetricsRegistry().groupedMetrics(this.filter).values();
-        for (SortedMap<MetricName, Metric> map : values) {
-            for (Entry<MetricName, Metric> entry : map.entrySet()) {
-                final Metric metric = entry.getValue();
-                if (metric != null) {
-                    try {
-                        metric.processWith(this, entry.getKey(), batchContext);
-                    } catch (Exception e) {
-                        LOG.error("Error processing metric " + entry.getKey().getName(), e);
-                    }
-                }
-            }
-        }
+    private void processMeter(String metricName, Metered meter, MetricBatch context) {
+        addMetric(metricName, "count", meter.getCount(), context);
+        addMetric(metricName, "meanRate", meter.getMeanRate(), context);
+        addMetric(metricName, "1MinuteRate", meter.getOneMinuteRate(), context);
+        addMetric(metricName, "5MinuteRate", meter.getFiveMinuteRate(), context);
+        addMetric(metricName, "15MinuteRate", meter.getFifteenMinuteRate(), context);
     }
 
-
-    @Override
-    public void processMeter(MetricName metricName, Metered meter, MetricBatch context) throws Exception {
-        addMetric(metricName, "count", meter.count(), context);
-        addMetric(metricName, "meanRate", meter.meanRate(), context);
-        addMetric(metricName, "1MinuteRate", meter.oneMinuteRate(), context);
-        addMetric(metricName, "5MinuteRate", meter.fiveMinuteRate(), context);
-        addMetric(metricName, "15MinuteRate", meter.fifteenMinuteRate(), context);
+    private void processCounter(String name, Counter counter, MetricBatch context){
+        addMetric(name, "count", counter.getCount(), context);
     }
 
-    @Override
-    public void processCounter(MetricName name, Counter counter, MetricBatch context) throws Exception {
-        addMetric(name, "count", counter.count(), context);
-    }
-
-    @Override
-    public void processHistogram(MetricName name, Histogram histogram, MetricBatch context) throws Exception {
-        processSummarizable(context, name, histogram);
+    private void processHistogram(String name, Histogram histogram, MetricBatch context) {
         processSampling(context, name, histogram);
     }
 
-    @Override
-    public void processTimer(MetricName name, Timer timer, MetricBatch context) throws Exception {
+    private void processTimer(String name, Timer timer, MetricBatch context) {
         processMeter(name, timer, context);
-        processSummarizable(context, name, timer);
         processSampling(context, name, timer);
     }
 
-    private void processSummarizable(MetricBatch context, MetricName mName, Summarizable metric) throws IOException {
-        addMetric(mName, "min", metric.min(), context);
-        addMetric(mName, "max", metric.max(), context);
-        addMetric(mName, "mean", metric.mean(), context);
-        addMetric(mName, "stddev", metric.stdDev(), context);
-    }
-
-    private void processSampling(MetricBatch context, MetricName mName, Sampling metric) throws IOException {
+    private void processSampling(MetricBatch context, String mName, Sampling metric) {
         final Snapshot snapshot = metric.getSnapshot();
+        addMetric(mName, "min", snapshot.getMin(), context);
+        addMetric(mName, "max", snapshot.getMax(), context);
+        addMetric(mName, "mean", snapshot.getMean(), context);
+        addMetric(mName, "stddev", snapshot.getStdDev(), context);
         addMetric(mName, "median", snapshot.getMedian(), context);
         addMetric(mName, "75Percentile", snapshot.get75thPercentile(), context);
         addMetric(mName, "95Percentile", snapshot.get95thPercentile(), context);
@@ -232,39 +208,29 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         addMetric(mName, "999Percentile", snapshot.get999thPercentile(), context);
     }
 
-    @Override
-    public void processGauge(MetricName name, Gauge<?> gauge, MetricBatch context) throws Exception {
-        Object gaugeValue = gauge.value();
+    private void processGauge(String name, Gauge<?> gauge, MetricBatch context){
+        Object gaugeValue = gauge.getValue();
         if (gaugeValue instanceof Number) {
             Number value = (Number) gaugeValue;
             addMetric(name, "value", value.doubleValue(), context);
         } else {
-            LOG.debug("Un-reportable gauge %s; type: %s", name.getName(), gaugeValue.getClass());
+            LOG.debug("Un-reportable gauge %s; type: %s", name, gaugeValue.getClass());
         }
     }
 
-    private String getName(MetricName metricName) {
-
-        ArrayList<String> parts = new ArrayList<>(5);
+    private String getName(String metricName, String valueName) {
+        ArrayList<String> parts = new ArrayList<>(3);
         if (!Strings.isNullOrEmpty(metricPrefix)) {
             parts.add(metricPrefix);
         }
-        parts.add(metricName.getGroup());
-        parts.add(metricName.getType());
-        parts.add(metricName.getName());
-        if (metricName.hasScope()) {
-            parts.add(metricName.getScope());
-        }
+        parts.add(metricName);
+        parts.add(valueName);
         return DOT_JOINER.join(parts);
-    }
-
-    private void addMetric(MetricName mName, String valueName, double value, MetricBatch batch) {
-        addMetric(getName(mName), valueName, value, batch);
     }
 
     private void addMetric(String metricName, String valueName, double value, MetricBatch batch) {
         final org.zenoss.app.consumer.metric.data.Metric metric = new org.zenoss.app.consumer.metric.data.Metric();
-        metric.setMetric(String.format("%s.%s", metricName, valueName));
+        metric.setMetric(getName(metricName, valueName));
         metric.setTimestamp(batch.getTimestamp());
         metric.setValue(value);
         metric.setTags(this.tags);
@@ -282,12 +248,11 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
     public static final class Builder {
         private final MetricPoster poster;
         private String name = "zenoss-reporter";
-        private MetricsRegistry registry = Metrics.defaultRegistry();
-        private MetricPredicate predicate = MetricPredicate.ALL;
+        private MetricRegistry registry;
+        private MetricFilter predicate = MetricFilter.ALL;
         private Map<String, String> tags = Collections.emptyMap();
         private String metricPrefix;
         private Clock clock = Clock.defaultClock();
-        private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
         private boolean reportJvmMetrics = true;
         private long period = 30;
         private TimeUnit periodUnit = TimeUnit.SECONDS;
@@ -304,7 +269,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
             this.poster = poster;
         }
 
-        public Builder setPredicate(MetricPredicate predicate) {
+        public Builder setPredicate(MetricFilter predicate) {
             checkNotNull(predicate);
             this.predicate = predicate;
             return this;
@@ -328,7 +293,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
             return this;
         }
 
-        public Builder setRegistry(MetricsRegistry registry) {
+        public Builder setRegistry(MetricRegistry registry) {
             checkNotNull(registry);
             this.registry = registry;
             return this;
@@ -357,7 +322,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         }
 
         public ZenossMetricsReporter build() {
-            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock, vm,
+            return new ZenossMetricsReporter(registry, name, poster, predicate, metricPrefix, tags, clock,
                     reportJvmMetrics, period, periodUnit, shutdownTimeout, shutdownTimeoutUnit);
         }
     }

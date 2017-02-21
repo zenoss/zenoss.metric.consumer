@@ -18,8 +18,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.util.concurrent.AtomicLongMap;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.*;
+import com.codahale.metrics.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -40,22 +39,29 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 class MetricsQueue implements TsdbMetricsQueue {
+    protected MetricRegistry metricRegistry;
 
     private final static Supplier<Boolean> YEPYEP = new Supplier<Boolean>() {
         @Override public Boolean get() {return true;}
     };
 
     MetricsQueue() {
+        this(new MetricRegistry());
+    }
+
+    MetricsQueue(MetricRegistry registry) {
+        this.metricRegistry = registry;
         this.queue = new LinkedBlockingQueue<>();
         this.perClientBacklog = AtomicLongMap.create();
-        this.totalErrorsMetric = Metrics.newCounter(errorsMetricName());
-        this.totalInFlightMetric = Metrics.newCounter(inFlightMetricName());
-        this.totalClientCountMetric = Metrics.newGauge(clientCountMetricName(), new Gauge<Long>() {
-            @Override
-            public Long value() {
-                return clientCount();
-            }
-        });
+        this.totalErrorsMetric = registerTotalErrors();
+        this.totalInFlightMetric = registerTotalInFlight();
+        this.totalClientCountMetric = metricRegistry.register(clientCountMetricName(),
+                new Gauge<Long>() {
+                    @Override
+                    public Long getValue() {
+                        return clientCount();
+                    }
+                });
         this.totalIncomingMetric = registerIncoming();
         this.totalOutGoingMetric = registerOutgoing();
         this.totalReceivedMetric = registerReceived();
@@ -207,66 +213,71 @@ class MetricsQueue implements TsdbMetricsQueue {
         totalBroadcastHighCollisionMetric.mark();
     }
 
+    private Counter registerTotalErrors() {return metricRegistry.counter(errorsMetricName());}
+
+    private Counter registerTotalInFlight() {return metricRegistry.counter(inFlightMetricName());}
 
     private Meter registerIncoming() {
-        return Metrics.newMeter(incomingMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(incomingMetricName());
     }
 
     private Meter registerOutgoing() {
-        return Metrics.newMeter(outgoingMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(outgoingMetricName());
     }
 
     private Meter registerLost() {
-        return Metrics.newMeter(lostMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(lostMetricName());
     }
 
     private Meter registerReceived() {
-        return Metrics.newMeter(receivedMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(receivedMetricName());
     }
 
     private Meter registerRejected() {
-        return Metrics.newMeter(rejectedMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(rejectedMetricName());
     }
 
     private Meter registerHighCollision() {
-        return Metrics.newMeter(highCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(highCollisionMetricName());
     }
 
     private Meter registerLowCollision() {
-        return Metrics.newMeter(lowCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(lowCollisionMetricName());
     }
 
     private Meter registerClientCollision() {
-        return Metrics.newMeter(clientCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(clientCollisionMetricName());
     }
 
     private Meter registerBroadcastHighCollision() {
-        return Metrics.newMeter(broadcastHighCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(broadcastHighCollisionMetricName());
     }
 
     private Meter registerBroadcastLowCollision() {
-        return Metrics.newMeter(broadcastLowCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(broadcastLowCollisionMetricName());
     }
 
     private Meter registerSentClientCollision() {
-        return Metrics.newMeter(sentClientCollisionMetricName(), "metrics", TimeUnit.SECONDS);
+        return metricRegistry.meter(sentClientCollisionMetricName());
     }
 
     // Used for testing
     void resetMetrics() {
-        totalErrorsMetric.clear();
-        totalInFlightMetric.clear();
-        MetricsRegistry registry = Metrics.defaultRegistry();
-        registry.removeMetric(incomingMetricName());
-        registry.removeMetric(outgoingMetricName());
-        registry.removeMetric(lostMetricName());
-        registry.removeMetric(receivedMetricName());
-        registry.removeMetric(highCollisionMetricName());
-        registry.removeMetric(lowCollisionMetricName());
-        registry.removeMetric(clientCollisionMetricName());
-        registry.removeMetric(broadcastHighCollisionMetricName());
-        registry.removeMetric(broadcastLowCollisionMetricName());
-        registry.removeMetric(sentClientCollisionMetricName());
+        MetricRegistry registry = metricRegistry;
+        registry.remove(errorsMetricName());
+        registry.remove(inFlightMetricName());
+        registry.remove(incomingMetricName());
+        registry.remove(outgoingMetricName());
+        registry.remove(lostMetricName());
+        registry.remove(receivedMetricName());
+        registry.remove(highCollisionMetricName());
+        registry.remove(lowCollisionMetricName());
+        registry.remove(clientCollisionMetricName());
+        registry.remove(broadcastHighCollisionMetricName());
+        registry.remove(broadcastLowCollisionMetricName());
+        registry.remove(sentClientCollisionMetricName());
+        totalErrorsMetric = registerTotalErrors();
+        totalInFlightMetric = registerTotalInFlight();
         totalIncomingMetric = registerIncoming();
         totalOutGoingMetric = registerOutgoing();
         totalLostMetric = registerLost();
@@ -280,7 +291,7 @@ class MetricsQueue implements TsdbMetricsQueue {
 
     @Override
     public long getTotalInFlight() {
-        return totalInFlightMetric.count();
+        return totalInFlightMetric.getCount();
     }
 
     @Override
@@ -289,127 +300,127 @@ class MetricsQueue implements TsdbMetricsQueue {
     }
 
     long getTotalErrors() {
-        return totalErrorsMetric.count();
+        return totalErrorsMetric.getCount();
     }
 
     long getTotalIncoming() {
-        return totalIncomingMetric.count();
+        return totalIncomingMetric.getCount();
     }
 
     long getTotalOutgoing() {
-        return totalOutGoingMetric.count();
+        return totalOutGoingMetric.getCount();
     }
 
     long getTotalReceived() {
-        return totalReceivedMetric.count();
+        return totalReceivedMetric.getCount();
     }
 
     long getTotalRejected() {
-        return totalRejectedMetric.count();
+        return totalRejectedMetric.getCount();
     }
 
     long getTotalLost() {
-        return totalLostMetric.count();
+        return totalLostMetric.getCount();
     }
 
     double getOneMinuteIncoming() {
-        return totalIncomingMetric.oneMinuteRate();
+        return totalIncomingMetric.getOneMinuteRate();
     }
 
     double getOneMinuteOutgoing() {
-        return totalOutGoingMetric.oneMinuteRate();
+        return totalOutGoingMetric.getOneMinuteRate();
     }
 
     double getOneMinuteReceived() {
-        return totalReceivedMetric.oneMinuteRate();
+        return totalReceivedMetric.getOneMinuteRate();
     }
 
     double getOneMinuteRejected() {
-        return totalRejectedMetric.oneMinuteRate();
+        return totalRejectedMetric.getOneMinuteRate();
     }
 
     double getOneMinuteLost() {
-        return totalLostMetric.oneMinuteRate();
+        return totalLostMetric.getOneMinuteRate();
     }
 
     double getOneMinuteHighCollision() {
-        return totalHighCollisionMetric.oneMinuteRate();
+        return totalHighCollisionMetric.getOneMinuteRate();
     }
 
     double getOneMinuteLowCollision() {
-        return totalLowCollisionMetric.oneMinuteRate();
+        return totalLowCollisionMetric.getOneMinuteRate();
     }
 
     double getOneMinuteClientCollision() {
-        return totalClientCollisionMetric.oneMinuteRate();
+        return totalClientCollisionMetric.getOneMinuteRate();
     }
 
     double getOneMinuteBroadcastHighCollision() {
-        return totalBroadcastHighCollisionMetric.oneMinuteRate();
+        return totalBroadcastHighCollisionMetric.getOneMinuteRate();
     }
 
     double getOneMinuteBroadcastLowCollision() {
-        return totalBroadcastLowCollisionMetric.oneMinuteRate();
+        return totalBroadcastLowCollisionMetric.getOneMinuteRate();
     }
 
     double getOneMinuteSentClientCollision() {
-        return totalSentClientCollisionMetric.oneMinuteRate();
+        return totalSentClientCollisionMetric.getOneMinuteRate();
     }
 
-    MetricName incomingMetricName() {
-        return new MetricName(MetricsQueue.class, "totalIncoming");
+    String incomingMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalIncoming");
     }
 
-    MetricName outgoingMetricName() {
-        return new MetricName(MetricsQueue.class, "totalOutgoing");
+    String outgoingMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalOutgoing");
     }
 
-    MetricName inFlightMetricName() {
-        return new MetricName(MetricsQueue.class, "totalInFlight");
+    String inFlightMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalInFlight");
     }
 
-    MetricName clientCountMetricName() {
-        return new MetricName(MetricsQueue.class, "totalClientCount");
+    String clientCountMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalClientCount");
     }
 
-    MetricName errorsMetricName() {
-        return new MetricName(MetricsQueue.class, "totalErrors");
+    String errorsMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalErrors");
     }
 
-    MetricName lostMetricName() {
-        return new MetricName(MetricsQueue.class, "totalLost");
+    String lostMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalLost");
     }
 
-    MetricName receivedMetricName() {
-        return new MetricName(MetricsQueue.class, "totalReceived");
+    String receivedMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalReceived");
     }
 
-    MetricName rejectedMetricName() {
-        return new MetricName(MetricsQueue.class, "totalRejected");
+    String rejectedMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalRejected");
     }
 
-    MetricName highCollisionMetricName() {
-        return new MetricName(MetricsQueue.class, "totalHighCollision");
+    String highCollisionMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalHighCollision");
     }
 
-    MetricName lowCollisionMetricName() {
-        return new MetricName(MetricsQueue.class, "totalLowCollision");
+    String lowCollisionMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalLowCollision");
     }
 
-    MetricName clientCollisionMetricName() {
-        return new MetricName(MetricsQueue.class, "totalClientCollision");
+    String clientCollisionMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalClientCollision");
     }
 
-    MetricName broadcastHighCollisionMetricName() {
-        return new MetricName(MetricsQueue.class, "totalBroadcastHighCollision");
+    String broadcastHighCollisionMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalBroadcastHighCollision");
     }
 
-    MetricName broadcastLowCollisionMetricName() {
-        return new MetricName(MetricsQueue.class, "totalBroadcastLowCollision");
+    String broadcastLowCollisionMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalBroadcastLowCollision");
     }
 
-    MetricName sentClientCollisionMetricName() {
-        return new MetricName(MetricsQueue.class, "totalSentClientCollision");
+    String sentClientCollisionMetricName() {
+        return MetricRegistry.name(MetricsQueue.class, "totalSentClientCollision");
     }
 
     private static final Logger log = LoggerFactory.getLogger(MetricsQueue.class);
@@ -439,12 +450,12 @@ class MetricsQueue implements TsdbMetricsQueue {
     /**
      * How many errors occured writing to OpenTsdb
      */
-    private final Counter totalErrorsMetric;
+    private Counter totalErrorsMetric;
 
     /**
      * How many metrics are queued for processing
      */
-    private final Counter totalInFlightMetric;
+    private Counter totalInFlightMetric;
 
     /**
      * How many unique clients have we seen recently and/or currently have metrics in the queue?

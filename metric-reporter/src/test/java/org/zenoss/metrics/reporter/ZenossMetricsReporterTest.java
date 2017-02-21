@@ -10,13 +10,12 @@
  */
 package org.zenoss.metrics.reporter;
 
+import com.codahale.metrics.ScheduledReporter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.yammer.metrics.core.Clock;
-import com.yammer.metrics.core.MetricPredicate;
-import com.yammer.metrics.core.MetricsRegistry;
-import com.yammer.metrics.reporting.AbstractPollingReporter;
-import com.yammer.metrics.reporting.tests.AbstractPollingReporterTest;
+import com.codahale.metrics.Clock;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
 import io.dropwizard.jackson.Jackson;
 import org.junit.Test;
 import org.zenoss.app.consumer.metric.data.Metric;
@@ -28,15 +27,14 @@ import java.io.OutputStreamWriter;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static io.dropwizard.testing.FixtureHelpers.fixture;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
+public class ZenossMetricsReporterTest extends ScheduledReporterTest {
     private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
 
     @Override
-    protected AbstractPollingReporter createReporter(MetricsRegistry metricsRegistry, OutputStream outputStream, final Clock clock) throws Exception {
+    protected ScheduledReporter createReporter(MetricRegistry metricsRegistry, OutputStream outputStream, final Clock clock) throws Exception {
         final OutputStreamWriter ow = new OutputStreamWriter(outputStream);
 
         MetricPoster poster = new MetricPoster() {
@@ -64,7 +62,7 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
                 .setMetricPrefix("Prefix")
                 .setTags(tags)
                 .setName("Test-Reporter")
-                .setPredicate(MetricPredicate.ALL)
+                .setPredicate(MetricFilter.ALL)
                 .setReportJvmMetrics(false)
                 .build();
     }
@@ -142,7 +140,7 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
     public void testShutdown() throws InterruptedException {
         MetricPoster poster = mock(MetricPoster.class);
         ZenossMetricsReporter zmr = new Builder(poster).build();
-        zmr.shutdown(1000, TimeUnit.SECONDS);
+        zmr.stop();
         verify(poster).shutdown();
 
     }

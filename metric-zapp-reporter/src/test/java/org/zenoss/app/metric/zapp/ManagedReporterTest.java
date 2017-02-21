@@ -10,12 +10,13 @@
  */
 package org.zenoss.app.metric.zapp;
 
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.dropwizard.jackson.Jackson;
 import io.dropwizard.setup.Environment;
-import com.yammer.metrics.core.MetricPredicate;
+import com.codahale.metrics.MetricFilter;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,11 +72,14 @@ public class ManagedReporterTest {
     private static final String PROTOCOL = "http";
     private static final int PORT = 8888;
 
+    private MetricRegistry registry = new MetricRegistry();
+
 
     @Before
     public void setup() throws Exception {
         when(env.getName()).thenReturn(ZAPP_NAME);
         when(env.getObjectMapper()).thenReturn(MAPPER);
+        when(env.metrics()).thenReturn(registry);
 
         when(config.getHost()).thenReturn(HOST);
         when(config.getPort()).thenReturn(PORT);
@@ -201,7 +205,7 @@ public class ManagedReporterTest {
         when(appContext.getBean("bean-name")).thenReturn(poster);
         ManagedReporter managed = spy(new ManagedReporter(appContext, appConfig, env));
         managed.init();
-        verify(managed).buildMetricReporter(same(config), same(poster), eq(MetricPredicate.ALL), anyMap());
+        verify(managed).buildMetricReporter(same(config), same(poster), eq(MetricFilter.ALL), anyMap());
     }
 
     @Test
@@ -218,7 +222,7 @@ public class ManagedReporterTest {
     @Test
     public void testSets() {
         ManagedReporter mr = new ManagedReporter(appContext, appConfig, env);
-        mr.setFilter(mock(MetricPredicate.class));
+        mr.setFilter(mock(MetricFilter.class));
     }
 
     @Test
