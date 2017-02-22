@@ -1,8 +1,7 @@
-package com.yammer.metrics.reporting.tests;
-
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.reporting.AbstractPollingReporter;
-import com.yammer.metrics.stats.Snapshot;
+package org.zenoss.metrics.reporter;
+import com.codahale.metrics.*;
+import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.Snapshot;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -20,25 +19,25 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
-public abstract class AbstractPollingReporterTest {
+public abstract class ScheduledReporterTest {
 
     protected final Clock clock = mock(Clock.class);
-    protected AbstractPollingReporter reporter;
+    protected ScheduledReporter reporter;
     protected ByteArrayOutputStream out;
-    protected TestMetricsRegistry registry;
+    protected TestMetricRegistry registry;
 
     @Before
     public void init() throws Exception {
-        when(clock.tick()).thenReturn(1234L);
-        when(clock.time()).thenReturn(5678L);
-        registry = new TestMetricsRegistry();
+        when(clock.getTick()).thenReturn(1234L);
+        when(clock.getTime()).thenReturn(5678L);
+        registry = new TestMetricRegistry();
         out = new ByteArrayOutputStream();
         reporter = createReporter(registry, out, clock);
     }
 
-    protected static class TestMetricsRegistry extends MetricsRegistry {
-        public <T extends Metric> T add(MetricName name, T metric) {
-            return getOrAdd(name, metric);
+    protected static class TestMetricRegistry extends MetricRegistry {
+        public <T extends Metric> T add(String name, T metric) {
+            return register(name, metric);
         }
     }
 
@@ -47,14 +46,14 @@ public abstract class AbstractPollingReporterTest {
         final T metric = action.call();
         try {
             // Add the metric to the registry, run the reporter and flush the result
-            registry.add(new MetricName(Object.class, "metric"), metric);
-            reporter.run();
+            registry.add(MetricRegistry.name(Object.class, "metric"), metric);
+            reporter.report();
             out.flush();
             final String[] lines = out.toString().split("\r?\n|\r");
             // Assertions: first check that the line count matches then compare line by line ignoring leading and trailing whitespace
             assertEquals("Line count mismatch, was:\n" + Arrays.toString(lines) + "\nexpected:\n" + Arrays
-                    .toString(expected) + "\n", expected.length,
-                         lines.length);
+                            .toString(expected) + "\n", expected.length,
+                    lines.length);
             for (int i = 0; i < lines.length; i++) {
                 if (!expected[i].trim().equals(lines[i].trim())) {
                     System.err.println("Failure comparing line " + (1 + i));
@@ -64,11 +63,11 @@ public abstract class AbstractPollingReporterTest {
                 assertEquals(expected[i].trim(), lines[i].trim());
             }
         } finally {
-            reporter.shutdown();
+            reporter.close();
         }
     }
 
-    protected abstract AbstractPollingReporter createReporter(MetricsRegistry registry, OutputStream out, Clock clock) throws Exception;
+    protected abstract ScheduledReporter createReporter(MetricRegistry registry, OutputStream out, Clock clock) throws Exception;
 
     @Test
     public final void counter() throws Exception {
@@ -134,109 +133,60 @@ public abstract class AbstractPollingReporterTest {
 
     static Counter createCounter(long count) throws Exception {
         final Counter mock = mock(Counter.class);
-        when(mock.count()).thenReturn(count);
-        return configureMatcher(mock, doAnswer(new MetricsProcessorAction() {
-            @Override
-            void delegateToProcessor(MetricProcessor<Object> processor, MetricName name, Object context) throws Exception {
-                processor.processCounter(name, mock, context);
-            }
-        }));
+        when(mock.getCount()).thenReturn(count);
+        return mock;
     }
 
     static Histogram createHistogram() throws Exception {
         final Histogram mock = mock(Histogram.class);
-        setupSummarizableMock(mock);
         setupSamplingMock(mock);
-        return configureMatcher(mock, doAnswer(new MetricsProcessorAction() {
-            @Override
-            void delegateToProcessor(MetricProcessor<Object> processor, MetricName name, Object context) throws Exception {
-                processor.processHistogram(name, mock, context);
-            }
-        }));
+        return mock;
     }
 
-    
+
     static Gauge<String> createGauge() throws Exception {
         @SuppressWarnings("unchecked")
         final Gauge<String> mock = mock(Gauge.class);
-        when(mock.value()).thenReturn("gaugeValue");
-        return configureMatcher(mock, doAnswer(new MetricsProcessorAction() {
-            @Override
-            void delegateToProcessor(MetricProcessor<Object> processor, MetricName name, Object context) throws Exception {
-                processor.processGauge(name, mock, context);
-            }
-        }));
+        when(mock.getValue()).thenReturn("gaugeValue");
+        return mock;
     }
 
 
     static Timer createTimer() throws Exception {
         final Timer mock = mock(Timer.class);
-        when(mock.durationUnit()).thenReturn(TimeUnit.MILLISECONDS);
-        setupSummarizableMock(mock);
         setupMeteredMock(mock);
         setupSamplingMock(mock);
-        return configureMatcher(mock, doAnswer(new MetricsProcessorAction() {
-            @Override
-            void delegateToProcessor(MetricProcessor<Object> processor, MetricName name, Object context) throws Exception {
-                processor.processTimer(name, mock, context);
-            }
-        }));
+        return mock;
     }
 
     static Meter createMeter() throws Exception {
         final Meter mock = mock(Meter.class);
         setupMeteredMock(mock);
-        return configureMatcher(mock, doAnswer(new MetricsProcessorAction() {
-            @Override
-            void delegateToProcessor(MetricProcessor<Object> processor, MetricName name, Object context) throws Exception {
-                processor.processMeter(name, mock, context);
-            }
-        }));
-    }
-
-    @SuppressWarnings("unchecked")
-    static <T extends Metric> T configureMatcher(T mock, Stubber stub) throws Exception {
-        stub.when(mock).processWith(any(MetricProcessor.class), any(MetricName.class), any());
         return mock;
     }
 
-    static abstract class MetricsProcessorAction implements Answer<Object> {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-            @SuppressWarnings("unchecked")
-            final MetricProcessor<Object> processor = (MetricProcessor<Object>) invocation.getArguments()[0];
-            final MetricName name = (MetricName) invocation.getArguments()[1];
-            final Object context = invocation.getArguments()[2];
-            delegateToProcessor(processor, name, context);
-            return null;
-        }
-
-        abstract void delegateToProcessor(MetricProcessor<Object> processor, MetricName name, Object context) throws Exception;
-    }
-
-    static void setupSummarizableMock(Summarizable summarizable) {
-        when(summarizable.min()).thenReturn(1d);
-        when(summarizable.max()).thenReturn(3d);
-        when(summarizable.mean()).thenReturn(2d);
-        when(summarizable.stdDev()).thenReturn(1.5d);
-    }
 
     static void setupMeteredMock(Metered metered) {
-        when(metered.count()).thenReturn(1L);
-        when(metered.oneMinuteRate()).thenReturn(1d);
-        when(metered.fiveMinuteRate()).thenReturn(5d);
-        when(metered.fifteenMinuteRate()).thenReturn(15d);
-        when(metered.meanRate()).thenReturn(2d);
-        when(metered.eventType()).thenReturn("eventType");
-        when(metered.rateUnit()).thenReturn(TimeUnit.SECONDS);
+        when(metered.getCount()).thenReturn(1L);
+        when(metered.getOneMinuteRate()).thenReturn(1d);
+        when(metered.getFiveMinuteRate()).thenReturn(5d);
+        when(metered.getFifteenMinuteRate()).thenReturn(15d);
+        when(metered.getMeanRate()).thenReturn(2d);
     }
 
     static void setupSamplingMock(Sampling sampling) {
-        final double[] values = new double[1000];
-        for (int i = 0; i < values.length; i++) {
-            values[i] = i / 1000.0;
-        }
-        when(sampling.getSnapshot()).thenReturn(new Snapshot(values));
+        Snapshot snapshot = mock(Snapshot.class);
+        when(snapshot.getMin()).thenReturn(0L);
+        when(snapshot.getMax()).thenReturn(1000L);
+        when(snapshot.getMean()).thenReturn(500.5D);
+        when(snapshot.getStdDev()).thenReturn(288.75D);
+        when(snapshot.getMedian()).thenReturn(500D);
+        when(snapshot.get75thPercentile()).thenReturn(750D);
+        when(snapshot.get95thPercentile()).thenReturn(950D);
+        when(snapshot.get98thPercentile()).thenReturn(980D);
+        when(snapshot.get99thPercentile()).thenReturn(990D);
+        when(snapshot.get999thPercentile()).thenReturn(999D);
+        when(sampling.getSnapshot()).thenReturn(snapshot);
     }
 
     public abstract String[] expectedGaugeResult(String value);

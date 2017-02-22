@@ -80,16 +80,16 @@ public class ZenossMetricsReporterTest extends ScheduledReporterTest {
                 "{\"metric\":\"Prefix.java.lang.Object.metric.1MinuteRate\",\"timestamp\":5,\"value\":1.0,\"tags\":{\"key\":\"val\"}}",
                 "{\"metric\":\"Prefix.java.lang.Object.metric.5MinuteRate\",\"timestamp\":5,\"value\":5.0,\"tags\":{\"key\":\"val\"}}",
                 "{\"metric\":\"Prefix.java.lang.Object.metric.15MinuteRate\",\"timestamp\":5,\"value\":15.0,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.min\",\"timestamp\":5,\"value\":1.0,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.max\",\"timestamp\":5,\"value\":3.0,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.mean\",\"timestamp\":5,\"value\":2.0,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.stddev\",\"timestamp\":5,\"value\":1.5,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.median\",\"timestamp\":5,\"value\":0.4995,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.75Percentile\",\"timestamp\":5,\"value\":0.74975,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.95Percentile\",\"timestamp\":5,\"value\":0.9499499999999999,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.98Percentile\",\"timestamp\":5,\"value\":0.97998,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.99Percentile\",\"timestamp\":5,\"value\":0.98999,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.999Percentile\",\"timestamp\":5,\"value\":0.998999,\"tags\":{\"key\":\"val\"}}"
+                "{\"metric\":\"Prefix.java.lang.Object.metric.min\",\"timestamp\":5,\"value\":0.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.max\",\"timestamp\":5,\"value\":1000.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.mean\",\"timestamp\":5,\"value\":500.5,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.stddev\",\"timestamp\":5,\"value\":288.75,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.median\",\"timestamp\":5,\"value\":500.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.75Percentile\",\"timestamp\":5,\"value\":750.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.95Percentile\",\"timestamp\":5,\"value\":950.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.98Percentile\",\"timestamp\":5,\"value\":980.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.99Percentile\",\"timestamp\":5,\"value\":990.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.999Percentile\",\"timestamp\":5,\"value\":999.0,\"tags\":{\"key\":\"val\"}}"
         };
     }
 
@@ -107,16 +107,16 @@ public class ZenossMetricsReporterTest extends ScheduledReporterTest {
     @Override
     public String[] expectedHistogramResult() {
         return new String[]{
-                "{\"metric\":\"Prefix.java.lang.Object.metric.min\",\"timestamp\":5,\"value\":1.0,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.max\",\"timestamp\":5,\"value\":3.0,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.mean\",\"timestamp\":5,\"value\":2.0,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.stddev\",\"timestamp\":5,\"value\":1.5,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.median\",\"timestamp\":5,\"value\":0.4995,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.75Percentile\",\"timestamp\":5,\"value\":0.74975,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.95Percentile\",\"timestamp\":5,\"value\":0.9499499999999999,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.98Percentile\",\"timestamp\":5,\"value\":0.97998,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.99Percentile\",\"timestamp\":5,\"value\":0.98999,\"tags\":{\"key\":\"val\"}}",
-                "{\"metric\":\"Prefix.java.lang.Object.metric.999Percentile\",\"timestamp\":5,\"value\":0.998999,\"tags\":{\"key\":\"val\"}}"
+                "{\"metric\":\"Prefix.java.lang.Object.metric.min\",\"timestamp\":5,\"value\":0.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.max\",\"timestamp\":5,\"value\":1000.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.mean\",\"timestamp\":5,\"value\":500.5,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.stddev\",\"timestamp\":5,\"value\":288.75,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.median\",\"timestamp\":5,\"value\":500.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.75Percentile\",\"timestamp\":5,\"value\":750.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.95Percentile\",\"timestamp\":5,\"value\":950.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.98Percentile\",\"timestamp\":5,\"value\":980.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.99Percentile\",\"timestamp\":5,\"value\":990.0,\"tags\":{\"key\":\"val\"}}",
+                "{\"metric\":\"Prefix.java.lang.Object.metric.999Percentile\",\"timestamp\":5,\"value\":999.0,\"tags\":{\"key\":\"val\"}}"
         };
     }
 
