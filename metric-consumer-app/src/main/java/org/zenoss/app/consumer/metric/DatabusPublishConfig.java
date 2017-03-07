@@ -203,8 +203,9 @@ private void initConfig() {
     //
     if (this.defaultConfig == null) {
         //
-        Path configPath = PathUtils.resolvePath(configFile, getDirectoryPaths(), ".");
-        if (!Files.exists(configPath)) {
+            Optional<Path> maybeConfigPath = PathUtils.resolvePath(configFile, getDirectoryPaths(), ".");
+            Path configPath = maybeConfigPath.orElse(null);
+            if ((configPath == null) || !Files.exists(configPath)) {
             this.configFile = Resources.getResource(configFile).getPath();
         } else {
             this.configFile = configPath.toString();

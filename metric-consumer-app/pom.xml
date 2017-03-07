@@ -12,8 +12,8 @@
 	<properties>
 		<ssl.cert.dir>target/cert</ssl.cert.dir>
 		<assembly.skipAssembly>true</assembly.skipAssembly>
-		<databus.version>0.0.1-SNAPSHOT</databus.version>
-		<jersey.version>1.19.1</jersey.version>
+		<databus.version>0.1.1</databus.version>
+		<jersey.version>1.19.3</jersey.version>
 		<jackson.version>2.7.4</jackson.version>
 	</properties>
 	<dependencies>
