@@ -289,8 +289,5 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 			</properties>
 		</profile>
 	</profiles>
-<<<<<<< HEAD
       </project>
-=======
-</project>
->>>>>>> b24da17db80df8508d9f02b4ab9d9e0cf445e144
+      
