@@ -10,10 +10,13 @@
  */
 package org.zenoss.app.consumer.metric.impl;
 
-import com.google.api.client.util.ExponentialBackOff;
-import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
-import com.google.common.eventbus.EventBus;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NoSuchElementException;
+import java.util.regex.Pattern;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,12 +33,10 @@ import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.lib.tsdb.OpenTsdbClient;
 import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NoSuchElementException;
-import java.util.regex.Pattern;
+import com.google.api.client.util.ExponentialBackOff;
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 
 /**
  * @see TsdbWriter
@@ -194,7 +195,7 @@ class OpenTsdbWriter implements TsdbWriter {
                             processed++;
                         }
                         if (message != null) {
-                            log.trace("Publishing metric: {}", m.toString());
+                            log.debug("Publishing metric to OTSDB: {}", m.toString());
                             try {
                                 client.put(message);
                                 processed++;
@@ -249,7 +250,7 @@ class OpenTsdbWriter implements TsdbWriter {
     private OpenTsdbClient getOpenTsdbClient() throws InterruptedException {
         OpenTsdbClient client = null;
         try {
-            client = (OpenTsdbClient) clientPool.borrowObject();
+            client = clientPool.borrowObject();
             if ( null == client) {
                 log.warn("got null client from pool.");
             } else {
