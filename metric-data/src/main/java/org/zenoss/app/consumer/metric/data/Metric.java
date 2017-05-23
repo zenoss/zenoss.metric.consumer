@@ -10,6 +10,7 @@
  */
 package org.zenoss.app.consumer.metric.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.validation.constraints.Min;
@@ -20,6 +21,7 @@ import java.util.Map;
 
 public class Metric {
 
+    public static final String TRACER_KEY = "mtrace";
     @NotNull
     @Size(min=1)
     @JsonProperty("metric")
@@ -141,5 +143,19 @@ public class Metric {
                 ", value=" + value +
                 ", tags=" + tags +
                 '}';
+    }
+
+    public boolean hasTracer() {
+        if (this.tags == null) return false;
+        return this.tags.get(TRACER_KEY) != null;
+    }
+
+    public String getTracerMessage(String s) {
+        return String.format("%s: %s %s", TRACER_KEY, s.replace("\n","\\n"), this.toString());
+    }
+
+    @JsonIgnore
+    public String getTracerTimestamp() {
+        return String.format("%s", this.getTags().get(TRACER_KEY));
     }
 }
