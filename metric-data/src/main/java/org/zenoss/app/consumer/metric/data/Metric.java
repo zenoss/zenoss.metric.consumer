@@ -151,7 +151,26 @@ public class Metric {
     }
 
     public String getTracerMessage(String s) {
-        return String.format("%s: %s %s", TRACER_KEY, s.replace("\n","\\n"), this.toString());
+        String sSafe = s.replace("\n","\\n");
+        return String.format("%s=%s elapsed=%d %s metric=[%s]",
+                TRACER_KEY, this.getTracerTimestamp(),
+                this.elapsedSinceTracer(),
+                sSafe,
+                this.toString());
+    }
+
+    public int elapsedSinceTracer() {
+        String tracerString = getTracerTimestamp();
+        long ttime = 0L;
+        try {
+            ttime = Long.parseLong(tracerString);
+        }
+        catch (NumberFormatException e) {
+            return -1;
+        }
+        long now = System.currentTimeMillis() / 1000;
+        Long elapsed = now - ttime;
+        return elapsed.intValue();
     }
 
     @JsonIgnore
