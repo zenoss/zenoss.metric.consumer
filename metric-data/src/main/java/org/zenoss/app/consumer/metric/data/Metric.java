@@ -152,7 +152,7 @@ public class Metric {
 
     public String getTracerMessage(String s) {
         String sSafe = s.replace("\n","\\n");
-        return String.format("%s=%s elapsed=%d %s metric=[%s]",
+        return String.format("%s=%s elapsed=%d message=\'%s\' metric=[%s]",
                 TRACER_KEY, this.getTracerTimestamp(),
                 this.elapsedSinceTracer(),
                 sSafe,

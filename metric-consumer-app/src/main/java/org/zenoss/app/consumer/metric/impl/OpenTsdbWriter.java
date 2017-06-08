@@ -195,7 +195,7 @@ class OpenTsdbWriter implements TsdbWriter {
                         try {
                             message = convert(workingCopy);
                             if (m.hasTracer()) {
-                                String msg = String.format("Converted metric. Output string: \"%s\"", message);
+                                String msg = String.format("Converted metric. Output_string=\"%s\"", message);
                                 log.info(m.getTracerMessage(msg));
                             }
                         } catch (RuntimeException e) {
