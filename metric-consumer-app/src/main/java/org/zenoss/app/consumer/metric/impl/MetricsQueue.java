@@ -133,7 +133,7 @@ class MetricsQueue implements TsdbMetricsQueue {
         perClientBacklog.addAndGet(clientId, metrics.size());
         recentClientIds.getUnchecked(clientId);
         incrementIncoming(metrics.size());
-        log.debug("AddAll exit. queue.size() = {}", queue.size());
+        log.debug("AddAll exit. clientId = {}, queue.size() = {}", clientId, queue.size());
     }
 
     @Override
