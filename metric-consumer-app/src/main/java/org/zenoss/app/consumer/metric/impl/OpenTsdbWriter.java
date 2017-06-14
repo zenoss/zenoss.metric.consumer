@@ -16,6 +16,7 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
@@ -162,6 +163,7 @@ class OpenTsdbWriter implements TsdbWriter {
         boolean flushed = false;
         boolean invalidateClient = false;
         long processed = 0;
+        int errorCount = 0;
         try {
             client = getOpenTsdbClient();
             if (client != null) {
@@ -183,18 +185,35 @@ class OpenTsdbWriter implements TsdbWriter {
                         Metric workingCopy = new Metric(m);
                         workingCopy.removeTag(TsdbMetricsQueue.CLIENT_TAG);
                         String message = null;
+                        if (m.hasTracer()) {
+                            MDC.put(Metric.TRACER_KEY, m.getTracerTimestamp() );
+                            // clear value on trace key to prevent OpenTSDB UID exhaustion
+                            workingCopy.getTags().put(Metric.TRACER_KEY, "1");
+                        } else {
+                            MDC.remove(Metric.TRACER_KEY);
+                        }
                         try {
                             message = convert(workingCopy);
+                            if (m.hasTracer()) {
+                                String msg = String.format("Converted metric. Output_string=\"%s\"", message);
+                                log.info(m.getTracerMessage(msg));
+                            }
                         } catch (RuntimeException e) {
                             if (log.isDebugEnabled()) {
                                 log.warn(String.format("Dropping bad metric : %s : %s", e.getMessage(), workingCopy.toString()), e);
                             } else {
                                 log.warn("Dropping bad metric : {} : {}", e.getMessage(), workingCopy);
                             }
-                            processed++;
+                            if (m.hasTracer()) {
+                                log.info(m.getTracerMessage("Dropped bad metric"));
+                            }
+                            errorCount++;
                         }
                         if (message != null) {
                             log.trace("Publishing metric: {}", m.toString());
+                            if (m.hasTracer()) {
+                                log.info(m.getTracerMessage("Publishing metric"));
+                            }
                             try {
                                 client.put(message);
                                 processed++;
@@ -224,6 +243,7 @@ class OpenTsdbWriter implements TsdbWriter {
         } finally {
             if (flushed) {
                 metricsQueue.incrementProcessed(processed);
+                metricsQueue.incrementError(errorCount);
             } else {
                 try {
                     metricsQueue.reAddAll(metrics);
