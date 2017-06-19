@@ -8,7 +8,7 @@ Hey, Developer! Put the following in your ~/.m2/settings.xml:
         <mirror>
           <id>europa</id>
           <mirrorOf>*</mirrorOf>
-          <url>http://nexus.zendev.org:8081/nexus/content/groups/public</url>
+          <url>http://nexus.zenoss.eng:8081/nexus/content/groups/public</url>
         </mirror>
       </mirrors>
     </settings>
