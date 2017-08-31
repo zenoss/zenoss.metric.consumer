@@ -39,8 +39,8 @@ class OpenTsdbWriterManager {
     @Autowired
     OpenTsdbWriterManager(
             ApplicationContext appContext, 
-            MetricServiceConfiguration config, 
-            @Qualifier("zapp::event-bus::async") EventBus eventBus, 
+            MetricServiceConfiguration config,
+            @Qualifier("zapp::event-bus::async") EventBus eventBus,
             @Qualifier("zapp::executor::metrics") ExecutorService executorService,
             TsdbWriterRegistry writerRegistry)
     {
