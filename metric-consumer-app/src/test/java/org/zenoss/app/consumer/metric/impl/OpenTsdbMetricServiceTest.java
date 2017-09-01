@@ -31,16 +31,18 @@ public class OpenTsdbMetricServiceTest {
     MetricServiceConfiguration config;
     EventBus eventBus;
     MetricsQueue metricsQueue;
+    ZingQueue zingQueue;
 
     @Before
     public void setUp() {
         eventBus = mock(EventBus.class);
         config = new MetricServiceConfiguration();
         metricsQueue = mock(MetricsQueue.class);
+        zingQueue = mock(ZingQueue.class);
     }
     
     OpenTsdbMetricService newService() {
-        return new OpenTsdbMetricService(config, eventBus, metricsQueue);
+        return new OpenTsdbMetricService(config, eventBus, metricsQueue, zingQueue);
     }
 
     @Test
@@ -58,6 +60,18 @@ public class OpenTsdbMetricServiceTest {
         OpenTsdbMetricService service = newService();
         assertEquals(Control.ok(), service.push(metrics, "test", null));
         verify(metricsQueue, times(1)).addAll(metrics, "test");
+        verify(zingQueue, times(0)).addAll(metrics);
+    }
+
+    @Test
+    public void testPushToZing() throws Exception {
+        config.getZingConfiguration().setEnabled(true);
+        Metric metric = new Metric("name", 0, 0.0);
+        List<Metric> metrics  = Collections.singletonList(metric);
+        OpenTsdbMetricService service = newService();
+        assertEquals(Control.ok(), service.push(metrics, "test", null));
+        verify(metricsQueue, times(1)).addAll(metrics, "test");
+        verify(zingQueue, times(1)).addAll(metrics);
     }
 
     @Test

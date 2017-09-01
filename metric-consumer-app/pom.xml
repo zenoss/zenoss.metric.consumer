@@ -51,6 +51,12 @@
             <artifactId>metric-tsdb</artifactId>
             <version>${version.metric.tsdb}</version>
         </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.16.18</version>
+            <scope>provided</scope>
+        </dependency>
         <!--test scope-->
         <dependency>
             <groupId>junit</groupId>

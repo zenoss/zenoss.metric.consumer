@@ -38,10 +38,12 @@ class OpenTsdbMetricService implements MetricService {
     OpenTsdbMetricService(
             MetricServiceConfiguration config,
             @Qualifier("zapp::event-bus::async") EventBus eventBus,
-            MetricsQueue metricsQueue) {
+            MetricsQueue metricsQueue,
+            ZingQueue zingQueue) {
         // Dependencies
         this.eventBus = eventBus;
         this.metricsQueue = metricsQueue;
+        this.zingQueue = zingQueue;
 
         // Configuration
         this.highCollisionMark = config.getHighCollisionMark();
@@ -50,6 +52,7 @@ class OpenTsdbMetricService implements MetricService {
         this.perClientMaxPercentOfFairBacklogSize = config.getPerClientMaxPercentOfFairBacklogSize();
         this.maxClientWaitTime = config.getMaxClientWaitTime();
         this.minTimeBetweenRetries = config.getMinTimeBetweenNotification();
+        this.pushToZing = config.getZingConfiguration().isEnabled();
 
         // State
         this.lastCollisionCount = new AtomicLong();
@@ -103,6 +106,12 @@ class OpenTsdbMetricService implements MetricService {
             }
 
             metricsQueue.addAll(copy, clientId);
+
+            if (this.pushToZing) {
+                final List<Metric> copy2 = Lists.newArrayList(metrics);
+                log.debug("Adding {} metrics to the zing queue", copy2.size());
+                zingQueue.addAll(copy2);
+            }
 
             // Notify the bus that we are going from no data to some data.
             if (totalInFlight == 0) {
@@ -228,6 +237,11 @@ class OpenTsdbMetricService implements MetricService {
     private final TsdbMetricsQueue metricsQueue;
 
     /**
+     * Shared data structure holding metrics to be pushed to Zing.
+     */
+    private final ZingQueue zingQueue;
+
+    /**
      * high collision detection mark
      */
     private final int highCollisionMark;
@@ -265,4 +279,8 @@ class OpenTsdbMetricService implements MetricService {
      */
     private final AtomicLong lastCollisionCount;
 
+    /**
+     * True if metrics should be pushed to Zing.
+     */
+    private final boolean pushToZing;
 }
