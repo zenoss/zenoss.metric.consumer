@@ -8,7 +8,7 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,7 +158,7 @@ public class ZingWriter implements Runnable {
 
     void processBatch(Collection<Metric> metrics) {
         try {
-            log.debug("processBatch, size={}, batch={}", metrics.size(), metrics);
+            log.trace("processBatch, size={}, batch={}", metrics.size(), metrics);
             sender.send(metrics);
 
         } catch (Exception e) {

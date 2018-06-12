@@ -8,7 +8,7 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,7 +71,7 @@ public class ZingConnectorSender implements ZingSender {
 
     @Override
     public void send(Collection<Metric> metrics) throws Exception {
-        log.debug("sending {} metrics to {}", metrics.size(), configuration.getEndpoint());
+        log.trace("sending {} metrics to {}", metrics.size(), configuration.getEndpoint());
         URL url = new URL(configuration.getEndpoint());
         HttpPut request = new HttpPut(url.toURI());
         setHeaders(request);
@@ -97,10 +97,10 @@ public class ZingConnectorSender implements ZingSender {
             response = httpClient.execute(request);
             StatusLine statusLine = response.getStatusLine();
             int statusCode = statusLine.getStatusCode();
-            log.debug( "Send request complete with status: {}", statusCode);
+            log.trace( "Send request complete with status: {}", statusCode);
             if (statusCode >= 200 && statusCode <= 299) {
                 HttpEntity entity = response.getEntity();
-                log.debug("Response: {}", entity == null ? null : EntityUtils.toString(entity));
+                log.trace("Response: {}", entity == null ? null : EntityUtils.toString(entity));
             } else {
                 log.warn( "Unsuccessful response from server: {}", response.getStatusLine());
                 throw new IOException(String.format("Failed to send metrics: %s", response.getStatusLine()));

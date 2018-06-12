@@ -8,7 +8,7 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import com.google.api.client.util.Maps;
 import org.apache.http.HttpResponse;
@@ -20,6 +20,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.zenoss.app.consumer.metric.ZingConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.zing.ZingConnectorSender;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -40,7 +41,7 @@ public class ZingConnectorSenderTest {
 
     HttpClient httpClient;
 
-    ZingConnectorSender sender;
+    org.zenoss.app.consumer.metric.zing.ZingConnectorSender sender;
 
     @Before
     public void setUp() throws Exception {

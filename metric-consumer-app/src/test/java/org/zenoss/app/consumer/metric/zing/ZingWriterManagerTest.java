@@ -8,12 +8,16 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.context.ApplicationContext;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
+import org.zenoss.app.consumer.metric.zing.ZingQueue;
+import org.zenoss.app.consumer.metric.zing.ZingWriter;
+import org.zenoss.app.consumer.metric.zing.ZingWriterManager;
+import org.zenoss.app.consumer.metric.zing.ZingWriterRegistry;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,7 +30,7 @@ import static org.mockito.Mockito.*;
  *
  */
 public class ZingWriterManagerTest {
- 
+
     ApplicationContext context;
     MetricServiceConfiguration config;
     ZingQueue queue;
@@ -89,7 +93,7 @@ public class ZingWriterManagerTest {
 
         manager.run();
 
-        verify(executorService, never()).submit((ZingWriter) anyObject());
+        verify(executorService, never()).submit((org.zenoss.app.consumer.metric.zing.ZingWriter) anyObject());
     }
 
     @Test
