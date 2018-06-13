@@ -15,8 +15,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpPut;
@@ -44,21 +46,20 @@ import java.util.Collection;
 public class ZingConnectorSender implements ZingSender {
     private static final Logger log = LoggerFactory.getLogger(ZingConnectorSender.class);
 
-    private static final DefaultHttpClient newHttpClient() {
+    private static final CloseableHttpClient newHttpClient() {
         // TODO: make retry count configurable
         // TODO: make http connect timeout configurable
-        DefaultHttpClient httpClient = new DefaultHttpClient();
-        httpClient.setHttpRequestRetryHandler( new DefaultHttpRequestRetryHandler(0, true));
+        CloseableHttpClient httpClient = HttpClients.createDefault();
         return httpClient;
     }
 
-    private final HttpClient httpClient;
+    private CloseableHttpClient httpClient;
 
     private final ZingConfiguration configuration;
 
     private final ObjectMapper mapper;
 
-    ZingConnectorSender(ZingConfiguration configuration, HttpClient httpClient) {
+    ZingConnectorSender(ZingConfiguration configuration, CloseableHttpClient httpClient) {
         this.configuration = configuration;
         this.httpClient = httpClient;
         this.mapper = new ObjectMapper();
@@ -79,6 +80,14 @@ public class ZingConnectorSender implements ZingSender {
         sendRequest(request);
     }
 
+    @Override
+    public void close() {
+        try {
+            httpClient.close();
+        } catch (IOException e) {
+            log.debug("close() threw IOException");
+        }
+    }
     private void setHeaders(HttpPut request) {
         request.addHeader("content-type", "application/json");
         request.addHeader("Accept", "*/*");
@@ -92,7 +101,7 @@ public class ZingConnectorSender implements ZingSender {
     }
 
     private void sendRequest(HttpPut request) throws IOException {
-        HttpResponse response = null;
+        CloseableHttpResponse response = null;
         try {
             response = httpClient.execute(request);
             StatusLine statusLine = response.getStatusLine();
@@ -118,6 +127,10 @@ public class ZingConnectorSender implements ZingSender {
                 }
             } catch( NullPointerException | IOException ex) {
                 log.warn( "Failed to close request: {}", ex);
+            } finally {
+                if (response != null) {
+                    response.close();
+                }
             }
         }
     }

@@ -16,4 +16,6 @@ import java.util.Collection;
 
 public interface ZingSender {
     void send(Collection<Metric> metrics) throws Exception;
+
+    void close();
 }

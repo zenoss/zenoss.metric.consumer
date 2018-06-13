@@ -102,6 +102,7 @@ public class ZingWriter implements Runnable {
             throw e;
         } finally {
             running = false;
+            sender.close();
             writerRegistry.unregister(this);
         }
     }

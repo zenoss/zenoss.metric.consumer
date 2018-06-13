@@ -38,7 +38,9 @@ metricService:
     #
     zingConfiguration:
         enabled: true
-        threadPoolSize: 1
+        batchSize: 100
+        threadPoolSize: 5
+        writerThreads: 5
         endpoint: "{{(getContext . "global.conf.zing-connector-url")}}/api/metrics/ingest"
 
     openTsdbClientPool:
