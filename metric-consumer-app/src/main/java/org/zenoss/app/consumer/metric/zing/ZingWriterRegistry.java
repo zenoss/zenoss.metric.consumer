@@ -8,7 +8,7 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;

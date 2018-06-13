@@ -8,18 +8,19 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import com.google.api.client.util.Maps;
-import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.zenoss.app.consumer.metric.ZingConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.zing.ZingConnectorSender;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -38,7 +39,7 @@ public class ZingConnectorSenderTest {
 
     ZingConfiguration config;
 
-    HttpClient httpClient;
+    CloseableHttpClient httpClient;
 
     ZingConnectorSender sender;
 
@@ -46,14 +47,14 @@ public class ZingConnectorSenderTest {
     public void setUp() throws Exception {
         config = mock(ZingConfiguration.class);
         when(config.getEndpoint()).thenReturn("http://localhost:9237");
-        httpClient = mock(HttpClient.class);
+        httpClient = mock(CloseableHttpClient.class);
     }
 
     @Test
     public void testPutWorks() throws Exception {
         sender = new ZingConnectorSender(config, httpClient);
 
-        final HttpResponse response = mock(HttpResponse.class);
+        final CloseableHttpResponse response = mock(CloseableHttpResponse.class);
 
         final StatusLine status = mock(StatusLine.class);
         when(response.getStatusLine()).thenReturn(status);
@@ -81,7 +82,7 @@ public class ZingConnectorSenderTest {
     public void testPutFailsOn400() throws Exception {
         sender = new ZingConnectorSender(config, httpClient);
 
-        final HttpResponse response = mock(HttpResponse.class);
+        final CloseableHttpResponse response = mock(CloseableHttpResponse.class);
 
         final StatusLine status = mock(StatusLine.class);
         when(response.getStatusLine()).thenReturn(status);

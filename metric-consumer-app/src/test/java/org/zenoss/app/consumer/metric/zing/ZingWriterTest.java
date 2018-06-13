@@ -8,7 +8,7 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import com.google.common.collect.Lists;
 import org.junit.After;
@@ -17,6 +17,9 @@ import org.junit.Test;
 import org.zenoss.app.consumer.metric.ZingConfiguration;
 import org.zenoss.app.consumer.metric.ZingSender;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.zing.ZingQueue;
+import org.zenoss.app.consumer.metric.zing.ZingWriter;
+import org.zenoss.app.consumer.metric.zing.ZingWriterRegistry;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -62,7 +65,7 @@ public class ZingWriterTest {
         ZingQueue mq = mock(ZingQueue.class);
 
         configuration.setMaxIdleTime(0); // Never quit due to lack of work
-        ZingWriter writer = new ZingWriter(configuration, registry, mq, sender);
+        org.zenoss.app.consumer.metric.zing.ZingWriter writer = new ZingWriter(configuration, registry, mq, sender);
 
         Future<?> future = executor.submit(writer);
         boolean writerStarted = false;

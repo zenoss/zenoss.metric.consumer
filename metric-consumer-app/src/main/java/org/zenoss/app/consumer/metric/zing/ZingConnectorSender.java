@@ -8,15 +8,17 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpPut;
@@ -30,6 +32,7 @@ import org.zenoss.app.consumer.metric.ZingSender;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
 
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.URL;
@@ -44,34 +47,40 @@ import java.util.Collection;
 public class ZingConnectorSender implements ZingSender {
     private static final Logger log = LoggerFactory.getLogger(ZingConnectorSender.class);
 
-    private static final DefaultHttpClient newHttpClient() {
+    private static final CloseableHttpClient newHttpClient(int maxThreads) {
         // TODO: make retry count configurable
         // TODO: make http connect timeout configurable
-        DefaultHttpClient httpClient = new DefaultHttpClient();
-        httpClient.setHttpRequestRetryHandler( new DefaultHttpRequestRetryHandler(0, true));
-        return httpClient;
+
+        // We only have 1 route to zing and 1 blocking call per thread,
+        //      so set the max connections per route and total connections
+        //      to match the number of worker threads
+        return HttpClientBuilder
+                .create()
+                .setMaxConnPerRoute(maxThreads)
+                .setMaxConnTotal(maxThreads)
+                .build();
     }
 
-    private final HttpClient httpClient;
+    private CloseableHttpClient httpClient;
 
     private final ZingConfiguration configuration;
 
     private final ObjectMapper mapper;
 
-    ZingConnectorSender(ZingConfiguration configuration, HttpClient httpClient) {
+    @Autowired
+    public ZingConnectorSender(ZingConfiguration configuration) {
+        this(configuration, newHttpClient(configuration.getWriterThreads()));
+    }
+
+    ZingConnectorSender(ZingConfiguration configuration, CloseableHttpClient httpClient) {
         this.configuration = configuration;
         this.httpClient = httpClient;
         this.mapper = new ObjectMapper();
     }
 
-    @Autowired
-    public ZingConnectorSender(ZingConfiguration configuration) {
-        this(configuration, newHttpClient());
-    }
-
     @Override
     public void send(Collection<Metric> metrics) throws Exception {
-        log.debug("sending {} metrics to {}", metrics.size(), configuration.getEndpoint());
+        log.trace("sending {} metrics to {}", metrics.size(), configuration.getEndpoint());
         URL url = new URL(configuration.getEndpoint());
         HttpPut request = new HttpPut(url.toURI());
         setHeaders(request);
@@ -79,6 +88,18 @@ public class ZingConnectorSender implements ZingSender {
         sendRequest(request);
     }
 
+    @PreDestroy
+    public void close() {
+        try {
+            if (httpClient != null) {
+                httpClient.close();
+                httpClient = null;
+                log.debug("closed httpClient");
+            }
+        } catch (IOException e) {
+            log.debug("close() threw IOException");
+        }
+    }
     private void setHeaders(HttpPut request) {
         request.addHeader("content-type", "application/json");
         request.addHeader("Accept", "*/*");
@@ -92,15 +113,15 @@ public class ZingConnectorSender implements ZingSender {
     }
 
     private void sendRequest(HttpPut request) throws IOException {
-        HttpResponse response = null;
+        CloseableHttpResponse response = null;
         try {
             response = httpClient.execute(request);
             StatusLine statusLine = response.getStatusLine();
             int statusCode = statusLine.getStatusCode();
-            log.debug( "Send request complete with status: {}", statusCode);
+            log.trace( "Send request complete with status: {}", statusCode);
             if (statusCode >= 200 && statusCode <= 299) {
                 HttpEntity entity = response.getEntity();
-                log.debug("Response: {}", entity == null ? null : EntityUtils.toString(entity));
+                log.trace("Response: {}", entity == null ? null : EntityUtils.toString(entity));
             } else {
                 log.warn( "Unsuccessful response from server: {}", response.getStatusLine());
                 throw new IOException(String.format("Failed to send metrics: %s", response.getStatusLine()));
@@ -118,6 +139,10 @@ public class ZingConnectorSender implements ZingSender {
                 }
             } catch( NullPointerException | IOException ex) {
                 log.warn( "Failed to close request: {}", ex);
+            } finally {
+                if (response != null) {
+                    response.close();
+                }
             }
         }
     }

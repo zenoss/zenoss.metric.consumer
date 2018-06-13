@@ -8,7 +8,7 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,11 +76,11 @@ public class ZingQueue {
      * @param metrics  added elements
      * @param clientId an identifier for the remote client that is adding the metrics.
      */
-    void addAll(Collection<Metric> metrics) {
+    public void addAll(Collection<Metric> metrics) {
         queue.addAll(metrics);
     }
 
-    int size() {
+    public int size() {
         return this.queue.size();
     }
 }

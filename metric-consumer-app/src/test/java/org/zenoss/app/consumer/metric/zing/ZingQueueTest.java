@@ -8,12 +8,13 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.zing.ZingQueue;
 
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
@@ -28,7 +29,7 @@ public class ZingQueueTest {
 
     @Test
     public void testSize() {
-        final ZingQueue mq = new ZingQueue();
+        final org.zenoss.app.consumer.metric.zing.ZingQueue mq = new ZingQueue();
         Assert.assertEquals(0, mq.size());
 
         final Collection<Metric> toAdd = Lists.newArrayList(new Metric("fake", System.currentTimeMillis(), 123.45));
@@ -91,24 +92,24 @@ public class ZingQueueTest {
         final long maxPollWait = 30000L; // a really long time.
         final Poller pollsOnce = new Poller(mq, maxPollSize, maxPollWait);
         Future<?> pollingFuture = executorService.submit(pollsOnce);
-        
+
         while (!pollsOnce.isStarted()) {
             Thread.sleep(10);
         }
-        
+
         Runnable addsOnce = new Adder(mq, toAdd);
         Future<?> addingFuture = executorService.submit(addsOnce);
-        
+
         pollingFuture.get(1, TimeUnit.SECONDS);
         addingFuture.get(1, TimeUnit.SECONDS);
-        
+
         Assert.assertEquals(toAdd, pollsOnce.getRetrieved());
         Assert.assertEquals(0, mq.size());  // the queue should be drained
         executorService.shutdownNow();
     }
-    
+
     static class Poller implements Runnable {
-        
+
         private Collection<Metric> retrieved;
         private final ZingQueue mq;
         private final int maxPollSize;
@@ -120,27 +121,27 @@ public class ZingQueueTest {
             this.maxPollSize = maxPollSize;
             this.maxPollWait = maxPollWait;
         }
-        
+
         @Override
         public void run() {
             started = true;
             try {
                 retrieved = mq.poll(maxPollSize, maxPollWait);
-            } 
+            }
             catch(InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
         }
-        
+
         boolean isStarted() {
             return started;
         }
-        
+
         Collection<Metric> getRetrieved() {
             return retrieved;
         }
     }
-    
+
     static class Adder implements Runnable {
         private final Collection<Metric> toAdd;
         private final ZingQueue mq;

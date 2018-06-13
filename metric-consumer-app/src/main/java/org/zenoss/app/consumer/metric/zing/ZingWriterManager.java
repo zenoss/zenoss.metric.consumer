@@ -8,7 +8,7 @@
  *
  * ***************************************************************************
  */
-package org.zenoss.app.consumer.metric.impl;
+package org.zenoss.app.consumer.metric.zing;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,20 +39,23 @@ public class ZingWriterManager implements Runnable  {
     private ZingConfiguration zingConfiguration = null;
     private int maxWriterThreads = 1;
     private ScheduledFuture<?> scheduledTask = null;
-    private ZingWriterRegistry writers = null;
+    private ZingWriterRegistry writerRegistry = null;
+    private ZingWriter writer = null;
 
     @Autowired
     ZingWriterManager(ApplicationContext appContext,
                       MetricServiceConfiguration config,
                       ZingQueue zingQueue,
                       ZingWriterRegistry writerRegistry,
+                      ZingWriter writer,
                       @Qualifier("zapp::executor::zing") ExecutorService executorService,
                       @Qualifier("zapp::executor::scheduled") ScheduledExecutorService scheduledExecutorService) {
         this.appContext = appContext;
         this.executorService = executorService;
         this.scheduledExecutorService = scheduledExecutorService;
         this.zingQueue = zingQueue;
-        this.writers = writerRegistry;
+        this.writerRegistry = writerRegistry;
+        this.writer = writer;
         this.zingConfiguration = config.getZingConfiguration();
         this.maxWriterThreads = zingConfiguration.getWriterThreads();
     }
@@ -80,16 +83,17 @@ public class ZingWriterManager implements Runnable  {
         int created = 0;
 
         while (needed-- > 0) {
-            ZingWriter writer = appContext.getBean(ZingWriter.class);
-            this.executorService.submit(writer);
+            // Note that this.writer is a singleton.
+            // We're creating a new thread to use this.writer, not creating a new instance of ZingWriter
+            this.executorService.submit(this.writer);
             ++created;
         }
-        logger.debug("Created {} writers", created);
+        logger.debug("Created {} writer threads", created);
     }
 
     private int needMoreWriters() {
         //
-        int current = writers.size();
+        int current = writerRegistry.size();
         int needed = 0;
 
         if (current == 0) {
@@ -101,16 +105,17 @@ public class ZingWriterManager implements Runnable  {
                 needed = 2 * current;
             }
         }
-        logger.debug("Writers needed: {}", needed);
+
+        logger.debug("Writer threads needed: {}", needed);
 
         if (needed > 0) {
             if (current >= this.maxWriterThreads) {
-                logger.debug("Current writers count exceeds allowed: {}", this.maxWriterThreads);
+                logger.debug("Current count {} exceeds max allowed: {}", current, this.maxWriterThreads);
                 needed = 0;
             } else if ((current + needed) > maxWriterThreads) {
                 needed = maxWriterThreads - current;
-                logger.debug("Current + needed writers count exceeds allowed: {}. Adjusting needed to {}",
-                        this.maxWriterThreads, needed);
+                logger.debug("Current + needed count, {}, exceeds max allowed: {}. Adjusting needed to {}",
+                        current + needed, this.maxWriterThreads, needed);
             }
         }
 
