@@ -18,7 +18,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpPut;
@@ -32,6 +32,7 @@ import org.zenoss.app.consumer.metric.ZingSender;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
 
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.URL;
@@ -46,11 +47,18 @@ import java.util.Collection;
 public class ZingConnectorSender implements ZingSender {
     private static final Logger log = LoggerFactory.getLogger(ZingConnectorSender.class);
 
-    private static final CloseableHttpClient newHttpClient() {
+    private static final CloseableHttpClient newHttpClient(int maxThreads) {
         // TODO: make retry count configurable
         // TODO: make http connect timeout configurable
-        CloseableHttpClient httpClient = HttpClients.createDefault();
-        return httpClient;
+
+        // We only have 1 route to zing and 1 blocking call per thread,
+        //      so set the max connections per route and total connections
+        //      to match the number of worker threads
+        return HttpClientBuilder
+                .create()
+                .setMaxConnPerRoute(maxThreads)
+                .setMaxConnTotal(maxThreads)
+                .build();
     }
 
     private CloseableHttpClient httpClient;
@@ -59,15 +67,15 @@ public class ZingConnectorSender implements ZingSender {
 
     private final ObjectMapper mapper;
 
+    @Autowired
+    public ZingConnectorSender(ZingConfiguration configuration) {
+        this(configuration, newHttpClient(configuration.getWriterThreads()));
+    }
+
     ZingConnectorSender(ZingConfiguration configuration, CloseableHttpClient httpClient) {
         this.configuration = configuration;
         this.httpClient = httpClient;
         this.mapper = new ObjectMapper();
-    }
-
-    @Autowired
-    public ZingConnectorSender(ZingConfiguration configuration) {
-        this(configuration, newHttpClient());
     }
 
     @Override
@@ -80,10 +88,14 @@ public class ZingConnectorSender implements ZingSender {
         sendRequest(request);
     }
 
-    @Override
+    @PreDestroy
     public void close() {
         try {
-            httpClient.close();
+            if (httpClient != null) {
+                httpClient.close();
+                httpClient = null;
+                log.debug("closed httpClient");
+            }
         } catch (IOException e) {
             log.debug("close() threw IOException");
         }

@@ -35,6 +35,7 @@ public class ZingWriterManagerTest {
     MetricServiceConfiguration config;
     ZingQueue queue;
     ZingWriterRegistry registry;
+    ZingWriter writer;
     ExecutorService executorService;
     ScheduledExecutorService scheduledExecutorService;
 
@@ -44,12 +45,13 @@ public class ZingWriterManagerTest {
         config = new MetricServiceConfiguration();
         queue = mock(ZingQueue.class);
         registry = mock(ZingWriterRegistry.class);
+        writer = mock(ZingWriter.class);
         executorService = mock(ExecutorService.class);
         scheduledExecutorService = mock(ScheduledExecutorService.class);
     }
 
     ZingWriterManager createManager() {
-        return new ZingWriterManager(context, config, queue, registry, executorService, scheduledExecutorService);
+        return new ZingWriterManager(context, config, queue, registry, writer, executorService, scheduledExecutorService);
     }
 
     @Test
