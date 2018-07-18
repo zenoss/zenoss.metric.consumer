@@ -41,7 +41,7 @@ metricService:
         batchSize: 100
         threadPoolSize: 5
         writerThreads: 5
-        endpoint: "{{(getContext . "global.conf.zing-connector-url")}}/api/metrics/ingest"
+        endpoint: "http://localhost:9237/api/metrics/ingest"
 
     openTsdbClientPool:
       maxKeepAliveTime: 300000
