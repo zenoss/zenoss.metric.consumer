@@ -118,6 +118,9 @@ public class MetricServiceConfiguration {
     @JsonProperty
     private int selfReportFrequency = 0; // Zero means no reporting
 
+    @Valid
+    private ZingConfiguration zingConfiguration = new ZingConfiguration();
+
     /**
      * TSDB client pool configuration.
      *
@@ -437,5 +440,23 @@ public class MetricServiceConfiguration {
      */
     public void setTsdbWriterThreads(int numberOfThreads) {
         this.tsdbWriterThreads = numberOfThreads;
+    }
+
+    /**
+     * The configuration for exporting metrics to Zing.
+     *
+     * @return zingConfiguration
+     */
+    public ZingConfiguration getZingConfiguration() {
+        return zingConfiguration;
+    }
+
+    /**
+     * The configuration for exporting metrics to Zing.
+     *
+     * @param zingConfiguration the new configuration for the integration with Zing
+     */
+    public void setZingConfiguration(ZingConfiguration zingConfiguration) {
+        this.zingConfiguration = zingConfiguration;
     }
 }

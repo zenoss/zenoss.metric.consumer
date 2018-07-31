@@ -18,6 +18,7 @@ import org.junit.Test;
 import org.zenoss.app.consumer.metric.MetricServiceConfiguration;
 import org.zenoss.app.consumer.metric.data.Control;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.zing.ZingQueue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,16 +32,18 @@ public class OpenTsdbMetricServiceTest {
     MetricServiceConfiguration config;
     EventBus eventBus;
     MetricsQueue metricsQueue;
+    ZingQueue zingQueue;
 
     @Before
     public void setUp() {
         eventBus = mock(EventBus.class);
         config = new MetricServiceConfiguration();
         metricsQueue = mock(MetricsQueue.class);
+        zingQueue = mock(ZingQueue.class);
     }
-    
+
     OpenTsdbMetricService newService() {
-        return new OpenTsdbMetricService(config, eventBus, metricsQueue);
+        return new OpenTsdbMetricService(config, eventBus, metricsQueue, zingQueue);
     }
 
     @Test
@@ -58,6 +61,18 @@ public class OpenTsdbMetricServiceTest {
         OpenTsdbMetricService service = newService();
         assertEquals(Control.ok(), service.push(metrics, "test", null));
         verify(metricsQueue, times(1)).addAll(metrics, "test");
+        verify(zingQueue, times(0)).addAll(metrics);
+    }
+
+    @Test
+    public void testPushToZing() throws Exception {
+        config.getZingConfiguration().setEnabled(true);
+        Metric metric = new Metric("name", 0, 0.0);
+        List<Metric> metrics  = Collections.singletonList(metric);
+        OpenTsdbMetricService service = newService();
+        assertEquals(Control.ok(), service.push(metrics, "test", null));
+        verify(metricsQueue, times(1)).addAll(metrics, "test");
+        verify(zingQueue, times(1)).addAll(metrics);
     }
 
     @Test
@@ -75,12 +90,12 @@ public class OpenTsdbMetricServiceTest {
         Metric metric = new Metric("name", 0, 0.0);
         ArrayList<Metric> metrics = Lists.newArrayList(metric, metric);
         config.setLowCollisionMark(1);
-        
+
         when(metricsQueue.getTotalInFlight()).thenReturn(2L);
-        
+
         OpenTsdbMetricService service = newService();
         assertEquals(Control.ok(), service.push(metrics,"test", null));
-        
+
         verify(metricsQueue, times(1)).addAll(metrics, "test");
         verify(eventBus, times(1)).post(Control.lowCollision());
     }
@@ -93,10 +108,10 @@ public class OpenTsdbMetricServiceTest {
         config.setLowCollisionMark(1);
         config.setMaxClientWaitTime(1);
         when(metricsQueue.getTotalInFlight()).thenReturn(3L);
-        
+
         OpenTsdbMetricService service = newService();
         assertEquals(Control.dropped("consumer is overwhelmed"), service.push(metricList,"test", null));
-        
+
         verify(metricsQueue, never()).addAll(metricList, "test");
         verify(eventBus, atLeastOnce()).post(Control.highCollision());
     }
