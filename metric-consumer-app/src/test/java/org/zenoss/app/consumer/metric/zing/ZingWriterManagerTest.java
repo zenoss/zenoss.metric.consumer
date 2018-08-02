@@ -60,7 +60,7 @@ public class ZingWriterManagerTest {
         ZingWriterManager manager = createManager();
         manager.schedule();
 
-        verify(scheduledExecutorService, never()).scheduleWithFixedDelay(manager, 0L, 30L, TimeUnit.SECONDS);
+        verify(scheduledExecutorService, never()).scheduleWithFixedDelay(manager, 0L, 5L, TimeUnit.SECONDS);
     }
 
     @Test
@@ -70,7 +70,7 @@ public class ZingWriterManagerTest {
 
         manager.schedule();
 
-        verify(scheduledExecutorService, times(1)).scheduleWithFixedDelay(manager, 0L, 30L, TimeUnit.SECONDS);
+        verify(scheduledExecutorService, times(1)).scheduleWithFixedDelay(manager, 0L, 5L, TimeUnit.SECONDS);
     }
 
     @Test
@@ -78,11 +78,11 @@ public class ZingWriterManagerTest {
         config.getZingConfiguration().setEnabled(true);
         ZingWriterManager manager = createManager();
         ScheduledFuture future = mock(ScheduledFuture.class);
-        when(scheduledExecutorService.scheduleWithFixedDelay(manager, 0L, 30L, TimeUnit.SECONDS)).thenReturn(future);
+        when(scheduledExecutorService.scheduleWithFixedDelay(manager, 0L, 5L, TimeUnit.SECONDS)).thenReturn(future);
 
         manager.schedule();
         manager.schedule();
-        verify(scheduledExecutorService, times(1)).scheduleWithFixedDelay(manager, 0L, 30L, TimeUnit.SECONDS);
+        verify(scheduledExecutorService, times(1)).scheduleWithFixedDelay(manager, 0L, 5L, TimeUnit.SECONDS);
     }
 
     @Test

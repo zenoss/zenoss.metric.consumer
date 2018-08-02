@@ -46,6 +46,7 @@ metricService:
         threadPoolSize: 5
         writerThreads: 5
         endpoint: "http://localhost:9237/api/metrics/ingest"
+        executorThreadDelay: 5
         noForwardTags:
           - "no-forward"
         cleanupTags:

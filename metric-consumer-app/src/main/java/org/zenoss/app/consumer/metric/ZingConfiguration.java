@@ -15,7 +15,6 @@ import lombok.Data;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
 
 @Data
 public class ZingConfiguration {
@@ -117,4 +116,11 @@ public class ZingConfiguration {
     public ArrayList<String> getCleanupTags() {
         return this.cleanupTags;
     }
+
+    /**
+     * The delay in seconds between executions of ZingWriterManager
+     */
+    @Min(1)
+    @JsonProperty
+    private long executorThreadDelay = 5;
 }

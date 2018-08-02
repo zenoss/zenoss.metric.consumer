@@ -71,7 +71,7 @@ public class ZingWriterManager implements Runnable  {
         if (this.scheduledTask == null) {
             logger.debug("Scheduling ZingWriterManager");
 
-            this.scheduledTask = scheduledExecutorService.scheduleWithFixedDelay(this, 0L, 30,
+            this.scheduledTask = scheduledExecutorService.scheduleWithFixedDelay(this, 0L, this.zingConfiguration.getExecutorThreadDelay(),
                     TimeUnit.SECONDS);
         } else {
             logger.warn("Attempt to re-schedule ZingWriterManager!");
