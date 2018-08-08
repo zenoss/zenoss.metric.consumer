@@ -56,6 +56,7 @@ public class ZingWriterTest {
 
     @After
     public void tearDown() {
+        metricsQueue.resetMetrics();
         executor.shutdownNow();
     }
 
@@ -123,7 +124,7 @@ public class ZingWriterTest {
         final Metric metric = new Metric("metric", 0, 0);
         Collection<Metric> batch = Lists.newArrayList(metric);
 
-        metricsQueue.addAll(batch);
+        metricsQueue.addAll(batch, "test");
 
         boolean writerIsRunning = writer.isRunning();
         for (int tries = 0; tries < 50 && writerIsRunning; tries++) {
@@ -135,6 +136,11 @@ public class ZingWriterTest {
         }
 
         assertEquals(0, metricsQueue.size());
+        assertEquals(0, metricsQueue.getTotalErrors());
+        assertEquals(1, metricsQueue.getTotalIncoming());
+        assertEquals(1, metricsQueue.getTotalOutgoing());
+        assertEquals(0, metricsQueue.getTotalInFlight());
+        assertEquals(0, metricsQueue.getTotalLost());
     }
 
     @Test
@@ -157,7 +163,7 @@ public class ZingWriterTest {
         RuntimeException e = new RuntimeException("mock send fail");
         doThrow(e).when(sender).send(batch);
 
-        metricsQueue.addAll(batch);
+        metricsQueue.addAll(batch, "test");
 
         boolean writerIsRunning = writer.isRunning();
         for (int tries = 0; tries < 50 && writerIsRunning; tries++) {
@@ -169,6 +175,11 @@ public class ZingWriterTest {
         }
 
         assertEquals(0, metricsQueue.size());
+        assertEquals(1, metricsQueue.getTotalErrors());
+        assertEquals(1, metricsQueue.getTotalIncoming());
+        assertEquals(0, metricsQueue.getTotalOutgoing());
+        assertEquals(0, metricsQueue.getTotalInFlight());
+        assertEquals(1, metricsQueue.getTotalLost());
     }
 
 }

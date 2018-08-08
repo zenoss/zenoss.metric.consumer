@@ -111,7 +111,7 @@ class OpenTsdbMetricService implements MetricService {
             if (this.pushToZing) {
                 final List<Metric> copy2 = Lists.newArrayList(metrics);
                 log.debug("Adding {} metrics to the zing queue", copy2.size());
-                zingQueue.addAll(copy2);
+                zingQueue.addAll(copy2, clientId);
             }
 
             // Notify the bus that we are going from no data to some data.
