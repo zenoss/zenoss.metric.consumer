@@ -51,7 +51,7 @@ public class ZingWriterTest {
         registry = mock(ZingWriterRegistry.class);
         sender = mock(ZingSender.class);
         executor = Executors.newSingleThreadExecutor();
-
+        metricsQueue.resetMetrics();
     }
 
     @After
