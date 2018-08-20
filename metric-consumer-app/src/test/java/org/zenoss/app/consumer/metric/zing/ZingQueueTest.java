@@ -33,7 +33,7 @@ public class ZingQueueTest {
         Assert.assertEquals(0, mq.size());
 
         final Collection<Metric> toAdd = Lists.newArrayList(new Metric("fake", System.currentTimeMillis(), 123.45));
-        mq.addAll(toAdd);
+        mq.addAll(toAdd, "test");
 
         Assert.assertEquals(1, mq.size());
     }
@@ -152,7 +152,7 @@ public class ZingQueueTest {
 
         @Override
         public void run() {
-            mq.addAll(toAdd);
+            mq.addAll(toAdd, "test");
         }
     }
 }

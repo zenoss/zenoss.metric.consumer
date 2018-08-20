@@ -61,7 +61,7 @@ public class OpenTsdbMetricServiceTest {
         OpenTsdbMetricService service = newService();
         assertEquals(Control.ok(), service.push(metrics, "test", null));
         verify(metricsQueue, times(1)).addAll(metrics, "test");
-        verify(zingQueue, times(0)).addAll(metrics);
+        verify(zingQueue, times(0)).addAll(metrics, "test");
     }
 
     @Test
@@ -72,7 +72,7 @@ public class OpenTsdbMetricServiceTest {
         OpenTsdbMetricService service = newService();
         assertEquals(Control.ok(), service.push(metrics, "test", null));
         verify(metricsQueue, times(1)).addAll(metrics, "test");
-        verify(zingQueue, times(1)).addAll(metrics);
+        verify(zingQueue, times(1)).addAll(metrics, "test");
     }
 
     @Test

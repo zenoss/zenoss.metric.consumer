@@ -124,12 +124,7 @@ public class ZingWriter implements Runnable {
                     // once
                     maxIdleTime > 0 && // The max idle time is set to something
                     // meaningful
-                    System.currentTimeMillis() > lastWorkTime + maxIdleTime) // The
-            // max
-            // idle
-            // time
-            // has
-            // expired
+                    System.currentTimeMillis() > lastWorkTime + maxIdleTime) // The max idle time has expired
             {
                 log.info("Shutting down writer due to dearth of work");
                 break;
@@ -160,12 +155,13 @@ public class ZingWriter implements Runnable {
         try {
             log.trace("processBatch, size={}, batch={}", metrics.size(), metrics);
             sender.send(metrics);
-
+            zingQueue.incrementProcessed(metrics.size());
         } catch (Exception e) {
+            zingQueue.incrementError(metrics.size());
+            zingQueue.incrementLostMetrics(metrics.size());
             // TODO: Should we requeue the batch of metrics at this point?
             //       Otherwise, the batch is lost
             log.warn("Caught exception while processing metrics: {}", e.getMessage());
-
         } finally {
             lastWorkTime = System.currentTimeMillis();
         }
