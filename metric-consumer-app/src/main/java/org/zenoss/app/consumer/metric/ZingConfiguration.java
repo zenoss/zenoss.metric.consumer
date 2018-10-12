@@ -97,4 +97,24 @@ public class ZingConfiguration {
     public ArrayList<String> getNoForwardTags() {
         return this.noForwardTags;
     }
+
+    /**
+     * The list of metric tags wich should be removed before passing all metrics along to ZING.
+     *
+     * @param cleanupTags
+     * @return cleanupTags
+     */
+    @JsonProperty
+    private ArrayList<String> cleanupTags = new ArrayList<String>() {{
+        add("no-store");
+    }};
+
+    /**
+     * The method which returns the list of cleanupTags which should be removed before metrics sending.
+     *
+     * @return cleanupTags
+     */
+    public ArrayList<String> getCleanupTags() {
+        return this.cleanupTags;
+    }
 }

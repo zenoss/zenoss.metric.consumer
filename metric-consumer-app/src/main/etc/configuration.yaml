@@ -48,6 +48,8 @@ metricService:
         endpoint: "http://localhost:9237/api/metrics/ingest"
         noForwardTags:
           - "no-forward"
+        cleanupTags:
+          - "no-store"
 
     openTsdbClientPool:
       maxKeepAliveTime: 300000
