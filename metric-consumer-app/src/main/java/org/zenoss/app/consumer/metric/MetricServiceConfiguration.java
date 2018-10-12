@@ -127,6 +127,14 @@ public class MetricServiceConfiguration {
         add("no-store");
     }};
 
+    /**
+     * The list of metric tags wich should be removed before passing all metrics along to OpenTSDB.
+     */
+    @JsonProperty
+    private ArrayList<String> cleanupTags = new ArrayList<String>() {{
+        add("no-forward");
+    }};
+
     @Valid
     private ZingConfiguration zingConfiguration = new ZingConfiguration();
 
@@ -309,6 +317,15 @@ public class MetricServiceConfiguration {
      */
     public ArrayList<String> getNoStoreTags() {
         return noStoreTags;
+    }
+
+    /**
+     * The method which returns the list of cleanupTags which should be removed before metrics sending.
+     *
+     * @return cleanupTags
+     */
+    public ArrayList<String> getCleanupTags() {
+        return cleanupTags;
     }
 
     /**

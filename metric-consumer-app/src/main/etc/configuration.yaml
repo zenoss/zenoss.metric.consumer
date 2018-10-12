@@ -33,6 +33,8 @@ metricService:
     minConnectionBackOff: 100
     noStoreTags:
       - "no-store"
+    cleanupTags:
+      - "no-forward"
 
     #
     # zingConfiguration.enabled = true assumes you are testing code on the MetricConsumer develop branch
