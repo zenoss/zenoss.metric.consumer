@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.zenoss.lib.tsdb.OpenTsdbClientPoolConfiguration;
 
 import javax.validation.Valid;
+import java.util.ArrayList;
 
 import org.zenoss.app.consumer.metric.data.Control.Type;
 
@@ -117,6 +118,14 @@ public class MetricServiceConfiguration {
 
     @JsonProperty
     private int selfReportFrequency = 0; // Zero means no reporting
+
+    /**
+     * The list of metric tags wich using for filtering the metrics that should only be sent to ZING (not stored in CZ).
+     */
+    @JsonProperty
+    private ArrayList<String> noStoreTags = new ArrayList<String>() {{
+        add("no-store");
+    }};
 
     @Valid
     private ZingConfiguration zingConfiguration = new ZingConfiguration();
@@ -291,6 +300,15 @@ public class MetricServiceConfiguration {
      */
     public int getTsdbWriterThreads() {
         return tsdbWriterThreads;
+    }
+
+    /**
+     * Method which returns the list of noStoreTags which used for metrics filtering.
+     *
+     * @return noStoreTags
+     */
+    public ArrayList<String> getNoStoreTags() {
+        return noStoreTags;
     }
 
     /**
