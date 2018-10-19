@@ -11,6 +11,7 @@
 package org.zenoss.app.consumer.metric.impl;
 
 import com.google.common.eventbus.EventBus;
+import com.google.common.collect.Lists;
 import com.yammer.metrics.core.MetricName;
 import org.junit.After;
 import org.junit.Before;
@@ -23,6 +24,7 @@ import org.zenoss.lib.tsdb.OpenTsdbClientPool;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -296,6 +298,69 @@ public class OpenTsdbWriterTest {
         TsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, metricsQueue, eventBus);
         Future<?> future = executor.submit(writer);
         future.get();
+    }
+
+
+    @Test
+    public void testGetStoreMetrics() throws Exception {
+        OpenTsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, metricsQueue, eventBus);
+
+        executor.submit(writer);
+
+        boolean writerStarted = false;
+        for (int tries = 0; tries < 50 && !writerStarted; tries++) {
+            writerStarted = writer.isRunning();
+            Thread.sleep(10);
+        }
+        if (!writerStarted) {
+            fail("Writer could not be started");
+        }
+
+        final Metric storeMetric = new Metric("store-metric", 0, 0);
+        Map<String, String> noStoreTags = new HashMap<String, String>() {{
+            put("no-store", "true");
+        }};
+        final Metric noStoreMetric = new Metric("no-store-metric", 0, 0, noStoreTags);
+        Collection<Metric> batch = Lists.newArrayList(storeMetric, noStoreMetric);
+
+        metricsQueue.addAll(batch, "test");
+
+        assertEquals(2, batch.size());
+        assertEquals(1, writer.getStoreMetrics(batch).size());
+    }
+
+    @Test
+    public void testRemoveMetricTags() throws Exception {
+        final String noStoreTagName = "no-store";
+        final String noForwardTagName = "no-forward";
+
+        OpenTsdbWriter writer = new OpenTsdbWriter(configuration, registry, clientPool, metricsQueue, eventBus);
+        executor.submit(writer);
+        boolean writerStarted = false;
+        for (int tries = 0; tries < 50 && !writerStarted; tries++) {
+            writerStarted = writer.isRunning();
+            Thread.sleep(10);
+        }
+        if (!writerStarted) {
+            fail("Writer could not be started");
+        }
+
+        Map<String, String> storeMetricTags = new HashMap<String, String>() {{
+            put(noForwardTagName, "true");
+        }};
+        Map<String, String> noStoreMetricTags = new HashMap<String, String>() {{
+            put(noStoreTagName, "true");
+            put(noForwardTagName, "true");
+        }};
+        final Metric storeMetric = new Metric("store-metric", 0, 0, storeMetricTags);
+        final Metric noStoreMetric = new Metric("no-store-metric", 0, 0, noStoreMetricTags);
+
+        Collection<Metric> batch = Lists.newArrayList(storeMetric, noStoreMetric);
+        metricsQueue.addAll(batch, "test");
+        writer.getStoreMetrics(batch);
+
+        assertNull(storeMetric.getTags().get(noForwardTagName));
+        assertEquals("true", noStoreMetric.getTags().get(noForwardTagName));
     }
 
     /*

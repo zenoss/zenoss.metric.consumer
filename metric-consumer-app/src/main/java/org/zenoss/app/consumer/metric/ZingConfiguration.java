@@ -15,6 +15,7 @@ import lombok.Data;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
 
 @Data
 public class ZingConfiguration {
@@ -76,4 +77,44 @@ public class ZingConfiguration {
     @NotNull
     @JsonProperty
     private String endpoint = "";
+
+    /**
+     * The list of metric tags wich using for filtering the metrics that should not be sent to ZING.
+     *
+     * @param noForwardTags
+     * @return noForwardTags
+     */
+    @JsonProperty
+    private ArrayList<String> noForwardTags = new ArrayList<String>() {{
+        add("no-forward");
+    }};
+
+    /**
+     * Method which returns the list of noForwardTags which used for metrics filtering.
+     *
+     * @return noForwardTags
+     */
+    public ArrayList<String> getNoForwardTags() {
+        return this.noForwardTags;
+    }
+
+    /**
+     * The list of metric tags wich should be removed before passing all metrics along to ZING.
+     *
+     * @param cleanupTags
+     * @return cleanupTags
+     */
+    @JsonProperty
+    private ArrayList<String> cleanupTags = new ArrayList<String>() {{
+        add("no-store");
+    }};
+
+    /**
+     * The method which returns the list of cleanupTags which should be removed before metrics sending.
+     *
+     * @return cleanupTags
+     */
+    public ArrayList<String> getCleanupTags() {
+        return this.cleanupTags;
+    }
 }

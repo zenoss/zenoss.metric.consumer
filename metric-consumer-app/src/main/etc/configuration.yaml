@@ -31,6 +31,10 @@ metricService:
     maxIdleTime: 10000
     maxConnectionBackOff: 5000
     minConnectionBackOff: 100
+    noStoreTags:
+      - "no-store"
+    cleanupTags:
+      - "no-forward"
 
     #
     # zingConfiguration.enabled = true assumes you are testing code on the MetricConsumer develop branch
@@ -42,6 +46,10 @@ metricService:
         threadPoolSize: 5
         writerThreads: 5
         endpoint: "http://localhost:9237/api/metrics/ingest"
+        noForwardTags:
+          - "no-forward"
+        cleanupTags:
+          - "no-store"
 
     openTsdbClientPool:
       maxKeepAliveTime: 300000

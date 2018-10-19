@@ -80,6 +80,10 @@ public class Metric {
         return tags;
     }
 
+    public boolean hasTagKey(String tagName) {
+        return !(null == this.tags.get(tagName));
+    };
+
     public void setMetric(String metric) {
         this.metric = metric;
     }
