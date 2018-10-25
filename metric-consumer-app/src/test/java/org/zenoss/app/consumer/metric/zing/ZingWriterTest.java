@@ -24,6 +24,7 @@ import org.zenoss.app.consumer.metric.zing.ZingWriterRegistry;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -180,6 +181,75 @@ public class ZingWriterTest {
         assertEquals(0, metricsQueue.getTotalOutgoing());
         assertEquals(0, metricsQueue.getTotalInFlight());
         assertEquals(1, metricsQueue.getTotalLost());
+    }
+
+    @Test
+    public void testGetForwardMetrics() throws Exception {
+        ZingWriter writer = new ZingWriter(configuration, registry, metricsQueue, sender);
+        executor.submit(writer);
+
+        boolean writerStarted = false;
+        for (int tries = 0; tries < 50 && !writerStarted; tries++) {
+            writerStarted = writer.isRunning();
+            Thread.sleep(10);
+        }
+        if (!writerStarted) {
+            fail("Writer could not be started");
+        }
+
+        final Metric forwardMetric = new Metric("forward-metric", 0, 0);
+        Map<String, String> noForwardTags = new HashMap<String, String>() {{
+            put("no-forward", "true");
+        }};
+        final Metric noForwardMetric = new Metric("no-forward-metric", 0, 0, noForwardTags);
+        Collection<Metric> batch = Lists.newArrayList(forwardMetric, noForwardMetric);
+
+        metricsQueue.addAll(batch, "test");
+
+        boolean writerIsRunning = writer.isRunning();
+        for (int tries = 0; tries < 50 && writerIsRunning; tries++) {
+            writerIsRunning = writer.isRunning();
+            Thread.sleep(10);
+        }
+        if (writerIsRunning) {
+            fail("Writer did not stop after send failure");
+        }
+
+        assertEquals(2, batch.size());
+        assertEquals(1, writer.getForwardMetrics(batch).size());
+    }
+
+    @Test
+    public void testRemoveMetricTags() throws Exception {
+        final String noStoreTagName = "no-store";
+        final String noForwardTagName = "no-forward";
+        ZingWriter writer = new ZingWriter(configuration, registry, metricsQueue, sender);
+        executor.submit(writer);
+
+        boolean writerStarted = false;
+        for (int tries = 0; tries < 50 && !writerStarted; tries++) {
+            writerStarted = writer.isRunning();
+            Thread.sleep(10);
+        }
+        if (!writerStarted) {
+            fail("Writer could not be started");
+        }
+
+        Map<String, String> forwardMetricTags = new HashMap<String, String>() {{
+            put(noStoreTagName, "true");
+        }};
+        Map<String, String> noForwardMetricTags = new HashMap<String, String>() {{
+            put(noForwardTagName, "true");
+            put(noStoreTagName, "true");
+        }};
+        final Metric forwardMetric = new Metric("forward-metric", 0, 0, forwardMetricTags);
+        final Metric noForwardMetric = new Metric("no-forward-metric", 0, 0, noForwardMetricTags);
+
+        Collection<Metric> batch = Lists.newArrayList(forwardMetric, noForwardMetric);
+        writer.getForwardMetrics(batch);
+
+        assertNull(forwardMetric.getTags().get(noStoreTagName));
+        assertEquals("true", noForwardMetric.getTags().get(noStoreTagName));
     }
 
 }

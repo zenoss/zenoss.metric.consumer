@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
+import java.util.ArrayList;
 
 /**
  * @see TsdbWriter
@@ -63,6 +64,8 @@ class OpenTsdbWriter implements TsdbWriter {
         this.maxIdleTime = config.getMaxIdleTime();
         this.maxBackOff = config.getMaxConnectionBackOff();
         this.minBackOff = config.getMinConnectionBackOff();
+        this.noStoreTags = config.getNoStoreTags();
+        this.cleanupTags = config.getCleanupTags();
 
         this.running = false;
         this.canceled = false;
@@ -180,7 +183,7 @@ class OpenTsdbWriter implements TsdbWriter {
                 }
 
                 try {
-                    for (Metric m : metrics) {
+                    for (Metric m : this.getStoreMetrics(metrics)) {
                         // ZEN-11665 - make copy of metric before messing with it. This prevents side-effect issues when exceptions occur.
                         Metric workingCopy = new Metric(m);
                         workingCopy.removeTag(TsdbMetricsQueue.CLIENT_TAG);
@@ -300,6 +303,25 @@ class OpenTsdbWriter implements TsdbWriter {
         }
     }
 
+    public Collection<Metric> getStoreMetrics(Collection<Metric> metrics) {
+        Collection<Metric> filteredMetrics = new ArrayList<Metric>(metrics.size());
+        for (Metric m : metrics) {
+            for (String t: this.noStoreTags) {
+                if (!m.hasTagKey(t)) {
+                    this.removeMetricTags(m);
+                    filteredMetrics.add(m);
+                    break;
+                }
+            }
+        }
+        return filteredMetrics;
+    }
+
+    public void removeMetricTags (Metric m) {
+        for (String tag: this.cleanupTags) {
+            m.removeTag(tag);
+        }
+    }
 
     @Override
     public boolean isRunning() {
@@ -357,6 +379,16 @@ class OpenTsdbWriter implements TsdbWriter {
      * Min time for connection backoff
      */
     private final int minBackOff;
+
+    /**
+     * List of tags for filtering of metric that should only be sent to ZING
+     */
+    private final ArrayList<String> noStoreTags;
+
+    /**
+     * The list of metric tags wich should be removed before passing all metrics along to OpenTSDB.
+     */
+    private final ArrayList<String> cleanupTags;
 
     /**
      * Is this instance currently running?

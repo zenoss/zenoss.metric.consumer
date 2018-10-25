@@ -19,6 +19,7 @@ import org.zenoss.app.consumer.metric.ZingSender;
 import org.zenoss.app.consumer.metric.data.Metric;
 
 import java.util.Collection;
+import java.util.ArrayList;
 
 
 /**
@@ -56,6 +57,16 @@ public class ZingWriter implements Runnable {
     private final int maxIdleTime;
 
     /**
+     * The list of metric tags wich using for filtering the metrics that should not be sent to ZING.
+     */
+    private final ArrayList<String> noForwardTags;
+
+    /**
+     * The list of metric tags wich should be removed before passing all metrics along to ZING.
+     */
+    private final ArrayList<String> cleanupTags;
+
+    /**
      * Is this instance currently running?
      */
     private transient boolean running;
@@ -82,6 +93,8 @@ public class ZingWriter implements Runnable {
 
         this.batchSize = zingConfiguration.getBatchSize();
         this.maxIdleTime = zingConfiguration.getMaxIdleTime();
+        this.noForwardTags = zingConfiguration.getNoForwardTags();
+        this.cleanupTags = zingConfiguration.getCleanupTags();
         this.running = false;
         this.canceled = false;
         this.lastWorkTime = 0;
@@ -139,7 +152,6 @@ public class ZingWriter implements Runnable {
                 log.debug("No work to do, so checking again.");
                 continue;
             }
-
             // We have some work to do, some process what we got from the
             // metrics queue
             processBatch(metrics);
@@ -154,7 +166,7 @@ public class ZingWriter implements Runnable {
     void processBatch(Collection<Metric> metrics) {
         try {
             log.trace("processBatch, size={}, batch={}", metrics.size(), metrics);
-            sender.send(metrics);
+            sender.send(this.getForwardMetrics(metrics));
             zingQueue.incrementProcessed(metrics.size());
         } catch (Exception e) {
             zingQueue.incrementError(metrics.size());
@@ -164,6 +176,26 @@ public class ZingWriter implements Runnable {
             log.warn("Caught exception while processing metrics: {}", e.getMessage());
         } finally {
             lastWorkTime = System.currentTimeMillis();
+        }
+    }
+
+    public Collection<Metric> getForwardMetrics(Collection<Metric> metrics) {
+        Collection<Metric> forwardMetrics = new ArrayList<Metric>(metrics.size());
+        for (Metric m: metrics) {
+            for (String t: this.noForwardTags) {
+                if (!m.hasTagKey(t)) {
+                    this.removeMetricTags(m);
+                    forwardMetrics.add(m);
+                    break;
+                }
+            }
+        }
+        return forwardMetrics;
+    }
+
+    public void removeMetricTags (Metric m) {
+        for (String tag: this.cleanupTags) {
+            m.removeTag(tag);
         }
     }
 
