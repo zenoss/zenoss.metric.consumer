@@ -10,18 +10,17 @@
  */
 package org.zenoss.app.consumer.metric.zing;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.http.HttpResponse;
+import org.apache.http.HttpEntity;
 import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.HttpPut;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +30,7 @@ import org.zenoss.app.consumer.metric.ZingConfiguration;
 import org.zenoss.app.consumer.metric.ZingSender;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.data.MetricCollection;
+import org.zenoss.app.consumer.metric.data.MetricErrorCollection;
 
 import javax.annotation.PreDestroy;
 import java.io.IOException;
@@ -80,7 +80,7 @@ public class ZingConnectorSender implements ZingSender {
 
     @Override
     public void send(Collection<Metric> metrics) throws Exception {
-        log.trace("sending {} metrics to {}", metrics.size(), configuration.getEndpoint());
+        log.info("sending {} metrics to {}", metrics.size(), configuration.getEndpoint());
         URL url = new URL(configuration.getEndpoint());
         HttpPut request = new HttpPut(url.toURI());
         setHeaders(request);
@@ -100,6 +100,7 @@ public class ZingConnectorSender implements ZingSender {
             log.debug("close() threw IOException");
         }
     }
+
     private void setHeaders(HttpPut request) {
         request.addHeader("content-type", "application/json");
         request.addHeader("Accept", "*/*");
@@ -107,43 +108,47 @@ public class ZingConnectorSender implements ZingSender {
     }
 
     private void setPayload(HttpPut request, Collection<Metric> metrics) throws Exception {
-        StringEntity payload = new StringEntity(toJson(metrics),"UTF-8");
+        StringEntity payload = new StringEntity(toJson(metrics), "UTF-8");
         payload.setContentType("application/json");
         request.setEntity(payload);
     }
 
     private void sendRequest(HttpPut request) throws IOException {
-        CloseableHttpResponse response = null;
-        try {
-            response = httpClient.execute(request);
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            int errorCount = 0;
+            // Get status code
             StatusLine statusLine = response.getStatusLine();
             int statusCode = statusLine.getStatusCode();
-            log.trace( "Send request complete with status: {}", statusCode);
+            log.trace("Send request complete with status: {}", statusCode);
+
+            // Read body, attempt to parse as MetricErrorCollection to get error count
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                // EntityUtils.toString calls getContent() on entity and closes stream.
+                String respStr = EntityUtils.toString(entity);
+                log.trace(String.format("Response: %s. statusCode: %d", respStr, statusCode));
+                try {
+                    MetricErrorCollection c = mapper.readValue(respStr, MetricErrorCollection.class);
+                    if (c != null) {
+                        errorCount = c.getMetricErrorCount();
+                    }
+                } catch (JsonParseException | JsonMappingException jpe) {
+                    log.info("Unable to parse response as MetricErrorCollection. Response = %s", respStr);
+                }
+            }
+            // Determine success or failure. Success requires status code in the 200s and no errors in the body.
             if (statusCode >= 200 && statusCode <= 299) {
-                HttpEntity entity = response.getEntity();
-                log.trace("Response: {}", entity == null ? null : EntityUtils.toString(entity));
+                if (errorCount > 0) {
+                    log.info("Received {} errors from server.", errorCount);
+                    throw new IOException(String.format("Received %s errors from server.", errorCount));
+                }
             } else {
-                log.warn( "Unsuccessful response from server: {}", response.getStatusLine());
-                throw new IOException(String.format("Failed to send metrics: %s", response.getStatusLine()));
+                log.warn("Unsuccessful response from server: {}. ", statusLine);
+                throw new IOException(String.format("Failed to send metrics: %s", statusLine));
             }
         } catch (ConnectException ex) {
             log.warn(String.format("Connection to %s failed: %s", request.getURI(), ex));
             throw ex;
-        } finally {
-            try {
-                if (response != null) {
-                    HttpEntity entity = response.getEntity();
-                    if (entity != null) {
-                        response.getEntity().getContent().close();
-                    }
-                }
-            } catch( NullPointerException | IOException ex) {
-                log.warn( "Failed to close request: {}", ex);
-            } finally {
-                if (response != null) {
-                    response.close();
-                }
-            }
         }
     }
 

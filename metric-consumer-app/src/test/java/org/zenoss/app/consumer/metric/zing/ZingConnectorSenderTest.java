@@ -11,6 +11,7 @@
 package org.zenoss.app.consumer.metric.zing;
 
 import com.google.api.client.util.Maps;
+import org.apache.http.HttpEntity;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
@@ -22,6 +23,7 @@ import org.zenoss.app.consumer.metric.ZingConfiguration;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.app.consumer.metric.zing.ZingConnectorSender;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.ArrayList;
@@ -78,7 +80,7 @@ public class ZingConnectorSenderTest {
         assertEquals("Content-Type: application/json", arg.getValue().getEntity().getContentType().toString());
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testPutFailsOn400() throws Exception {
         sender = new ZingConnectorSender(config, httpClient);
 
@@ -97,15 +99,10 @@ public class ZingConnectorSenderTest {
         Metric metric = new Metric("metric", 0, 0, tags);
         batch.add(metric);
 
-        try {
-            sender.send(batch);
-        } catch (IOException e) {
-            String expected = "Failed to send metrics";
-            assertEquals(expected, e.getMessage().substring(0, expected.length()));
-        }
+        sender.send(batch);
     }
 
-    @Test
+    @Test(expected=ConnectException.class)
     public void testPutFailsOnBadURI() throws Exception {
         sender = new ZingConnectorSender(config, httpClient);
 
@@ -116,10 +113,76 @@ public class ZingConnectorSenderTest {
         Metric metric = new Metric("metric", 0, 0, tags);
         batch.add(metric);
 
-        try {
-            sender.send(batch);
-        } catch (ConnectException e) {
-            // we got it!
-        }
+        sender.send(batch);
     }
+
+    @Test(expected=IOException.class)
+    public void testPutFailsOn200WithErrors() throws Exception {
+        sender = new ZingConnectorSender(config, httpClient);
+
+        String errorResponse =
+                "{\"errors\":[{\"error\":\"rpc error: code = NotFound desc = Topic not found\"," +
+                "\"metric\": {" +
+                "\"metric\":\"127.0.0.1/zenoss.hbase_compactionQueueLength\"," +
+                "\"tags\":{" +
+                "\"contextUUID\":\"f0f9f54f-0ffd-44b8-ba31-2ecc44ba22b2\"," +
+                "\"device\":\"127.0.0.1\"," +
+                "\"key\":\"Devices/127.0.0.1/regionServers/1\"," +
+                "\"source\":\"morr\"," +
+                "\"source-type\":\"cz\"," +
+                "\"source-vendor\":\"zenoss\"," +
+                "\"x-metric-consumer-client-id\":\"websocket5\"," +
+                "\"zenoss_tenant_id\":\"0eb80748-99b1-11e8-aad4-0242ac110018\"" +
+                "}," +
+                "\"timestamp\":1533588843," +
+                "\"value\":0}}]}";
+        final CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+
+        final StatusLine status = mock(StatusLine.class);
+        when(response.getStatusLine()).thenReturn(status);
+        when(status.getStatusCode()).thenReturn(200);
+
+        final HttpEntity entity = mock(HttpEntity.class);
+        when(entity.getContent()).thenReturn(new ByteArrayInputStream(errorResponse.getBytes()));
+
+        when(response.getEntity()).thenReturn(entity);
+
+        when(httpClient.execute((HttpPut) anyObject())).thenReturn(response);
+
+        Collection<Metric> batch = new ArrayList<Metric>(1);
+        Map<String, String> tags = Maps.newHashMap();
+        Metric metric = new Metric("metric", 0, 0, tags);
+        batch.add(metric);
+
+        sender.send(batch);
+    }
+
+
+    @Test
+    public void testPutSucceedsOn200WithEmptyErrors() throws Exception {
+        sender = new ZingConnectorSender(config, httpClient);
+
+        String errorResponse = "{}";
+        final CloseableHttpResponse response = mock(CloseableHttpResponse.class);
+
+        final StatusLine status = mock(StatusLine.class);
+        when(response.getStatusLine()).thenReturn(status);
+        when(status.getStatusCode()).thenReturn(200);
+
+        final HttpEntity entity = mock(HttpEntity.class);
+        when(entity.getContent()).thenReturn(new ByteArrayInputStream(errorResponse.getBytes()));
+
+        when(response.getEntity()).thenReturn(entity);
+
+        when(httpClient.execute((HttpPut) anyObject())).thenReturn(response);
+
+        Collection<Metric> batch = new ArrayList<Metric>(1);
+        Map<String, String> tags = Maps.newHashMap();
+        Metric metric = new Metric("metric", 0, 0, tags);
+        batch.add(metric);
+
+        sender.send(batch);
+    }
+
+
 }

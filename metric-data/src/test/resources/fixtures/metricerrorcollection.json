@@ -1,0 +1,51 @@
+{
+  "errors": [
+    {
+      "metric": {
+        "metric": "metric",
+        "timestamp": 0,
+        "value": 0.0,
+        "tags": {
+          "tagName": "tagValue"
+        }
+      },
+      "error": "test error message"
+    },
+    {
+      "metric": {
+        "metric": "127.0.0.1/zenoss.hbase_slowAppendCount",
+        "timestamp": 1533588843,
+        "value": 0.0,
+        "tags": {
+          "zenoss_tenant_id": "0eb80748-99b1-11e8-aad4-0242ac110018",
+          "x-metric-consumer-client-id": "websocket6",
+          "contextUUID": "f0f9f54f-0ffd-44b8-ba31-2ecc44ba22b2",
+          "source-type": "cz",
+          "source": "morr",
+          "source-vendor": "zenoss",
+          "device": "127.0.0.1",
+          "key": "Devices/127.0.0.1/regionServers/1"
+        }
+      },
+      "error": "rpc error: code = NotFound desc = Topic not found"
+    },
+    {
+      "metric": {
+        "metric": "127.0.0.1/zenoss.rabbitqueue_publish_rate",
+        "timestamp": 1533589679,
+        "value": 0.0,
+        "tags": {
+          "zenoss_tenant_id": "0eb80748-99b1-11e8-aad4-0242ac110018",
+          "x-metric-consumer-client-id": "websocket3",
+          "contextUUID": "c4da23a4-a250-405a-9d9d-b63c96455213",
+          "source-type": "cz",
+          "source": "morr",
+          "source-vendor": "zenoss",
+          "device": "127.0.0.1",
+          "key": "Devices/127.0.0.1/durableQueues/zenoss.queues.zep.zenevents"
+        }
+      },
+      "error": "context deadline exceeded"
+    }
+  ]
+}

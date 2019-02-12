@@ -131,12 +131,9 @@ public class ZingWriter implements Runnable {
             // Check to see if we should down this writer entirely.
             log.debug("Checking for shutdown. lastWorkTime = {}; maxIdleTime = {}; sum = {}; currentTime ={}",
                     lastWorkTime, maxIdleTime, lastWorkTime + maxIdleTime, System.currentTimeMillis());
-            if (isNullOrEmpty(metrics) && // No records could be read from the
-                    // metrics queue
-                    lastWorkTime > 0 && // This thread has done work at least
-                    // once
-                    maxIdleTime > 0 && // The max idle time is set to something
-                    // meaningful
+            if (isNullOrEmpty(metrics) && // No records could be read from the metrics queue
+                    lastWorkTime > 0 && // This thread has done work at least once
+                    maxIdleTime > 0 && // The max idle time is set to something meaningful
                     System.currentTimeMillis() > lastWorkTime + maxIdleTime) // The max idle time has expired
             {
                 log.info("Shutting down writer due to dearth of work");
@@ -170,10 +167,9 @@ public class ZingWriter implements Runnable {
             zingQueue.incrementProcessed(metrics.size());
         } catch (Exception e) {
             zingQueue.incrementError(metrics.size());
-            zingQueue.incrementLostMetrics(metrics.size());
-            // TODO: Should we requeue the batch of metrics at this point?
-            //       Otherwise, the batch is lost
-            log.warn("Caught exception while processing metrics: {}", e.getMessage());
+            zingQueue.reAddAll(metrics);
+            log.warn("Re-added {} metrics after catching exception metrics: {}",
+                    metrics.size(), e.getMessage());
         } finally {
             lastWorkTime = System.currentTimeMillis();
         }
