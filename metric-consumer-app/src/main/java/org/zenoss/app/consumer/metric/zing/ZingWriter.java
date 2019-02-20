@@ -161,13 +161,14 @@ public class ZingWriter implements Runnable {
     }
 
     void processBatch(Collection<Metric> metrics) {
+        log.trace("processBatch, size={}, batch={}", metrics.size(), metrics);
+        Collection<Metric> fm = this.getForwardMetrics(metrics);;
         try {
-            log.trace("processBatch, size={}, batch={}", metrics.size(), metrics);
-            sender.send(this.getForwardMetrics(metrics));
+            sender.send(fm);
             zingQueue.incrementProcessed(metrics.size());
         } catch (Exception e) {
-            zingQueue.incrementError(metrics.size());
-            zingQueue.reAddAll(metrics);
+            zingQueue.incrementError(fm.size());
+            zingQueue.reAddAll(fm);
             log.warn("Re-added {} metrics after catching exception metrics: {}",
                     metrics.size(), e.getMessage());
         } finally {

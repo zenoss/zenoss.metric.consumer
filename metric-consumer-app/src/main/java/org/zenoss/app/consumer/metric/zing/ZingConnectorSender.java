@@ -138,11 +138,13 @@ public class ZingConnectorSender implements ZingSender {
             }
             // Determine success or failure. Success requires status code in the 200s and no errors in the body.
             if (statusCode >= 200 && statusCode <= 299) {
+                // 2xx error code, check for errors
                 if (errorCount > 0) {
                     log.info("Received {} errors from server.", errorCount);
                     throw new IOException(String.format("Received %s errors from server.", errorCount));
                 }
             } else {
+                // non-200 error code. no recovery.
                 log.warn("Unsuccessful response from server: {}. ", statusLine);
                 throw new IOException(String.format("Failed to send metrics: %s", statusLine));
             }
