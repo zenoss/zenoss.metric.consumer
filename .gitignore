@@ -1,5 +1,7 @@
 *.class
 *.iml
+*.versionsBackup
+
 
 # Package Files #
 *.jar

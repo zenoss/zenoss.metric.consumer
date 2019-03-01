@@ -5,7 +5,7 @@
     <parent>
         <artifactId>metric-consumer-parent</artifactId>
         <groupId>org.zenoss</groupId>
-        <version>0.1.10</version>
+        <version>0.1.11</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -21,12 +21,17 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+            <artifactId>jackson-core</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
