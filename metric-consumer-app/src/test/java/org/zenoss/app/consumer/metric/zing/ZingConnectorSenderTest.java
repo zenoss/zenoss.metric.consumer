@@ -116,7 +116,7 @@ public class ZingConnectorSenderTest {
         sender.send(batch);
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=ZingMetricErrorException.class)
     public void testPutFailsOn200WithErrors() throws Exception {
         sender = new ZingConnectorSender(config, httpClient);
 

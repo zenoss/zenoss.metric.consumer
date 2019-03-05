@@ -113,13 +113,20 @@ public class ZingConnectorSender implements ZingSender {
         request.setEntity(payload);
     }
 
-    private void sendRequest(HttpPut request) throws IOException {
+    private void sendRequest(HttpPut request) throws IOException, ZingMetricErrorException {
         try (CloseableHttpResponse response = httpClient.execute(request)) {
-            int errorCount = 0;
             // Get status code
             StatusLine statusLine = response.getStatusLine();
             int statusCode = statusLine.getStatusCode();
             log.trace("Send request complete with status: {}", statusCode);
+
+            // If status code not in 200s, go ahead and throw exception.
+            if (statusCode < 200 || statusCode >= 300) {
+                // non-200 error code. no recovery.
+                log.warn("Unsuccessful response from server: {}. ", statusLine);
+                throw new IOException(String.format("Failed to send metrics: %s", statusLine));
+            }
+
 
             // Read body, attempt to parse as MetricErrorCollection to get error count
             HttpEntity entity = response.getEntity();
@@ -130,23 +137,14 @@ public class ZingConnectorSender implements ZingSender {
                 try {
                     MetricErrorCollection c = mapper.readValue(respStr, MetricErrorCollection.class);
                     if (c != null) {
-                        errorCount = c.getMetricErrorCount();
+                        int errorCount = c.getMetricErrorCount();
+                        if (errorCount > 0) {
+                            throw new ZingMetricErrorException("Server response was success, but with metric errors.", c);
+                        }
                     }
                 } catch (JsonParseException | JsonMappingException jpe) {
                     log.info("Unable to parse response as MetricErrorCollection. Response = %s", respStr);
                 }
-            }
-            // Determine success or failure. Success requires status code in the 200s and no errors in the body.
-            if (statusCode >= 200 && statusCode <= 299) {
-                // 2xx error code, check for errors
-                if (errorCount > 0) {
-                    log.info("Received {} errors from server.", errorCount);
-                    throw new IOException(String.format("Received %s errors from server.", errorCount));
-                }
-            } else {
-                // non-200 error code. no recovery.
-                log.warn("Unsuccessful response from server: {}. ", statusLine);
-                throw new IOException(String.format("Failed to send metrics: %s", statusLine));
             }
         } catch (ConnectException ex) {
             log.warn(String.format("Connection to %s failed: %s", request.getURI(), ex));

@@ -17,6 +17,7 @@ import org.junit.Test;
 import org.zenoss.app.consumer.metric.ZingConfiguration;
 import org.zenoss.app.consumer.metric.ZingSender;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.data.MetricErrorCollection;
 import org.zenoss.app.consumer.metric.zing.ZingQueue;
 import org.zenoss.app.consumer.metric.zing.ZingWriter;
 import org.zenoss.app.consumer.metric.zing.ZingWriterRegistry;
@@ -161,7 +162,10 @@ public class ZingWriterTest {
         final Metric metric = new Metric("metric", 0, 0);
         Collection<Metric> batch = Lists.newArrayList(metric);
 
-        RuntimeException e = new RuntimeException("mock send fail");
+        ZingMetricErrorException e = mock(ZingMetricErrorException.class);
+        MetricErrorCollection mec = mock(MetricErrorCollection.class);
+        when(mec.getMetricErrorCount()).thenReturn(1);
+        when(e.getErrorCollection()).thenReturn(mec);
         doThrow(e).when(sender).send(batch);
 
         metricsQueue.addAll(batch, "test");
@@ -176,7 +180,8 @@ public class ZingWriterTest {
         }
 
         assertEquals(0, metricsQueue.size());
-        assertEquals(1, metricsQueue.getTotalErrors());
+        assertEquals(0, metricsQueue.getTotalErrors());
+        assertEquals(1, metricsQueue.getTotalRejected());
         assertEquals(1, metricsQueue.getTotalIncoming());
         assertEquals(0, metricsQueue.getTotalOutgoing());
         assertEquals(0, metricsQueue.getTotalInFlight());

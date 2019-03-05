@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.zenoss.app.consumer.metric.ZingConfiguration;
 import org.zenoss.app.consumer.metric.ZingSender;
 import org.zenoss.app.consumer.metric.data.Metric;
+import org.zenoss.app.consumer.metric.data.MetricErrorCollection;
 
 import java.util.Collection;
 import java.util.ArrayList;
@@ -165,7 +166,12 @@ public class ZingWriter implements Runnable {
         Collection<Metric> fm = this.getForwardMetrics(metrics);;
         try {
             sender.send(fm);
-            zingQueue.incrementProcessed(metrics.size());
+            zingQueue.incrementProcessed(fm.size());
+        } catch (ZingMetricErrorException e) {
+            MetricErrorCollection c = e.getErrorCollection();
+            int errorCount = c.getMetricErrorCount();
+            zingQueue.incrementRejected(errorCount);
+            zingQueue.incrementProcessed(fm.size());
         } catch (Exception e) {
             zingQueue.incrementError(fm.size());
             zingQueue.reAddAll(fm);
