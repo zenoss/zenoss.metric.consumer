@@ -3,7 +3,7 @@
 JVM_ARGS="$JVM_ARGS"
 JVM_XMX="-Xmx1024m"
 
-LIBDIR=lib/${project.artifactId}
+LIBDIR=/opt/zenoss/lib/${project.artifactId}
 ZAPP_JAR=${LIBDIR}/${project.artifactId}-${project.version}.jar
 
 if [ -f ${ZAPP_JAR} ]; then
