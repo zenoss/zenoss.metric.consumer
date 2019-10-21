@@ -52,7 +52,9 @@ public class MetricWebSocket {
 
     private ConsumerAppConfiguration configuration;
 
-    private final WeakHashMap<WebSocket.Connection, BinaryDecoder> decoders = new WeakHashMap<>();
+    private final Map<WebSocket.Connection, BinaryDecoder> decoders = Collections.synchronizedMap(
+        new WeakHashMap<WebSocket.Connection, BinaryDecoder>()
+    );
     private final AtomicLong sequence = new AtomicLong();
     private final LoadingCache<WebSocketSession, String> connectionIds = CacheBuilder
             .newBuilder()
@@ -64,7 +66,9 @@ public class MetricWebSocket {
                     return String.format("websocket%d",sequence.incrementAndGet());
                 }
             }));
-    private final WeakHashMap<WebSocketSession, String> tenantIds = new WeakHashMap<>();
+    private final Map<WebSocketSession, String> tenantIds = Collections.synchronizedMap(
+        new WeakHashMap<WebSocketSession, String>()
+    );
 
     @Autowired
     public MetricWebSocket(
@@ -100,10 +104,13 @@ public class MetricWebSocket {
     @OnMessage
     public Control onMessage(byte[] data, WebSocketSession session) throws Exception {
         try {
-            BinaryDecoder decoder = decoders.get(session.getConnection());
-            if (decoder == null) {
-                decoder = new BinaryDecoder();
-                decoders.put(session.getConnection(), decoder);
+            BinaryDecoder decoder;
+            synchronized(decoders) {
+                decoder = decoders.get(session.getConnection());
+                if (decoder == null) {
+                    decoder = new BinaryDecoder();
+                    decoders.put(session.getConnection(), decoder);
+                }
             }
             try {
                 return onMessage(decoder.decode(data), session);
@@ -145,14 +152,16 @@ public class MetricWebSocket {
 
                 //tag metrics with tenant id (obviously, tenant-id's identified through authentication)
                 if (configuration.isAuthEnabled()) {
-                    if (!tenantIds.containsKey(session)) {
-                        Subject subject = session.getSubject();
-                        ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
-                        tenantIds.put(session, tenant.id());
+                    synchronized(tenantIds) {
+                        if (!tenantIds.containsKey(session)) {
+                            Subject subject = session.getSubject();
+                            ZenossTenant tenant = subject.getPrincipals().oneByType(ZenossTenant.class);
+                            tenantIds.put(session, tenant.id());
+                        }
+                        String tenantId = tenantIds.get(session);
+                        log.debug("Tagging metrics with tenant_id: {}", tenantId);
+                        Utils.injectTag("zenoss_tenant_id", tenantId, metricList);
                     }
-                    String tenantId = tenantIds.get(session);
-                    log.debug("Tagging metrics with tenant_id: {}", tenantId);
-                    Utils.injectTag("zenoss_tenant_id", tenantId, metricList);
                 }
 
                 //filter tags using configuration white lists
