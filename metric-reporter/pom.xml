@@ -13,6 +13,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+        <dependency>
             <groupId>org.zenoss</groupId>
             <artifactId>metric-data</artifactId>
             <version>${project.version}</version>
