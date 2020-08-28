@@ -154,7 +154,7 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         addMetric("jvm", "daemon_thread_count", vm.daemonThreadCount(), batchContext);
         addMetric("jvm", "thread_count", vm.threadCount(), batchContext);
         addMetric("jvm", "uptime", vm.uptime(), batchContext);
-        addMetric("jvm", "fd_usage", vm.fileDescriptorUsage(), batchContext);
+        //addMetric("jvm", "fd_usage", vm.fileDescriptorUsage(), batchContext);
 
         for (Entry<State, Double> entry : vm.threadStatePercentages().entrySet()) {
             addMetric("jvm.thread-states", entry.getKey().toString().toLowerCase(), entry.getValue(), batchContext);

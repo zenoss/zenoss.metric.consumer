@@ -14,21 +14,27 @@ import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import io.dropwizard.jackson.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.*;
+import static io.dropwizard.testing.FixtureHelpers.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+
 public class MetricTest {
+
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
 
     @Test
     public void serializesToJSON() throws Exception {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric("metric", 0, 0.0, tags);
-        assertThat(asJson(metric), is(jsonFixture("fixtures/metric.json")));
+        final String expected = MAPPER.writeValueAsString(MAPPER.readValue(fixture("fixtures/metric.json"), Metric.class));
+        assertThat(MAPPER.writeValueAsString(metric), is(expected));
     }
 
 
@@ -37,7 +43,7 @@ public class MetricTest {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric("metric", 0, 0.0, tags);
-        assertThat(fromJson(jsonFixture("fixtures/metric.json"), Metric.class), is(metric));
+        assertThat(MAPPER.readValue("fixtures/metric.json", Metric.class), is(metric));
     }
 
 
@@ -46,7 +52,7 @@ public class MetricTest {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric();
-        assertThat(fromJson(jsonFixture("fixtures/badmetric.json"), Metric.class), is(metric));
+        assertThat(MAPPER.readValue("fixtures/badmetric.json", Metric.class), is(metric));
     }
 
     @Test

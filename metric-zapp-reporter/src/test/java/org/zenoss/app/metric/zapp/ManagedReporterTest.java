@@ -12,8 +12,8 @@ package org.zenoss.app.metric.zapp;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.yammer.dropwizard.config.Environment;
-import com.yammer.dropwizard.json.ObjectMapperFactory;
+import io.dropwizard.config.Environment;
+import io.dropwizard.json.ObjectMapperFactory;
 import com.yammer.metrics.core.MetricPredicate;
 import org.junit.Assert;
 import org.junit.Before;

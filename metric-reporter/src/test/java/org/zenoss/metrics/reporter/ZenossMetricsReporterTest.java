@@ -26,7 +26,7 @@ import java.io.OutputStreamWriter;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
+import static io.dropwizard.testing.JsonHelpers.asJson;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 

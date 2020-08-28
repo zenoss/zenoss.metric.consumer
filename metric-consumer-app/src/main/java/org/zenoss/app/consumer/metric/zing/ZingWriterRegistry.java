@@ -23,7 +23,7 @@ import java.util.Collection;
  * when the dropwizard container is shutting down.
  */
 @Managed
-class ZingWriterRegistry implements com.yammer.dropwizard.lifecycle.Managed {
+class ZingWriterRegistry implements io.dropwizard.lifecycle.Managed {
 
     private static final Logger log = LoggerFactory.getLogger(ZingWriterRegistry.class);
 

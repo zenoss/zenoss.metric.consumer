@@ -10,20 +10,24 @@
  */
 package org.zenoss.app.consumer.metric.data;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.dropwizard.jackson.Jackson;
 import org.junit.Test;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.fromJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.jsonFixture;
+
+import static io.dropwizard.testing.FixtureHelpers.*;;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class ControlTest {
 
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
+
     @Test
     public void serializesToJSON() throws Exception {
         final Control message = new Control(Control.Type.OK, "control-value");
-        assertThat(asJson(message), is(jsonFixture("fixtures/control.json")));
+        final String expected = MAPPER.writeValueAsString(MAPPER.readValue(fixture("fixtures/control.json"), Metric.class));
+        assertThat(MAPPER.writeValueAsString(message), is(expected));
     }
 
 

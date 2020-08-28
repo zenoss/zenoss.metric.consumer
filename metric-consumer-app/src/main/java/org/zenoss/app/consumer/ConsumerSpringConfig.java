@@ -10,7 +10,8 @@
  */
 package org.zenoss.app.consumer;
 
-import com.yammer.dropwizard.config.Environment;
+import io.dropwizard.setup.Environment;
+import io.dropwizard.util.Duration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -40,11 +41,11 @@ class ConsumerSpringConfig {
     @Bean
     @Qualifier("zapp::executor::metrics")
     ExecutorService metricsExecutorService() {
-        return dropwizardEnvironment.managedExecutorService(
-                "Consumer Executor %d", 
-                metricsServiceConfiguration().getThreadPoolSize(), 
-                metricsServiceConfiguration().getThreadPoolSize(), 
-                5, TimeUnit.SECONDS);
+        return dropwizardEnvironment.lifecycle().executorService("Consumer Executor %d")
+                .minThreads(metricsServiceConfiguration().getThreadPoolSize())
+                .maxThreads(metricsServiceConfiguration().getThreadPoolSize())
+                .keepAliveTime(Duration.seconds(5))
+                .build();
         
     }
     
@@ -68,11 +69,11 @@ class ConsumerSpringConfig {
     ExecutorService zingExecutorService() {
         // Note that ZingQueue is unbounded, so there's no point in having separate min/max thread pool sizes
         ZingConfiguration zingConfig = metricsServiceConfiguration().getZingConfiguration();
-        return dropwizardEnvironment.managedExecutorService(
-                "Zing Executor %d",
-                zingConfig.getThreadPoolSize(),
-                zingConfig.getThreadPoolSize(),
-                5, TimeUnit.SECONDS);
+        return dropwizardEnvironment.lifecycle().executorService("Zing Executor %d")
+                .minThreads(zingConfig.getThreadPoolSize())
+                .maxThreads(zingConfig.getThreadPoolSize())
+                .keepAliveTime(Duration.seconds(5))
+                .build();
 
     }
 
@@ -80,9 +81,9 @@ class ConsumerSpringConfig {
     @Qualifier("zapp::executor::scheduled")
     ScheduledExecutorService scheduledExecutorService() {
         // The scheduler only runs once, so it doesn't need a pool bigger than 1
-        return dropwizardEnvironment.managedScheduledExecutorService(
-                "Scheduled Executor %d",
-                1);
+        return dropwizardEnvironment.lifecycle().scheduledExecutorService("Scheduled Executor %d")
+                .threads(1)
+                .build();
     }
 
 }

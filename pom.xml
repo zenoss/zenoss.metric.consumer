@@ -11,7 +11,7 @@
         <version.zapp>0.0.22</version.zapp>
         <version.junit>4.11</version.junit>
         <version.jersey>1.17.1</version.jersey>
-        <version.dropwizard>0.6.2</version.dropwizard>
+        <version.dropwizard>0.7.1</version.dropwizard>
         <version.guava>14.0.1</version.guava>
         <version.yammermetrics>2.2.0</version.yammermetrics>
         <version.metric.tsdb>0.0.12</version.metric.tsdb>
@@ -74,7 +74,7 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>com.yammer.dropwizard</groupId>
+                <groupId>io.dropwizard</groupId>
                 <artifactId>dropwizard-testing</artifactId>
                 <version>${version.dropwizard}</version>
                 <scope>test</scope>

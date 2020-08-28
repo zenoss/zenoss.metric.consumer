@@ -3,9 +3,13 @@ authEnabled: true
 logging:
     level: INFO
 
-http:
-  port: 8443
-  adminPort: 58443
+server:
+  applicationConnectors:
+    - type: http
+      port: 8443
+  adminConnectors:
+    - type: http
+      adminPort: 58443
   connectorType: nonblocking
   ssl:
       keyStore: ${ssl.cert.dir}/ssl.pfx
