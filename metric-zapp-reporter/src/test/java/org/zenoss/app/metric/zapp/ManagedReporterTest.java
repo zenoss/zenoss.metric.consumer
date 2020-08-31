@@ -12,8 +12,8 @@ package org.zenoss.app.metric.zapp;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.dropwizard.config.Environment;
-import io.dropwizard.json.ObjectMapperFactory;
+import io.dropwizard.setup.Environment;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yammer.metrics.core.MetricPredicate;
 import org.junit.Assert;
 import org.junit.Before;
@@ -73,8 +73,8 @@ public class ManagedReporterTest {
     @Before
     public void setup() throws Exception {
         when(env.getName()).thenReturn(ZAPP_NAME);
-        ObjectMapperFactory omf = mock(ObjectMapperFactory.class);
-        when(env.getObjectMapperFactory()).thenReturn(omf);
+        final ObjectMapper objectMapperFactory = mock(ObjectMapper.class);
+        when(env.getObjectMapper()).thenReturn(objectMapperFactory);
 
         when(config.getHost()).thenReturn(HOST);
         when(config.getPort()).thenReturn(PORT);

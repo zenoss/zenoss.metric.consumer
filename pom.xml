@@ -12,7 +12,7 @@
         <version.junit>4.11</version.junit>
         <version.jersey>1.17.1</version.jersey>
         <version.dropwizard>0.7.1</version.dropwizard>
-        <version.guava>14.0.1</version.guava>
+        <version.guava>16.0.1</version.guava>
         <version.yammermetrics>2.2.0</version.yammermetrics>
         <version.metric.tsdb>0.0.12</version.metric.tsdb>
         <version.httpcomponents></version.httpcomponents>

@@ -43,7 +43,7 @@ public class MetricTest {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric("metric", 0, 0.0, tags);
-        assertThat(MAPPER.readValue("fixtures/metric.json", Metric.class), is(metric));
+        assertThat(MAPPER.readValue(fixture("fixtures/metric.json"), Metric.class), is(metric));
     }
 
 
@@ -52,7 +52,8 @@ public class MetricTest {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric();
-        assertThat(MAPPER.readValue("fixtures/badmetric.json", Metric.class), is(metric));
+        String qwe = fixture("fixtures/badmetric.json");
+        assertThat(MAPPER.readValue(fixture("fixtures/badmetric.json"), Metric.class), is(metric));
     }
 
     @Test

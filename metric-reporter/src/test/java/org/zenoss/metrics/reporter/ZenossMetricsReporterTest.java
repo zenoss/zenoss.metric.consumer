@@ -10,12 +10,14 @@
  */
 package org.zenoss.metrics.reporter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.core.Clock;
 import com.yammer.metrics.core.MetricPredicate;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import com.yammer.metrics.reporting.tests.AbstractPollingReporterTest;
+import io.dropwizard.jackson.Jackson;
 import org.junit.Test;
 import org.zenoss.app.consumer.metric.data.Metric;
 import org.zenoss.metrics.reporter.ZenossMetricsReporter.Builder;
@@ -26,11 +28,13 @@ import java.io.OutputStreamWriter;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static io.dropwizard.testing.JsonHelpers.asJson;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
+
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
+
     @Override
     protected AbstractPollingReporter createReporter(MetricsRegistry metricsRegistry, OutputStream outputStream, final Clock clock) throws Exception {
         final OutputStreamWriter ow = new OutputStreamWriter(outputStream);
@@ -39,7 +43,7 @@ public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
             @Override
             public void post(MetricBatch batch) throws IOException {
                 for (Metric m : batch.getMetrics()) {
-                    ow.append(asJson(m)).append("\n");
+                    ow.append(MAPPER.writeValueAsString(m)).append("\n");
                 }
                 ow.flush();
             }

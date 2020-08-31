@@ -26,7 +26,7 @@ public class ControlTest {
     @Test
     public void serializesToJSON() throws Exception {
         final Control message = new Control(Control.Type.OK, "control-value");
-        final String expected = MAPPER.writeValueAsString(MAPPER.readValue(fixture("fixtures/control.json"), Metric.class));
+        final String expected = MAPPER.writeValueAsString(MAPPER.readValue(fixture("fixtures/control.json"), Control.class));
         assertThat(MAPPER.writeValueAsString(message), is(expected));
     }
 
@@ -34,6 +34,6 @@ public class ControlTest {
     @Test
     public void deserializesFromJSON() throws Exception {
         final Control message = new Control(Control.Type.OK, "control-value");
-        assertThat(fromJson(jsonFixture("fixtures/control.json"), Control.class), is(message));
+        assertThat(MAPPER.readValue(fixture("fixtures/control.json"), Control.class), is(message));
     }
 }

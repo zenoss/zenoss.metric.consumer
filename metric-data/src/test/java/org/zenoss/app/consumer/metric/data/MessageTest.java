@@ -10,6 +10,8 @@
  */
 package org.zenoss.app.consumer.metric.data;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.dropwizard.jackson.Jackson;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -21,6 +23,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class MessageTest {
 
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
+
     @Test
     public void serializesToJSON() throws Exception {
         Control control = new Control( );
@@ -28,7 +32,8 @@ public class MessageTest {
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
         Message message = new Message( control, new Metric[]{ metric});
-        assertThat(asJson(message), is(fixture("fixtures/message.json")));
+        final String expected = MAPPER.writeValueAsString(MAPPER.readValue(fixture("fixtures/message.json"), Metric.class));
+        assertThat(MAPPER.writeValueAsString(message), is(expected));
     }
 
 
@@ -39,6 +44,6 @@ public class MessageTest {
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
         Message message = new Message( control, new Metric[]{ metric});
-        assertThat(fromJson(jsonFixture("fixtures/message.json"), Message.class), is(message));
+        assertThat(MAPPER.readValue("fixtures/message.json", Message.class), is(message));
     }
 }
