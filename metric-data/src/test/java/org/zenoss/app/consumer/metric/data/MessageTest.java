@@ -32,7 +32,7 @@ public class MessageTest {
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
         Message message = new Message( control, new Metric[]{ metric});
-        final String expected = MAPPER.writeValueAsString(MAPPER.readValue(fixture("fixtures/message.json"), Metric.class));
+        final String expected = MAPPER.writeValueAsString(MAPPER.readValue(fixture("fixtures/message.json"), Message.class));
         assertThat(MAPPER.writeValueAsString(message), is(expected));
     }
 
@@ -44,6 +44,6 @@ public class MessageTest {
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
         Message message = new Message( control, new Metric[]{ metric});
-        assertThat(MAPPER.readValue("fixtures/message.json", Message.class), is(message));
+        assertThat(MAPPER.readValue(fixture("fixtures/message.json"), Message.class), is(message));
     }
 }

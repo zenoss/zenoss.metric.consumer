@@ -52,7 +52,6 @@ public class MetricTest {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric();
-        String qwe = fixture("fixtures/badmetric.json");
         assertThat(MAPPER.readValue(fixture("fixtures/badmetric.json"), Metric.class), is(metric));
     }
 
