@@ -15,13 +15,16 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.fromJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.jsonFixture;
+import static io.dropwizard.testing.FixtureHelpers.fixture;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import io.dropwizard.jackson.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class MessageTest {
+
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
 
     @Test
     public void serializesToJSON() throws Exception {
@@ -29,8 +32,14 @@ public class MessageTest {
         Map<String, String> tags = new HashMap<>();
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
-        Message message = new Message( control, new Metric[]{ metric});
-        assertThat(asJson(message), is(jsonFixture("fixtures/message.json")));
+        final Message message = new Message(control, new Metric[]{metric});
+
+        final String actual = MAPPER.writeValueAsString(message);
+        final String expected = MAPPER.writeValueAsString(
+            MAPPER.readValue(fixture("fixtures/message.json"), Message.class)
+        );
+
+        assertThat(actual, is(expected));
     }
 
 
@@ -40,7 +49,10 @@ public class MessageTest {
         Map<String, String> tags = new HashMap<>();
         tags.put( "tagName", "tagValue");
         Metric metric = new Metric("metric", 0, 0.0, tags);
-        Message message = new Message( control, new Metric[]{ metric});
-        assertThat(fromJson(jsonFixture("fixtures/message.json"), Message.class), is(message));
+
+        final Message actual = new Message( control, new Metric[]{ metric});
+        final Message expected = MAPPER.readValue(fixture("fixtures/message.json"), Message.class);
+
+        assertThat(actual, is(expected));
     }
 }

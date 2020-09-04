@@ -18,10 +18,10 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
+            <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-core</artifactId>
             <version>${version.dropwizard}</version>
-	    <scope>provided</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.yammer.metrics</groupId>
@@ -35,8 +35,14 @@
         </dependency>
         <!--test-->
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
+            <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-testing</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.yammer.metrics</groupId>
@@ -46,12 +52,21 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-util</artifactId>
+            <version>8.1.22.v20160922</version>
+        </dependency>
+        <dependency>
             <groupId>com.github.tomakehurst</groupId>
             <artifactId>wiremock</artifactId>
             <version>1.33</version>
             <scope>test</scope>
-            <!-- Include this if you have dependency conflicts for Guava, Jetty, Jackson or Apache HTTP Client -->
+            <!--
+            Include this if you have dependency conflicts for Guava,
+            Jetty, Jackson or Apache HTTP Client
+            -->
             <classifier>standalone</classifier>
         </dependency>
     </dependencies>
+
 </project>

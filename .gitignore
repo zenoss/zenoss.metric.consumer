@@ -16,3 +16,7 @@ target/
 
 #build stuff
 .extracted
+.project
+.settings
+.classpath
+.factorypath

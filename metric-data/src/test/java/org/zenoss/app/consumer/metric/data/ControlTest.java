@@ -12,24 +12,34 @@ package org.zenoss.app.consumer.metric.data;
 
 import org.junit.Test;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.fromJson;
-import static com.yammer.dropwizard.testing.JsonHelpers.jsonFixture;
+import static io.dropwizard.testing.FixtureHelpers.fixture;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import io.dropwizard.jackson.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class ControlTest {
+
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
 
     @Test
     public void serializesToJSON() throws Exception {
         final Control message = new Control(Control.Type.OK, "control-value");
-        assertThat(asJson(message), is(jsonFixture("fixtures/control.json")));
-    }
 
+        final String actual = MAPPER.writeValueAsString(message);
+        final String expected = MAPPER.writeValueAsString(
+            MAPPER.readValue(fixture("fixtures/control.json"), Control.class)
+        );
+
+        assertThat(actual, is(expected));
+    }
 
     @Test
     public void deserializesFromJSON() throws Exception {
-        final Control message = new Control(Control.Type.OK, "control-value");
-        assertThat(fromJson(jsonFixture("fixtures/control.json"), Control.class), is(message));
+        final Control actual = new Control(Control.Type.OK, "control-value");
+        final Control expected = MAPPER.readValue(fixture("fixtures/control.json"), Control.class);
+
+        assertThat(actual, is(expected));
     }
 }
