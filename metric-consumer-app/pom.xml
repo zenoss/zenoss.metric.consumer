@@ -104,17 +104,25 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.1</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>1.2.1</version>
+                <version>3.0.0</version>
                 <configuration>
-                    <mainClass>org.zenoss.app.consumer.ConsumerApp</mainClass>
+                    <executable>java</executable>
                     <arguments>
+                        <argument>--add-opens</argument>
+                        <argument>java.base/jdk.internal.misc=ALL-UNNAMED</argument>
+                        <argument>--add-opens</argument>
+                        <argument>java.base/java.lang=ALL-UNNAMED</argument>
+                        <argument>--add-opens</argument>
+                        <argument>jdk.management/com.sun.management.internal=ALL-UNNAMED</argument>
+                        <argument>-jar</argument>
+                        <argument>${project.build.directory}/${project.artifactId}-${project.parent.version}.jar</argument>
                         <argument>server</argument>
                         <argument>${project.build.directory}/etc/configuration.yaml</argument>
                     </arguments>
@@ -221,6 +229,9 @@
                        <version>4.1.2</version>
                     </dependency>
                 </dependencies>
+                <configuration>
+                    <failThreshold>High</failThreshold>
+                </configuration>
                 <executions>
                     <execution>
                         <id>check-for-bugs</id>
