@@ -211,9 +211,16 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>findbugs-maven-plugin</artifactId>
-                <version>3.0.1</version>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.0.4</version>
+                <dependencies>
+                    <dependency>
+                       <groupId>com.github.spotbugs</groupId>
+                       <artifactId>spotbugs</artifactId>
+                       <version>4.1.2</version>
+                    </dependency>
+                </dependencies>
                 <executions>
                     <execution>
                         <id>check-for-bugs</id>

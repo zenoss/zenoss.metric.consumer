@@ -140,6 +140,7 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <haltOnFailure>False</haltOnFailure>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
