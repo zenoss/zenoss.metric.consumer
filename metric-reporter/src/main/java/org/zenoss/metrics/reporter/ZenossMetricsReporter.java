@@ -36,6 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
 import java.lang.Thread.State;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,6 +46,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
+
+import com.sun.management.UnixOperatingSystemMXBean;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -154,7 +158,14 @@ public class ZenossMetricsReporter extends AbstractPollingReporter implements Me
         addMetric("jvm", "daemon_thread_count", vm.daemonThreadCount(), batchContext);
         addMetric("jvm", "thread_count", vm.threadCount(), batchContext);
         addMetric("jvm", "uptime", vm.uptime(), batchContext);
-        addMetric("jvm", "fd_usage", vm.fileDescriptorUsage(), batchContext);
+
+        OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
+        if (os instanceof UnixOperatingSystemMXBean) {
+            UnixOperatingSystemMXBean uxos = (UnixOperatingSystemMXBean) os;
+            long max = uxos.getMaxFileDescriptorCount();
+            long used = uxos.getOpenFileDescriptorCount();
+            addMetric("jvm", "fd_usage", (double) used / max, batchContext);
+        }
 
         for (Entry<State, Double> entry : vm.threadStatePercentages().entrySet()) {
             addMetric("jvm.thread-states", entry.getKey().toString().toLowerCase(), entry.getValue(), batchContext);

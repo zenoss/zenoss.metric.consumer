@@ -26,20 +26,30 @@ import java.io.OutputStreamWriter;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.asJson;
+import static io.dropwizard.testing.FixtureHelpers.fixture;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import io.dropwizard.jackson.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+
 public class ZenossMetricsReporterTest extends AbstractPollingReporterTest {
+
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
+
     @Override
-    protected AbstractPollingReporter createReporter(MetricsRegistry metricsRegistry, OutputStream outputStream, final Clock clock) throws Exception {
+    protected AbstractPollingReporter createReporter(
+        MetricsRegistry metricsRegistry, OutputStream outputStream, final Clock clock
+    ) throws Exception {
         final OutputStreamWriter ow = new OutputStreamWriter(outputStream);
 
         MetricPoster poster = new MetricPoster() {
             @Override
             public void post(MetricBatch batch) throws IOException {
                 for (Metric m : batch.getMetrics()) {
-                    ow.append(asJson(m)).append("\n");
+                    String json = MAPPER.writeValueAsString(m);
+                    ow.append(json).append("\n");
                 }
                 ow.flush();
             }

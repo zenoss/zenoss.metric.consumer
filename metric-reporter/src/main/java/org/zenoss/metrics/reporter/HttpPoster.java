@@ -97,7 +97,6 @@ public class HttpPoster implements MetricPoster {
     }
 
     private final void postImpl(MetricBatch batch) throws IOException {
-        int size = batch.getMetrics().size();
         MetricCollection metrics = new MetricCollection();
         metrics.setMetrics(batch.getMetrics());
 
