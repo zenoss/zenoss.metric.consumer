@@ -15,38 +15,38 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.yammer.dropwizard.testing.JsonHelpers.*;
+import static io.dropwizard.testing.FixtureHelpers.fixture;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import io.dropwizard.jackson.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+
 public class MetricTest {
+
+    private static final ObjectMapper MAPPER = Jackson.newObjectMapper();
 
     @Test
     public void serializesToJSON() throws Exception {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
         final Metric metric = new Metric("metric", 0, 0.0, tags);
-        assertThat(asJson(metric), is(jsonFixture("fixtures/metric.json")));
+        final String actual = MAPPER.writeValueAsString(metric);
+        final String expected = MAPPER.writeValueAsString(
+            MAPPER.readValue(fixture("fixtures/metric.json"), Metric.class)
+        );
+        assertThat(actual, is(expected));
     }
-
 
     @Test
     public void deserializesFromJSON() throws Exception {
         Map<String, String> tags = new HashMap<>();
         tags.put("tagName", "tagValue");
-        final Metric metric = new Metric("metric", 0, 0.0, tags);
-        assertThat(fromJson(jsonFixture("fixtures/metric.json"), Metric.class), is(metric));
-    }
-
-
-    @Test
-    public void deserializesFromJSONError() throws Exception {
-        Map<String, String> tags = new HashMap<>();
-        tags.put("tagName", "tagValue");
-        final Metric metric = new Metric();
-        assertThat(fromJson(jsonFixture("fixtures/badmetric.json"), Metric.class), is(metric));
+        final Metric actual = new Metric("metric", 0, 0.0, tags);
+        final Metric expected = MAPPER.readValue(fixture("fixtures/metric.json"), Metric.class);
+        assertThat(actual, is(expected));
     }
 
     @Test
@@ -55,9 +55,9 @@ public class MetricTest {
         tags.put("tagName", "tagValue");
         final Metric originalMetric = new Metric("testMetric", 1, 2.3, tags);
         final Metric copyMetric = new Metric(originalMetric);
-        assertThat(originalMetric, equalTo(copyMetric));
+        assertThat(originalMetric, is(copyMetric));
         copyMetric.getTags().put("tagName","newtagValue");
-        assertThat(originalMetric,not(equalTo(copyMetric)));
+        assertThat(originalMetric,not(is(copyMetric)));
     }
 
 }

@@ -63,20 +63,20 @@ class OpenTsdbWriterManager {
     @Subscribe
     public void processControl(Control event) {
         log.debug("Received event {}", event.getType());
-        switch (event.getType()) {
-            case LOW_COLLISION:
-            case HIGH_COLLISION:
-            case DATA_RECEIVED:
-                long now = System.currentTimeMillis();
-                long lastCheckTimeExpected = lastCheckTime.get();
-                
-                if (now > lastCheckTimeExpected + minTimeBetweenChecks &&
-                        lastCheckTime.compareAndSet(lastCheckTimeExpected, now)) {
-                    createWriters();
-                }
-                break;
-                
-            default:
+        Control.Type type = event.getType();
+        if (
+            type == Control.Type.LOW_COLLISION ||
+            type == Control.Type.HIGH_COLLISION ||
+            type == Control.Type.DATA_RECEIVED
+        ) {
+            long now = System.currentTimeMillis();
+            long lastCheckTimeExpected = lastCheckTime.get();
+            if (
+                now > lastCheckTimeExpected + minTimeBetweenChecks &&
+                lastCheckTime.compareAndSet(lastCheckTimeExpected, now)
+            ) {
+                createWriters();
+            }
         }
     }
     

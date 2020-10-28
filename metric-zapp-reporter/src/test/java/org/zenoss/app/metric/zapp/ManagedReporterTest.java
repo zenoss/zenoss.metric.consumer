@@ -24,7 +24,6 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.context.ApplicationContext;
 import org.zenoss.app.AppConfiguration;
 import org.zenoss.app.ZenossCredentials;
-import org.zenoss.app.config.ProxyConfiguration;
 import org.zenoss.metrics.reporter.HttpPoster;
 import org.zenoss.metrics.reporter.HttpPoster.Builder;
 import org.zenoss.metrics.reporter.MetricPoster;
@@ -35,7 +34,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.*;
 
@@ -224,7 +222,6 @@ public class ManagedReporterTest {
     public void testStartStop() throws Exception {
         ZenossMetricsReporter zmr = mock(ZenossMetricsReporter.class);
         List<ZenossMetricsReporter> zmrs = Lists.newArrayList(zmr);
-        MetricReporterConfig mrc = mock(MetricReporterConfig.class);
         ManagedReporter mr = spy(new ManagedReporter(appContext, appConfig, env));
         when(mr.getMetricReporters()).thenReturn(zmrs);
 

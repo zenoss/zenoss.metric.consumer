@@ -5,7 +5,7 @@
     <parent>
         <artifactId>metric-consumer-parent</artifactId>
         <groupId>org.zenoss</groupId>
-        <version>0.1.13</version>
+        <version>0.1.14</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.zenoss</groupId>
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.16.18</version>
+            <version>1.16.22</version>
             <scope>provided</scope>
         </dependency>
         <!--test scope-->
@@ -65,11 +65,13 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.yammer.dropwizard</groupId>
+            <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-testing</artifactId>
+            <scope>test</scope>
         </dependency>
         <!--runtime-->
         <dependency>
@@ -102,17 +104,25 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.1</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>1.2.1</version>
+                <version>3.0.0</version>
                 <configuration>
-                    <mainClass>org.zenoss.app.consumer.ConsumerApp</mainClass>
+                    <executable>java</executable>
                     <arguments>
+                        <argument>--add-opens</argument>
+                        <argument>java.base/jdk.internal.misc=ALL-UNNAMED</argument>
+                        <argument>--add-opens</argument>
+                        <argument>java.base/java.lang=ALL-UNNAMED</argument>
+                        <argument>--add-opens</argument>
+                        <argument>jdk.management/com.sun.management.internal=ALL-UNNAMED</argument>
+                        <argument>-jar</argument>
+                        <argument>${project.build.directory}/${project.artifactId}-${project.parent.version}.jar</argument>
                         <argument>server</argument>
                         <argument>${project.build.directory}/etc/configuration.yaml</argument>
                     </arguments>
@@ -143,18 +153,14 @@
                         </goals>
                         <configuration>
                             <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>org.zenoss.app.consumer.ConsumerApp</mainClass>
                                 </transformer>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                                     <resource>META-INF/spring.handlers</resource>
                                 </transformer>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                                     <resource>META-INF/spring.schemas</resource>
                                 </transformer>
                             </transformers>
@@ -165,7 +171,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>keytool-maven-plugin</artifactId>
-                <version>1.0</version>
+                <version>1.5</version>
                 <executions>
                     <execution>
                         <phase>generate-resources</phase>
@@ -178,7 +184,7 @@
                         <phase>generate-resources</phase>
                         <id>genkey</id>
                         <goals>
-                            <goal>genkey</goal>
+                            <goal>generateKeyPair</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -213,9 +219,19 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>findbugs-maven-plugin</artifactId>
-                <version>3.0.1</version>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.0.4</version>
+                <dependencies>
+                    <dependency>
+                       <groupId>com.github.spotbugs</groupId>
+                       <artifactId>spotbugs</artifactId>
+                       <version>4.1.2</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <failThreshold>High</failThreshold>
+                </configuration>
                 <executions>
                     <execution>
                         <id>check-for-bugs</id>

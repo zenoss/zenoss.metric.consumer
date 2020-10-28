@@ -1,0 +1,11 @@
+from centos:7
+
+RUN yum -y install sudo java-11-openjdk-devel make git wget which
+RUN wget https://apache.cs.utah.edu/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz -O /tmp/maven.tar.gz
+RUN tar xf /tmp/maven.tar.gz -C /opt
+RUN echo "export PATH=/opt/apache-maven-3.6.3/bin:$PATH" > /etc/profile.d/java.sh
+RUN echo "export JAVA_HOME="$(readlink -f $(which java) | sed -e "s|/bin/java$||") >> /etc/profile.d/java.sh
+
+RUN groupadd -f -g %GID% build
+RUN useradd -d /home/build -m -s /bin/bash -u %UID% -g %GID% build 
+RUN echo "build ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
